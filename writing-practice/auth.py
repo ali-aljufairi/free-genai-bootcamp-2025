@@ -46,3 +46,7 @@ def verify_bearer(authorization: str | None = Header(default=None)):
         raise
     except Exception:
         raise HTTPException(status_code=401, detail="Invalid token")
+
+
+
+
