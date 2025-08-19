@@ -1,0 +1,853 @@
+openapi: 3.0.3
+info:
+  title: User Management API
+  description: API endpoints for user management, settings, roles, and subscriptions
+  version: 2.0.0
+  contact:
+    name: Sorami Language Portal
+    email: support@sorami.com
+
+servers:
+  - url: /api/v2
+    description: API v2 base path
+
+paths:
+  /users/{id}/profile:
+    get:
+      summary: Get user profile
+      description: Get complete user profile information including settings, roles, and subscription
+      tags:
+        - User Management
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: User ID
+      responses:
+        '200':
+          description: User profile retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        '400':
+          description: Bad request - Invalid user ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /users:
+    post:
+      summary: Create a new user
+      description: Create a new user with default settings and student role
+      tags:
+        - User Management
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserRequest'
+      responses:
+        '201':
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          description: Bad request - Invalid input data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /users/{id}:
+    put:
+      summary: Update user information
+      description: Update user profile information
+      tags:
+        - User Management
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: User ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRequest'
+      responses:
+        '200':
+          description: User updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessMessage'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /users/{id}/settings:
+    get:
+      summary: Get user settings
+      description: Get user preferences and study settings
+      tags:
+        - User Management
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: User ID
+      responses:
+        '200':
+          description: User settings retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserSettings'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: User settings not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      summary: Update user settings
+      description: Update user preferences and study settings
+      tags:
+        - User Management
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: User ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserSettingsRequest'
+      responses:
+        '200':
+          description: User settings updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserSettings'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /users/{id}/roles:
+    get:
+      summary: Get user roles
+      description: Get all roles assigned to a user
+      tags:
+        - User Management
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: User ID
+      responses:
+        '200':
+          description: User roles retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserRole'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      summary: Assign role to user
+      description: Assign a specific role to a user
+      tags:
+        - User Management
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: User ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignRoleRequest'
+      responses:
+        '200':
+          description: Role assigned successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessMessage'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /users/{id}/subscription:
+    get:
+      summary: Get user subscription
+      description: Get user's active subscription
+      tags:
+        - User Management
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: User ID
+      responses:
+        '200':
+          description: User subscription retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subscription'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: No active subscription found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      summary: Create user subscription
+      description: Create a new subscription for a user
+      tags:
+        - User Management
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: User ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSubscriptionRequest'
+      responses:
+        '201':
+          description: Subscription created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subscription'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+         put:
+       summary: Update user subscription
+       description: Update subscription status and details
+       tags:
+         - User Management
+       parameters:
+         - name: id
+           in: path
+           required: true
+           schema:
+             type: integer
+             format: int64
+           description: User ID
+       requestBody:
+         required: true
+         content:
+           application/json:
+             schema:
+               $ref: '#/components/schemas/UpdateSubscriptionRequest'
+       responses:
+         '200':
+           description: Subscription updated successfully
+           content:
+             application/json:
+               schema:
+                 $ref: '#/components/schemas/SuccessMessage'
+         '400':
+           description: Bad request
+           content:
+             application/json:
+               schema:
+                 $ref: '#/components/schemas/Error'
+         '500':
+           description: Internal server error
+           content:
+             application/json:
+               schema:
+                 $ref: '#/components/schemas/Error'
+
+  /users/{id}/assess-jlpt:
+    post:
+      summary: Assess user JLPT level
+      description: Assess the user's JLPT level based on their performance
+      tags:
+        - User Management
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: User ID
+      responses:
+        '200':
+          description: JLPT level assessed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JLPTAssessmentResult'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /users/{id}/jlpt-level:
+    get:
+      summary: Get user JLPT level
+      description: Get the current JLPT level for a user
+      tags:
+        - User Management
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: User ID
+      responses:
+        '200':
+          description: JLPT level retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JLPTLevelResult'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /users/{id}/reset-srs:
+    post:
+      summary: Reset user SRS progress
+      description: Reset the user's spaced repetition system progress
+      tags:
+        - User Management
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: User ID
+      responses:
+        '200':
+          description: SRS progress reset successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SRSResetResult'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: User ID
+        clerk_id:
+          type: string
+          format: uuid
+          description: Clerk authentication ID
+        email:
+          type: string
+          format: email
+          description: User email address
+        display_name:
+          type: string
+          nullable: true
+          description: User display name
+        stripe_customer_id:
+          type: string
+          nullable: true
+          description: Stripe customer ID
+        created_at:
+          type: string
+          format: date-time
+          description: User creation timestamp
+        updated_at:
+          type: string
+          format: date-time
+          description: User last update timestamp
+      required:
+        - id
+        - clerk_id
+        - email
+        - created_at
+        - updated_at
+
+    UserSettings:
+      type: object
+      properties:
+        user_id:
+          type: integer
+          format: int64
+          description: User ID
+        hide_english:
+          type: boolean
+          default: false
+          description: Whether to hide English translations
+        srs_reset_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: SRS reset timestamp
+        ui_language:
+          type: string
+          default: "en"
+          description: UI language preference
+        timezone:
+          type: string
+          default: "UTC"
+          description: User timezone
+        daily_review_target:
+          type: integer
+          default: 20
+          minimum: 1
+          maximum: 100
+          description: Daily review target count
+        current_jlpt_level:
+          type: integer
+          default: 5
+          minimum: 1
+          maximum: 5
+          description: Current JLPT level
+        jlpt_level_assessed_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: JLPT level assessment timestamp
+        jlpt_level_assessment_method:
+          type: string
+          nullable: true
+          enum: [manual, automatic, exam]
+          description: JLPT level assessment method
+        created_at:
+          type: string
+          format: date-time
+          description: Settings creation timestamp
+        updated_at:
+          type: string
+          format: date-time
+          description: Settings last update timestamp
+      required:
+        - user_id
+        - hide_english
+        - ui_language
+        - timezone
+        - daily_review_target
+        - current_jlpt_level
+        - created_at
+        - updated_at
+
+    UserRole:
+      type: object
+      properties:
+        user_id:
+          type: integer
+          format: int64
+          description: User ID
+        role_id:
+          type: integer
+          description: Role ID
+        role_name:
+          type: string
+          enum: [admin, teacher, student]
+          description: Role name
+      required:
+        - user_id
+        - role_id
+        - role_name
+
+    Subscription:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Subscription ID
+        user_id:
+          type: integer
+          format: int64
+          description: User ID
+        stripe_subscription_id:
+          type: string
+          description: Stripe subscription ID
+        status:
+          type: string
+          enum: [active, past_due, canceled, incomplete, incomplete_expired, trialing, unpaid]
+          description: Subscription status
+        current_period_end:
+          type: string
+          format: date-time
+          nullable: true
+          description: Current period end date
+        created_at:
+          type: string
+          format: date-time
+          description: Subscription creation timestamp
+        updated_at:
+          type: string
+          format: date-time
+          description: Subscription last update timestamp
+      required:
+        - id
+        - user_id
+        - stripe_subscription_id
+        - status
+        - created_at
+        - updated_at
+
+    UserProfile:
+      type: object
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+        settings:
+          $ref: '#/components/schemas/UserSettings'
+        roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserRole'
+        subscription:
+          $ref: '#/components/schemas/Subscription'
+          nullable: true
+      required:
+        - user
+        - settings
+        - roles
+
+    CreateUserRequest:
+      type: object
+      properties:
+        clerk_id:
+          type: string
+          format: uuid
+          description: Clerk authentication ID
+        email:
+          type: string
+          format: email
+          description: User email address
+        display_name:
+          type: string
+          nullable: true
+          description: User display name
+      required:
+        - clerk_id
+        - email
+
+    UpdateUserRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          nullable: true
+          description: User email address
+        display_name:
+          type: string
+          nullable: true
+          description: User display name
+        stripe_customer_id:
+          type: string
+          nullable: true
+          description: Stripe customer ID
+
+    UpdateUserSettingsRequest:
+      type: object
+      properties:
+        hide_english:
+          type: boolean
+          nullable: true
+          description: Whether to hide English translations
+        srs_reset_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: SRS reset timestamp
+        ui_language:
+          type: string
+          nullable: true
+          description: UI language preference
+        timezone:
+          type: string
+          nullable: true
+          description: User timezone
+        daily_review_target:
+          type: integer
+          minimum: 1
+          maximum: 100
+          nullable: true
+          description: Daily review target count
+        current_jlpt_level:
+          type: integer
+          minimum: 1
+          maximum: 5
+          nullable: true
+          description: Current JLPT level
+        jlpt_level_assessed_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: JLPT level assessment timestamp
+        jlpt_level_assessment_method:
+          type: string
+          enum: [manual, automatic, exam]
+          nullable: true
+          description: JLPT level assessment method
+
+    AssignRoleRequest:
+      type: object
+      properties:
+        role_name:
+          type: string
+          enum: [admin, teacher, student]
+          description: Role name to assign
+      required:
+        - role_name
+
+    CreateSubscriptionRequest:
+      type: object
+      properties:
+        stripe_subscription_id:
+          type: string
+          description: Stripe subscription ID
+        status:
+          type: string
+          enum: [active, past_due, canceled, incomplete, incomplete_expired, trialing, unpaid]
+          description: Subscription status
+        current_period_end:
+          type: string
+          format: date-time
+          nullable: true
+          description: Current period end date
+      required:
+        - stripe_subscription_id
+        - status
+
+    UpdateSubscriptionRequest:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [active, past_due, canceled, incomplete, incomplete_expired, trialing, unpaid]
+          nullable: true
+          description: Subscription status
+        current_period_end:
+          type: string
+          format: date-time
+          nullable: true
+          description: Current period end date
+
+    JLPTAssessmentResult:
+      type: object
+      properties:
+        assessed_level:
+          type: integer
+          minimum: 1
+          maximum: 5
+          description: Assessed JLPT level
+        method:
+          type: string
+          enum: [manual, automatic, exam]
+          description: Assessment method used
+        message:
+          type: string
+          description: Assessment result message
+      required:
+        - assessed_level
+        - method
+        - message
+
+    JLPTLevelResult:
+      type: object
+      properties:
+        current_level:
+          type: integer
+          minimum: 1
+          maximum: 5
+          description: Current JLPT level
+        assessed_at:
+          type: string
+          format: date-time
+          description: When the level was last assessed
+        method:
+          type: string
+          enum: [manual, automatic, exam]
+          description: Assessment method used
+      required:
+        - current_level
+        - assessed_at
+        - method
+
+    SRSResetResult:
+      type: object
+      properties:
+        message:
+          type: string
+          description: Success message
+        reset_at:
+          type: string
+          format: date-time
+          description: When the SRS was reset
+      required:
+        - message
+        - reset_at
+
+    SuccessMessage:
+      type: object
+      properties:
+        message:
+          type: string
+          description: Success message
+      required:
+        - message
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+      required:
+        - error 
