@@ -15,6 +15,9 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./pg.sql:/docker-entrypoint-initdb.d/01-schema.sql
+      - ./postgresql.conf:/usr/lib/postgresql/17/main/postgresql.conf
+      - ./pg_hba.conf:/usr/lib/postgresql/17/main/pg_hba.conf
+
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sorami_user} -d ${POSTGRES_DB:-sorami}"]
       interval: 10s
@@ -48,25 +51,9 @@ services:
     profiles:
       - import
 
-  pgadmin:
-    image: dpage/pgadmin4:latest
-    container_name: sorami-pgadmin
-    restart: unless-stopped
-    environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@sorami.local}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:?Please set PGADMIN_DEFAULT_PASSWORD in .env file}
-      PGADMIN_CONFIG_SERVER_MODE: 'False'
-    ports:
-      - "8080:80"
-    volumes:
-      - pgadmin_data:/var/lib/pgadmin
-    depends_on:
-      postgres:
-        condition: service_healthy
 
 volumes:
   postgres_data:
-  pgadmin_data:
 
 networks:
   default:

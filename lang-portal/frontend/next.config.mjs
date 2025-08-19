@@ -49,6 +49,7 @@ if (process.env.NODE_ENV === 'development') {
     { source: '/api/vocab-importer/:path*', destination: 'http://localhost:8000/api/vocab-importer/:path*' },
     { source: '/api/writing/:path*', destination: 'http://localhost:8001/api/writing/:path*' },
     { source: '/api/langportal/:path*', destination: 'http://localhost:8080/api/langportal/:path*' },
+    { source: '/api/v2/:path*', destination: 'http://localhost:8080/api/v2/:path*' },
   ];
 }
 
