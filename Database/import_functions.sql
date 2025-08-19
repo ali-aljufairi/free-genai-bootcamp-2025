@@ -67,6 +67,39 @@ EXCEPTION
 END;
 $$ LANGUAGE plpgsql IMMUTABLE;
 
+-- Safe JSON decimal extraction
+CREATE OR REPLACE FUNCTION safe_jsonb_extract_decimal(json_data JSONB, key TEXT)
+RETURNS DECIMAL AS $$
+BEGIN
+    -- Handle null or invalid JSON
+    IF json_data IS NULL OR json_data = 'null'::jsonb OR NOT json_data ? key THEN
+        RETURN NULL;
+    END IF;
+    
+    -- Extract and validate decimal value
+    DECLARE
+        text_value TEXT := json_data ->> key;
+        result DECIMAL;
+    BEGIN
+        -- Handle empty or null string values
+        IF text_value IS NULL OR text_value = '' THEN
+            RETURN NULL;
+        END IF;
+        
+        -- Convert to decimal with validation
+        result := text_value::DECIMAL;
+        RETURN result;
+    END;
+EXCEPTION
+    WHEN invalid_text_representation THEN
+        RAISE WARNING 'Invalid decimal value for key "%": %', key, json_data ->> key;
+        RETURN NULL;
+    WHEN OTHERS THEN
+        RAISE WARNING 'Error extracting decimal key "%" from JSON: %', key, SQLERRM;
+        RETURN NULL;
+END;
+$$ LANGUAGE plpgsql IMMUTABLE;
+
 -- Safe JSON array extraction and conversion to PostgreSQL text array
 CREATE OR REPLACE FUNCTION safe_jsonb_extract_text_array(json_data JSONB, key TEXT)
 RETURNS TEXT[] AS $$
@@ -99,6 +132,48 @@ BEGIN
 EXCEPTION
     WHEN OTHERS THEN
         RAISE WARNING 'Error extracting array key "%" from JSON: %', key, SQLERRM;
+        RETURN NULL;
+END;
+$$ LANGUAGE plpgsql IMMUTABLE;
+
+-- Safe nested JSON decimal extraction
+CREATE OR REPLACE FUNCTION safe_jsonb_extract_nested_decimal(json_data JSONB, path TEXT[])
+RETURNS DECIMAL AS $$
+BEGIN
+    -- Handle null or invalid JSON
+    IF json_data IS NULL OR json_data = 'null'::jsonb THEN
+        RETURN NULL;
+    END IF;
+    
+    -- Navigate through nested path
+    DECLARE
+        current_data JSONB := json_data;
+        path_element TEXT;
+        result DECIMAL;
+    BEGIN
+        -- Navigate through each path element
+        FOREACH path_element IN ARRAY path
+        LOOP
+            IF current_data IS NULL OR NOT current_data ? path_element THEN
+                RETURN NULL;
+            END IF;
+            current_data := current_data -> path_element;
+        END LOOP;
+        
+        -- Extract final decimal value
+        IF jsonb_typeof(current_data) IN ('number', 'string') THEN
+            result := current_data #>> '{}'::DECIMAL;
+            RETURN result;
+        END IF;
+        
+        RETURN NULL;
+    END;
+EXCEPTION
+    WHEN invalid_text_representation THEN
+        RAISE WARNING 'Invalid decimal value in nested path %: %', path, current_data;
+        RETURN NULL;
+    WHEN OTHERS THEN
+        RAISE WARNING 'Error extracting nested decimal path % from JSON: %', path, SQLERRM;
         RETURN NULL;
 END;
 $$ LANGUAGE plpgsql IMMUTABLE;
@@ -145,12 +220,12 @@ EXCEPTION
 END;
 $$ LANGUAGE plpgsql IMMUTABLE;
 
--- Validate JLPT level and convert to integer (1-5)
+-- Validate JLPT level and convert to integer (0-5, where 0 = no level)
 CREATE OR REPLACE FUNCTION validate_jlpt_level(level_text TEXT)
 RETURNS INTEGER AS $$
 BEGIN
-    IF level_text IS NULL THEN
-        RETURN NULL;
+    IF level_text IS NULL OR level_text = '' THEN
+        RETURN NULL; -- Will be converted to 0 by COALESCE in import function
     END IF;
     
     -- Handle N1-N5 format
@@ -161,14 +236,15 @@ BEGIN
         WHEN 'N4' THEN RETURN 4;
         WHEN 'N5' THEN RETURN 5;
         -- Handle numeric format
+        WHEN '0' THEN RETURN 0; -- No level
         WHEN '1' THEN RETURN 1;
         WHEN '2' THEN RETURN 2;
         WHEN '3' THEN RETURN 3;
         WHEN '4' THEN RETURN 4;
         WHEN '5' THEN RETURN 5;
         ELSE 
-            RAISE WARNING 'Invalid JLPT level: %', level_text;
-            RETURN NULL;
+            RAISE WARNING 'Invalid JLPT level: %, defaulting to 0 (no level)', level_text;
+            RETURN 0; -- Default to 0 for unknown levels
     END CASE;
 END;
 $$ LANGUAGE plpgsql IMMUTABLE;
@@ -222,8 +298,14 @@ $$ LANGUAGE plpgsql IMMUTABLE;
 CREATE OR REPLACE FUNCTION validate_part_of_speech(pos_array JSONB)
 RETURNS pos_enum AS $$
 BEGIN
-    IF pos_array IS NULL OR jsonb_array_length(pos_array) = 0 THEN
-        RETURN 'noun'::pos_enum; -- Default fallback
+    -- Handle null, missing or non-array values
+    IF pos_array IS NULL OR pos_array = 'null'::jsonb OR jsonb_typeof(pos_array) != 'array' THEN
+        RETURN 'unclassified'::pos_enum; -- Use unclassified for null/non-array values
+    END IF;
+    
+    -- Handle empty arrays
+    IF jsonb_array_length(pos_array) = 0 THEN
+        RETURN 'unclassified'::pos_enum; -- Use unclassified for empty arrays
     END IF;
     
     -- Get first part of speech from array
@@ -233,20 +315,21 @@ BEGIN
         -- Map common Japanese parts of speech to our enum
         CASE lower(trim(first_pos))
             WHEN 'noun', 'n', '名詞' THEN RETURN 'noun'::pos_enum;
-            WHEN 'verb', 'v', '動詞' THEN RETURN 'verb'::pos_enum;
-            WHEN 'adjective', 'adj', 'i-adj', 'na-adj', '形容詞' THEN RETURN 'adjective'::pos_enum;
-            WHEN 'adverb', 'adv', '副詞' THEN RETURN 'adverb'::pos_enum;
+            WHEN 'verb', 'v', '動詞', 'verb_godan', 'verb_ichidan', 'verb_suru', 'verb_special' THEN RETURN 'verb'::pos_enum;
+            WHEN 'adjective', 'adj', 'i-adj', 'na-adj', '形容詞', 'i_adjective', 'na_adjective', 'no_adjective', 'pn_adjective', 'auxiliary_adjective' THEN RETURN 'adjective'::pos_enum;
+            WHEN 'adverb', 'adv', '副詞', 'adverb_to' THEN RETURN 'adverb'::pos_enum;
             WHEN 'particle', 'part', '助詞' THEN RETURN 'particle'::pos_enum;
             WHEN 'conjunction', 'conj', '接続詞' THEN RETURN 'conjunction'::pos_enum;
             WHEN 'interjection', 'interj', '感動詞' THEN RETURN 'interjection'::pos_enum;
-            WHEN 'auxiliary', 'aux', '助動詞' THEN RETURN 'auxiliary'::pos_enum;
+            WHEN 'auxiliary', 'aux', '助動詞', 'auxiliary_verb' THEN RETURN 'auxiliary'::pos_enum;
             WHEN 'prefix', 'pref', '接頭辞' THEN RETURN 'prefix'::pos_enum;
-            WHEN 'suffix', 'suff', '接尾辞' THEN RETURN 'suffix'::pos_enum;
+            WHEN 'suffix', 'suff', '接尾辞', 'noun_suffix' THEN RETURN 'suffix'::pos_enum;
             WHEN 'counter', 'count', '助数詞' THEN RETURN 'counter'::pos_enum;
             WHEN 'expression', 'exp', '表現' THEN RETURN 'expression'::pos_enum;
+            WHEN 'unclassified' THEN RETURN 'unclassified'::pos_enum;
             ELSE 
-                RAISE WARNING 'Unknown part of speech: %, defaulting to noun', first_pos;
-                RETURN 'noun'::pos_enum;
+                RAISE WARNING 'Unknown part of speech: %, defaulting to unclassified', first_pos;
+                RETURN 'unclassified'::pos_enum;
         END CASE;
     END;
 END;
@@ -318,7 +401,7 @@ BEGIN
                 safe_jsonb_extract_int(record_data, 'id'),
                 safe_jsonb_extract_text(record_data, 'character'),
                 safe_jsonb_extract_text(record_data, 'heisig_en'),
-                safe_jsonb_extract_text_array(record_data, 'meanings'),
+                record_data -> 'meanings',
                 safe_jsonb_extract_text(record_data, 'unicode'),
                 safe_jsonb_extract_text(record_data, 'onyomi'),
                 safe_jsonb_extract_text(record_data, 'kunyomi'),
@@ -359,7 +442,8 @@ $$ LANGUAGE plpgsql;
 CREATE OR REPLACE FUNCTION import_kanji_svg_strokes(json_data JSONB)
 RETURNS INTEGER AS $$
 DECLARE
-    inserted_count INTEGER := 0;
+    processed_count INTEGER := 0;
+    updated_count INTEGER := 0;
     record_data JSONB;
     kanji_id INTEGER;
 BEGIN
@@ -373,6 +457,7 @@ BEGIN
     LOOP
         BEGIN
             kanji_id := safe_jsonb_extract_int(record_data, 'id');
+            processed_count := processed_count + 1;
             
             -- Update existing kanji record with SVG stroke data
             UPDATE kanji SET 
@@ -381,7 +466,7 @@ BEGIN
             
             -- Count only if a row was actually updated
             IF FOUND THEN
-                inserted_count := inserted_count + 1;
+                updated_count := updated_count + 1;
             ELSE
                 RAISE WARNING 'Kanji with ID % not found for SVG stroke update', kanji_id;
             END IF;
@@ -392,7 +477,10 @@ BEGIN
         END;
     END LOOP;
     
-    RETURN inserted_count;
+    -- Log summary
+    RAISE NOTICE 'SVG Import Summary: Processed % records, Updated % kanji with SVG data', processed_count, updated_count;
+    
+    RETURN updated_count;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -401,9 +489,15 @@ CREATE OR REPLACE FUNCTION import_words_data(json_data JSONB)
 RETURNS INTEGER AS $$
 DECLARE
     inserted_count INTEGER := 0;
+    error_count INTEGER := 0;
     record_data JSONB;
     short_mean_array TEXT[];
     english_text TEXT;
+    word_id INTEGER;
+    word_text TEXT;
+    phonetic_text TEXT;
+    pos_array JSONB;
+    level_text TEXT;
 BEGIN
     -- Validate input
     IF json_data IS NULL OR jsonb_typeof(json_data) != 'array' THEN
@@ -414,24 +508,38 @@ BEGIN
     FOR record_data IN SELECT jsonb_array_elements(json_data)
     LOOP
         BEGIN
+            -- Extract key fields for debugging
+            word_id := safe_jsonb_extract_int(record_data, 'id');
+            word_text := safe_jsonb_extract_text(record_data, 'word');
+            phonetic_text := safe_jsonb_extract_text(record_data, 'phonetic');
+            pos_array := record_data -> 'part_of_speech';
+            level_text := safe_jsonb_extract_text(record_data, 'level');
+            
             -- Extract and join short meanings
             short_mean_array := safe_jsonb_extract_text_array(record_data, 'short_mean');
             english_text := CASE 
-                WHEN short_mean_array IS NOT NULL THEN array_to_string(short_mean_array, ', ')
-                ELSE 'No meaning available'
+                WHEN short_mean_array IS NOT NULL AND array_length(short_mean_array, 1) > 0 THEN 
+                    array_to_string(short_mean_array, ', ')
+                ELSE 
+                    'No meaning available'
             END;
             
             INSERT INTO words (
                 id, kana, kanji, romaji, english, part_of_speech, jlpt, level, raw_data
             ) VALUES (
-                safe_jsonb_extract_int(record_data, 'id'),
-                safe_jsonb_extract_text(record_data, 'phonetic'),
-                safe_jsonb_extract_text(record_data, 'word'),
-                safe_jsonb_extract_text(record_data, 'phonetic'), -- Using phonetic as romaji
+                word_id,
+                phonetic_text, -- Can be NULL
+                word_text,
+                CASE 
+                    WHEN phonetic_text IS NOT NULL AND phonetic_text != '' THEN 
+                        hiragana_to_romaji(phonetic_text)
+                    ELSE 
+                        NULL 
+                END, -- Convert hiragana to romaji during import
                 english_text,
-                validate_part_of_speech(record_data -> 'part_of_speech'),
-                validate_jlpt_level(safe_jsonb_extract_text(record_data, 'level')),
-                validate_jlpt_level(safe_jsonb_extract_text(record_data, 'level')),
+                validate_part_of_speech(pos_array),
+                COALESCE(validate_jlpt_level(level_text), 0), -- Default to 0 if no level
+                COALESCE(validate_jlpt_level(level_text), 0), -- Default to 0 if no level
                 record_data -- Store complete raw data for complex fields
             )
             ON CONFLICT (id) DO UPDATE SET
@@ -447,10 +555,14 @@ BEGIN
             inserted_count := inserted_count + 1;
         EXCEPTION
             WHEN OTHERS THEN
-                RAISE WARNING 'Error importing word record ID %: %', 
-                    safe_jsonb_extract_int(record_data, 'id'), SQLERRM;
+                error_count := error_count + 1;
+                RAISE WARNING 'Error importing word record ID % (word: %, phonetic: %, pos: %, level: %): %', 
+                    word_id, word_text, phonetic_text, pos_array, level_text, SQLERRM;
         END;
     END LOOP;
+    
+    -- Log summary
+    RAISE NOTICE 'Words Import Summary: Successfully imported % words, % errors encountered', inserted_count, error_count;
     
     RETURN inserted_count;
 END;
@@ -641,6 +753,16 @@ BEGIN
         CASE WHEN safe_jsonb_extract_int('{"id": 123}'::jsonb, 'id') = 123 
              THEN 'PASS' ELSE 'FAIL' END;
     
+    -- Test safe_jsonb_extract_decimal
+    RETURN QUERY SELECT 'safe_jsonb_extract_decimal'::TEXT,
+        CASE WHEN safe_jsonb_extract_decimal('{"duration": 22.035}'::jsonb, 'duration') = 22.035 
+             THEN 'PASS' ELSE 'FAIL' END;
+    
+    -- Test safe_jsonb_extract_nested_decimal (audio_time case)
+    RETURN QUERY SELECT 'safe_jsonb_extract_nested_decimal'::TEXT,
+        CASE WHEN safe_jsonb_extract_nested_decimal('{"general": {"audios": {"audio_time": 22.035}}}'::jsonb, ARRAY['general', 'audios', 'audio_time']) = 22.035 
+             THEN 'PASS' ELSE 'FAIL' END;
+    
     -- Test safe_jsonb_extract_text_array
     RETURN QUERY SELECT 'safe_jsonb_extract_text_array'::TEXT,
         CASE WHEN safe_jsonb_extract_text_array('{"items": ["a", "b"]}'::jsonb, 'items') = ARRAY['a', 'b'] 
@@ -659,17 +781,23 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Create indexes for better import performance
-CREATE INDEX IF NOT EXISTS idx_temp_json_import_data ON json_import USING gin (data);
+-- Note: json_import table is not needed for direct JSONB parameter imports
 
 -- Grant necessary permissions
 GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO PUBLIC;
 
 -- Add helpful comments
-COMMENT ON FUNCTION safe_jsonb_extract_text(JSONB, TEXT) IS 'Safely extract text value from JSONB with error handling';
+COMMENT ON FUNCTION safe_jsonb_extract_text (JSONB, TEXT) IS 'Safely extract text value from JSONB with error handling';
 
 COMMENT ON FUNCTION safe_jsonb_extract_int (JSONB, TEXT) IS 'Safely extract integer value from JSONB with validation';
 
+COMMENT ON FUNCTION safe_jsonb_extract_decimal (JSONB, TEXT) IS 'Safely extract decimal value from JSONB with validation';
+
 COMMENT ON FUNCTION safe_jsonb_extract_text_array (JSONB, TEXT) IS 'Safely extract and convert JSONB array to PostgreSQL text array';
+
+COMMENT ON FUNCTION safe_jsonb_extract_nested_decimal (JSONB, TEXT []) IS 'Safely extract decimal value from nested JSON path with error handling';
+
+COMMENT ON FUNCTION safe_jsonb_extract_nested_text (JSONB, TEXT []) IS 'Safely extract text value from nested JSON path with error handling';
 
 COMMENT ON FUNCTION validate_jlpt_level (TEXT) IS 'Validate and convert JLPT level string to integer (1-5)';
 
@@ -903,7 +1031,8 @@ BEGIN
                                 'Listening Question'
                             )),
                             safe_jsonb_extract_text(question_data -> 'general', 'audio'),
-                            safe_jsonb_extract_int(question_data -> 'general' -> 'audios', 'audio_time'),
+                            -- Extract audio_time using nested decimal function for better error handling
+                            safe_jsonb_extract_nested_decimal(question_data, ARRAY['general', 'audios', 'audio_time']),
                             safe_jsonb_extract_text(content_item, 'image'),
                             safe_jsonb_extract_text(question_data -> 'general', 'txt_read'),
                             content_item -> 'answers',
@@ -1306,3 +1435,218 @@ COMMENT ON FUNCTION import_kanji_complete (JSONB, JSONB) IS 'Comprehensive kanji
 COMMENT ON FUNCTION get_svg_import_stats () IS 'Get statistics about SVG stroke data coverage in kanji table';
 
 COMMENT ON FUNCTION validate_kanji_svg_data () IS 'Validate SVG stroke data for all kanji and return detailed validation results';
+
+-- Function to analyze words data quality issues
+CREATE OR REPLACE FUNCTION analyze_words_data_quality(json_data JSONB)
+RETURNS TABLE(
+    issue_type TEXT,
+    count BIGINT,
+    sample_ids TEXT,
+    description TEXT
+) AS $$
+DECLARE
+    record_data JSONB;
+    null_pos_count BIGINT := 0;
+    empty_short_mean_count BIGINT := 0;
+    null_word_count BIGINT := 0;
+    null_id_count BIGINT := 0;
+    null_pos_ids TEXT[] := ARRAY[]::TEXT[];
+    empty_short_mean_ids TEXT[] := ARRAY[]::TEXT[];
+    null_word_ids TEXT[] := ARRAY[]::TEXT[];
+    null_id_ids TEXT[] := ARRAY[]::TEXT[];
+    current_id TEXT;
+BEGIN
+    -- Validate input
+    IF json_data IS NULL OR jsonb_typeof(json_data) != 'array' THEN
+        RAISE EXCEPTION 'Invalid JSON data: expected array';
+    END IF;
+    
+    -- Process each word record
+    FOR record_data IN SELECT jsonb_array_elements(json_data)
+    LOOP
+        current_id := safe_jsonb_extract_text(record_data, 'id');
+        
+        -- Check for null IDs
+        IF safe_jsonb_extract_int(record_data, 'id') IS NULL THEN
+            null_id_count := null_id_count + 1;
+            IF array_length(null_id_ids, 1) < 5 THEN
+                null_id_ids := array_append(null_id_ids, COALESCE(current_id, 'NULL'));
+            END IF;
+        END IF;
+        
+        -- Check for null words
+        IF safe_jsonb_extract_text(record_data, 'word') IS NULL THEN
+            null_word_count := null_word_count + 1;
+            IF array_length(null_word_ids, 1) < 5 THEN
+                null_word_ids := array_append(null_word_ids, current_id);
+            END IF;
+        END IF;
+        
+        -- Check for null part_of_speech
+        IF record_data -> 'part_of_speech' IS NULL OR record_data -> 'part_of_speech' = 'null'::jsonb THEN
+            null_pos_count := null_pos_count + 1;
+            IF array_length(null_pos_ids, 1) < 5 THEN
+                null_pos_ids := array_append(null_pos_ids, current_id);
+            END IF;
+        END IF;
+        
+        -- Check for empty short_mean arrays
+        IF safe_jsonb_extract_text_array(record_data, 'short_mean') IS NULL OR 
+           array_length(safe_jsonb_extract_text_array(record_data, 'short_mean'), 1) = 0 THEN
+            empty_short_mean_count := empty_short_mean_count + 1;
+            IF array_length(empty_short_mean_ids, 1) < 5 THEN
+                empty_short_mean_ids := array_append(empty_short_mean_ids, current_id);
+            END IF;
+        END IF;
+    END LOOP;
+    
+    -- Return results
+    IF null_id_count > 0 THEN
+        RETURN QUERY SELECT 
+            'null_id'::TEXT,
+            null_id_count,
+            array_to_string(null_id_ids, ', '),
+            'Records with null or missing ID field';
+    END IF;
+    
+    IF null_word_count > 0 THEN
+        RETURN QUERY SELECT 
+            'null_word'::TEXT,
+            null_word_count,
+            array_to_string(null_word_ids, ', '),
+            'Records with null or missing word field';
+    END IF;
+    
+    IF null_pos_count > 0 THEN
+        RETURN QUERY SELECT 
+            'null_part_of_speech'::TEXT,
+            null_pos_count,
+            array_to_string(null_pos_ids, ', '),
+            'Records with null part_of_speech (will default to unclassified)';
+    END IF;
+    
+    IF empty_short_mean_count > 0 THEN
+        RETURN QUERY SELECT 
+            'empty_short_mean'::TEXT,
+            empty_short_mean_count,
+            array_to_string(empty_short_mean_ids, ', '),
+            'Records with empty short_mean arrays (will default to "No meaning available")';
+    END IF;
+END;
+$$ LANGUAGE plpgsql;
+
+COMMENT ON FUNCTION analyze_words_data_quality (JSONB) IS 'Analyze data quality issues in words JSON data before import';
+
+-- Create word groups by JLPT level in fixed-size chunks (exclude level 0)
+-- Example group names: N4-words-1, N4-words-2, ...
+CREATE OR REPLACE FUNCTION create_word_groups_by_jlpt(p_chunk_size INTEGER DEFAULT 10)
+RETURNS TABLE(created_groups INT, linked_words INT) AS $$
+DECLARE
+    v_created_groups INT := 0;
+    v_linked_words INT := 0;
+BEGIN
+    IF p_chunk_size IS NULL OR p_chunk_size < 1 THEN
+        RAISE EXCEPTION 'chunk_size must be positive';
+    END IF;
+
+    -- Materialize chunk assignments for words (JLPT 1..5 only)
+    WITH w AS (
+        SELECT 
+            id AS word_id,
+            jlpt,
+            ((ROW_NUMBER() OVER (PARTITION BY jlpt ORDER BY id) - 1) / p_chunk_size + 1) AS chunk_no
+        FROM words
+        WHERE jlpt BETWEEN 1 AND 5
+    ),
+    g AS (
+        INSERT INTO groups(name, description)
+        SELECT DISTINCT 
+            FORMAT('N%s-words-%s', jlpt, chunk_no) AS name,
+            FORMAT('Auto group N%s words (chunk %s)', jlpt, chunk_no) AS description
+        FROM w
+        ON CONFLICT (name) DO NOTHING
+        RETURNING 1
+    )
+    SELECT COALESCE(SUM(1), 0) INTO v_created_groups FROM g;
+
+    -- Link words to their groups
+    WITH w AS (
+        SELECT 
+            id AS word_id,
+            jlpt,
+            ((ROW_NUMBER() OVER (PARTITION BY jlpt ORDER BY id) - 1) / p_chunk_size + 1) AS chunk_no
+        FROM words
+        WHERE jlpt BETWEEN 1 AND 5
+    ),
+    ins AS (
+        INSERT INTO word_groups(word_id, group_id)
+        SELECT 
+            w.word_id,
+            gr.id
+        FROM w
+        JOIN groups gr ON gr.name = FORMAT('N%s-words-%s', w.jlpt, w.chunk_no)
+        ON CONFLICT (word_id, group_id) DO NOTHING
+        RETURNING 1
+    )
+    SELECT COALESCE(SUM(1), 0) INTO v_linked_words FROM ins;
+
+    RETURN QUERY SELECT v_created_groups, v_linked_words;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Create kanji groups by JLPT level in fixed-size chunks (exclude level 0)
+-- Example group names: N4-kanji-1, N4-kanji-2, ...
+CREATE OR REPLACE FUNCTION create_kanji_groups_by_jlpt(p_chunk_size INTEGER DEFAULT 15)
+RETURNS TABLE(created_groups INT, linked_kanji INT) AS $$
+DECLARE
+    v_created_groups INT := 0;
+    v_linked_kanji INT := 0;
+BEGIN
+    IF p_chunk_size IS NULL OR p_chunk_size < 1 THEN
+        RAISE EXCEPTION 'chunk_size must be positive';
+    END IF;
+
+    -- Materialize chunk assignments for kanji (JLPT 1..5 only)
+    WITH k AS (
+        SELECT 
+            id AS kanji_id,
+            jlpt,
+            ((ROW_NUMBER() OVER (PARTITION BY jlpt ORDER BY id) - 1) / p_chunk_size + 1) AS chunk_no
+        FROM kanji
+        WHERE jlpt BETWEEN 1 AND 5
+    ),
+    g AS (
+        INSERT INTO groups(name, description)
+        SELECT DISTINCT 
+            FORMAT('N%s-kanji-%s', jlpt, chunk_no) AS name,
+            FORMAT('Auto group N%s kanji (chunk %s)', jlpt, chunk_no) AS description
+        FROM k
+        ON CONFLICT (name) DO NOTHING
+        RETURNING 1
+    )
+    SELECT COALESCE(SUM(1), 0) INTO v_created_groups FROM g;
+
+    -- Link kanji to their groups
+    WITH k AS (
+        SELECT 
+            id AS kanji_id,
+            jlpt,
+            ((ROW_NUMBER() OVER (PARTITION BY jlpt ORDER BY id) - 1) / p_chunk_size + 1) AS chunk_no
+        FROM kanji
+        WHERE jlpt BETWEEN 1 AND 5
+    ),
+    ins AS (
+        INSERT INTO kanji_groups(kanji_id, group_id)
+        SELECT 
+            k.kanji_id,
+            gr.id
+        FROM k
+        JOIN groups gr ON gr.name = FORMAT('N%s-kanji-%s', k.jlpt, k.chunk_no)
+        ON CONFLICT (kanji_id, group_id) DO NOTHING
+        RETURNING 1
+    )
+    SELECT COALESCE(SUM(1), 0) INTO v_linked_kanji FROM ins;
+
+    RETURN QUERY SELECT v_created_groups, v_linked_kanji;
+END;
+$$ LANGUAGE plpgsql;
