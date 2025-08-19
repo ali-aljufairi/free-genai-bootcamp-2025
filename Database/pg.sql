@@ -34,7 +34,7 @@ CREATE TYPE role_enum AS ENUM ('admin','teacher','student');
 CREATE TYPE pos_enum AS ENUM (
     'noun','verb','adjective','adverb',
     'particle','conjunction','interjection','auxiliary',
-    'prefix','suffix','counter','expression'
+    'prefix','suffix','counter','expression','unclassified'
 );
 
 CREATE TYPE activity_enum AS ENUM (          -- ❌ generic 'quiz' removed
@@ -55,9 +55,11 @@ CREATE TYPE unit_item_enum  AS ENUM ('word','kanji','grammar','sentence');
 CREATE TYPE review_item_enum AS ENUM ('word','kanji','grammar','sentence');
 
 /* 2. USERS, RBAC, BILLING ------------------------------------------- */
+-- Users table integrated with Clerk authentication
+-- clerk_id stores Clerk user IDs (format: user_xxxxxxxxxxxxx)
 CREATE TABLE users (
     id BIGSERIAL PRIMARY KEY,
-    clerk_id UUID NOT NULL UNIQUE,
+    clerk_id TEXT NOT NULL UNIQUE, -- Clerk user ID
     email TEXT NOT NULL,
     display_name TEXT,
     stripe_customer_id TEXT UNIQUE, -- NEW
@@ -113,7 +115,7 @@ CREATE TABLE kanji (
     id SERIAL PRIMARY KEY,
     character TEXT UNIQUE NOT NULL CHECK (char_length(character) = 1),
     heisig_en TEXT,
-    meanings TEXT [],
+    meanings JSONB, -- Store as JSON array for better GORM compatibility
     detail TEXT,
     unicode TEXT UNIQUE NOT NULL,
     onyomi TEXT,
@@ -127,17 +129,27 @@ CREATE TABLE kanji (
 
 CREATE TABLE words (
     id SERIAL PRIMARY KEY,
-    kana TEXT NOT NULL, -- From javi_cleaned.json "phonetic"
+    kana TEXT, -- From javi_cleaned.json "phonetic" (can be NULL)
     kanji TEXT, -- From javi_cleaned.json "word"  
-    romaji TEXT NOT NULL, -- From javi_cleaned.json "phonetic"
+    romaji TEXT, -- From javi_cleaned.json "phonetic" (can be NULL - no actual romaji data available)
     english TEXT NOT NULL, -- From javi_cleaned.json "short_mean" (joined)
-    part_of_speech pos_enum NOT NULL, -- From javi_cleaned.json "part_of_speech"
-    jlpt INT, -- From javi_cleaned.json "level" (mapped N1-N5 to 1-5)
-    level INT DEFAULT 5, -- Preserved from SQLite
+    part_of_speech pos_enum NOT NULL, -- From javi_cleaned.json "part_of_speech" (defaults to unclassified)
+    jlpt INT, -- From javi_cleaned.json "level" (mapped N1-N5 to 1-5, 0 = no level)
+    level INT DEFAULT 0, -- 0 = no level, 1-5 = JLPT N1-N5
     correct_count INT DEFAULT 0, -- Preserved from SQLite
     audio_path TEXT, -- Future use
     embedding VECTOR (384), -- Future use
     raw_data JSONB -- Complete original JSON for complex fields
+);
+
+-- Add constraint for valid JLPT levels (0-5, where 0 = no level)
+ALTER TABLE words
+ADD CONSTRAINT check_words_jlpt_level CHECK (
+    jlpt IS NULL
+    OR (
+        jlpt >= 0
+        AND jlpt <= 5
+    )
 );
 
 CREATE INDEX idx_words_kana_gin ON words USING gin (kana gin_trgm_ops);
@@ -365,6 +377,10 @@ CREATE TABLE progress (
 
 CREATE INDEX idx_progress_due ON progress (user_id, next_due);
 
+-- 7b. Flashcard sessions are tracked via enhanced_study_sessions + review_items
+-- No separate flashcard tables; session config can be stored as JSON
+-- in enhanced_study_sessions.notes for deterministic regeneration.
+
 /* 8. SHADOWING & STROKE-ORDER --------------------------------------- */
 CREATE TABLE shadow_attempts (
     id BIGSERIAL PRIMARY KEY,
@@ -407,11 +423,8 @@ CREATE INDEX idx_chat_messages_session ON chat_messages (session_id);
 /* 10. DATA INTEGRITY CONSTRAINTS ------------------------------------ */
 
 -- Ensure valid JLPT levels for words
-ALTER TABLE words
-ADD CONSTRAINT check_words_jlpt_level CHECK (
-    jlpt IS NULL
-    OR jlpt BETWEEN 1 AND 5
-);
+-- Note: Constraint already defined earlier allowing 0–5 (0 = no level).
+-- The stricter 1–5 constraint caused valid level 0 inserts to fail, so it is removed here.
 
 -- Ensure valid JLPT levels for kanji
 ALTER TABLE kanji
@@ -469,15 +482,7 @@ $$ LANGUAGE plpgsql;
 
 /* 12. TEMPORARY IMPORT TABLES --------------------------------------- */
 
--- Temporary table for JSON import operations
-CREATE TABLE IF NOT EXISTS json_import (
-    id SERIAL PRIMARY KEY,
-    data JSONB NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT now()
-);
-
--- Index for efficient JSON operations during import
-CREATE INDEX IF NOT EXISTS idx_json_import_data ON json_import USING gin (data);
+-- Note: json_import table removed - import functions work directly with JSONB parameters
 /* JLPT QUESTION TYPE ENUMS */
 
 -- Grammar question types enum
@@ -947,6 +952,7 @@ CREATE TABLE enhanced_study_sessions (
     id BIGSERIAL PRIMARY KEY,
     user_id BIGINT REFERENCES users(id) ON DELETE CASCADE,
     session_type TEXT CHECK (session_type IN ('jlpt_practice', 'kanji_study', 'vocabulary_review', 'mixed')),
+    notes JSONB,
 
 -- Session Details
 started_at TIMESTAMPTZ DEFAULT now(),
@@ -1390,3 +1396,98 @@ GROUP BY
     us.current_jlpt_level,
     us.jlpt_level_assessed_at,
     us.jlpt_level_assessment_method;
+
+-- Missing Enum Types for Sorami Language Portal
+-- This script adds the enum types mentioned in the task list that are not yet implemented
+
+-- 1. Notification Channel Enum
+CREATE TYPE notification_channel_enum AS ENUM (
+    'email',
+    'push',
+    'sms',
+    'in_app',
+    'webhook'
+);
+
+-- 2. User Role Enum (already exists as role_enum, but creating for consistency)
+-- Note: role_enum already exists, this is for API consistency
+CREATE TYPE user_role_enum AS ENUM (
+    'admin',
+    'teacher', 
+    'student'
+);
+
+-- 3. Job Status Enum
+CREATE TYPE job_status_enum AS ENUM (
+    'pending',
+    'running',
+    'completed',
+    'failed',
+    'cancelled',
+    'retrying'
+);
+
+-- 4. Notification Type Enum
+CREATE TYPE notification_type_enum AS ENUM (
+    'study_reminder',
+    'achievement',
+    'progress_milestone',
+    'system_alert',
+    'subscription_update',
+    'content_update'
+);
+
+-- 5. Import/Export Status Enum
+CREATE TYPE import_export_status_enum AS ENUM (
+    'queued',
+    'processing',
+    'completed',
+    'failed',
+    'cancelled'
+);
+
+-- 6. Data Migration Status Enum
+CREATE TYPE migration_status_enum AS ENUM (
+    'pending',
+    'in_progress',
+    'completed',
+    'failed',
+    'rolled_back'
+);
+
+-- 7. Backup Status Enum
+CREATE TYPE backup_status_enum AS ENUM (
+    'scheduled',
+    'running',
+    'completed',
+    'failed',
+    'expired'
+);
+
+-- 8. External Integration Status Enum
+CREATE TYPE integration_status_enum AS ENUM (
+    'active',
+    'inactive',
+    'error',
+    'maintenance'
+);
+
+-- 9. Data Quality Status Enum
+CREATE TYPE data_quality_status_enum AS ENUM (
+    'valid',
+    'warning',
+    'error',
+    'needs_review'
+);
+
+-- 10. Audit Action Enum
+CREATE TYPE audit_action_enum AS ENUM (
+    'create',
+    'read',
+    'update',
+    'delete',
+    'login',
+    'logout',
+    'export',
+    'import'
+);

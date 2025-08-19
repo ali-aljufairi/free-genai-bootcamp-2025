@@ -776,8 +776,6 @@ BEGIN
     JOIN jlpt_question_progress jqp ON jq.id = jqp.question_id
     WHERE jqp.user_id = p_user_id 
       AND jqp.accuracy_rate < 70
-    ORDER BY jqp.accuracy_rate ASC
-    LIMIT p_limit
     
     UNION ALL
     
@@ -792,8 +790,6 @@ BEGIN
     JOIN kanji_learning_progress klp ON k.id = klp.kanji_id
     WHERE klp.user_id = p_user_id 
       AND LEAST(klp.reading_accuracy, klp.writing_accuracy, klp.meaning_accuracy) < 70
-    ORDER BY LEAST(klp.reading_accuracy, klp.writing_accuracy, klp.meaning_accuracy) ASC
-    LIMIT p_limit
     
     UNION ALL
     
@@ -808,8 +804,6 @@ BEGIN
     JOIN vocabulary_learning_progress vlp ON w.id = vlp.word_id
     WHERE vlp.user_id = p_user_id 
       AND LEAST(vlp.meaning_accuracy, vlp.reading_accuracy, vlp.writing_accuracy) < 70
-    ORDER BY LEAST(vlp.meaning_accuracy, vlp.reading_accuracy, vlp.writing_accuracy) ASC
-    LIMIT p_limit
     ORDER BY priority_score DESC
     LIMIT p_limit;
 END;
