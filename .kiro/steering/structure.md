@@ -18,6 +18,8 @@ sorami/
 ├── video-translation/     # Video translation service (Python)
 ├── genai-architecting/    # Architecture documentation
 └── k8s/                   # Kubernetes deployment configs
+└── Database/              #contains all Database schema and database features
+└── .kiro/                 #information about the about Task and what needed to be done and projectcatuese
 ```
 
 ## Service Architecture Patterns
