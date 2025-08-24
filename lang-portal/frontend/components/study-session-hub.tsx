@@ -10,7 +10,6 @@ import { useIsMobile } from "@/hooks/use-mobile"
 import { useMemo, useCallback, useEffect } from 'react'
 import { motion, AnimatePresence } from "framer-motion"
 import { useSidebar } from "@/hooks/use-sidebar"
-import posthog from "posthog-js"
 import { CARD_IMAGE_DIMENSIONS, studyImages, studyOptions, ENABLED_FEATURES } from "./study-session/constants"
 
 export function StudySessionHub() {
@@ -42,12 +41,6 @@ export function StudySessionHub() {
     try {
       // Always minimize sidebar when clicking a card
       setIsExpanded(false)
-
-      // Track session start event with PostHog
-      posthog.capture("session_started", {
-        session_type: type,
-        source: "study_card"
-      });
 
       if (disabled || !ENABLED_FEATURES.has(type)) {
         toast.error("Feature disabled during database migration")

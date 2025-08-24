@@ -29,16 +29,6 @@ const nextConfig = {
     parallelServerCompiles: true,
     viewTransition: true,
   },
-  // Required to support PostHog trailing slash API requests
-  skipTrailingSlashRedirect: true,
-  async rewrites() {
-    return [
-      {
-        source: '/ingest/:path*',
-        destination: 'https://eu.i.posthog.com/:path*',
-      },
-    ];
-  },
 };
 
 // Conditionally add rewrites only in development mode
@@ -51,23 +41,6 @@ if (process.env.NODE_ENV === 'development') {
     { source: '/api/langportal/:path*', destination: 'http://localhost:8080/api/langportal/:path*' },
     { source: '/api/v2/:path*', destination: 'http://localhost:8080/api/v2/:path*' },
   ];
-}
-
-// PostHog rewrites
-const posthogRewrites = [
-  { source: '/ingest/static/:path*', destination: 'https://eu-assets.i.posthog.com/static/:path*' },
-  { source: '/ingest/:path*', destination: 'https://eu.i.posthog.com/:path*' },
-  { source: '/ingest/decide', destination: 'https://eu.i.posthog.com/decide' },
-];
-
-if (nextConfig.rewrites) {
-  const originalRewrites = nextConfig.rewrites;
-  nextConfig.rewrites = async () => {
-    const existing = await originalRewrites();
-    return [...existing, ...posthogRewrites];
-  };
-} else {
-  nextConfig.rewrites = async () => posthogRewrites;
 }
 
 function mergeConfig(nextConfig, userConfig) {
