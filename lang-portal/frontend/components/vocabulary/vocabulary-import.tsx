@@ -6,11 +6,11 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
-import { useVocabularyImport } from "@/hooks/api/useVocabularyImport"
+// import { useVocabularyImport } from "@/hooks/api/useVocabularyImport"
 
 export function VocabularyImport() {
   const [topic, setTopic] = useState("")
-  const { importVocabularyByTopic, isLoading } = useVocabularyImport()
+  // const { importVocabularyByTopic, isLoading } = useVocabularyImport()
 
   const handleTopicChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setTopic(e.target.value)
@@ -18,14 +18,14 @@ export function VocabularyImport() {
 
   const handleImport = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!topic.trim()) {
       toast.error("Please enter a topic")
       return
     }
-    
+
     try {
-      await importVocabularyByTopic(topic.trim())
+      // await importVocabularyByTopic(topic.trim())
       toast.success("Vocabulary imported successfully!", {
         description: `Words for topic "${topic}" have been added to your vocabulary list`
       })
@@ -61,13 +61,13 @@ export function VocabularyImport() {
               Enter a specific topic to automatically generate related vocabulary words
             </p>
           </div>
-          <Button 
-            type="submit" 
+          {/* <Button
+            type="submit"
             className="w-full"
             disabled={isLoading || !topic.trim()}
           >
             {isLoading ? "Importing..." : "Import Vocabulary"}
-          </Button>
+          </Button> */}
         </form>
       </CardContent>
       <CardFooter className="flex justify-between border-t p-4 text-xs text-muted-foreground">

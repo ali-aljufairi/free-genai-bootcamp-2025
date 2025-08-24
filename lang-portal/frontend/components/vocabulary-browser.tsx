@@ -4,14 +4,14 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { useGroups } from "@/hooks/api/useGroup"
+// import { useGroups } from "@/hooks/api/useGroup"
 import { useWords } from "@/hooks/api/useWord"
 import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import { Plus, X } from "lucide-react"
 import { Label } from "@/components/ui/label"
-import { useVocabularyImport } from "@/hooks/api/useVocabularyImport"
+// import { useVocabularyImport } from "@/hooks/api/useVocabularyImport"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
@@ -54,8 +54,8 @@ export function VocabularyBrowser() {
   const [topic, setTopic] = useState("")
   const [selectedLevel, setSelectedLevel] = useState<keyof typeof JLPT_LEVELS>("N5")
   const [importType, setImportType] = useState<"topic" | "jlpt">("topic")
-  const { importVocabularyByTopic, isLoading: importLoading } = useVocabularyImport()
-  const { data: groups, isLoading: groupsLoading } = useGroups()
+  // const { importVocabularyByTopic, isLoading: importLoading } = useVocabularyImport()
+  // const { data: groups, isLoading: groupsLoading } = useGroups()
   const {
     data,
     isLoading: wordsLoading,
@@ -114,7 +114,7 @@ export function VocabularyBrowser() {
     }
 
     try {
-      await importVocabularyByTopic(topic.trim())
+      // await importVocabularyByTopic(topic.trim())
       toast.success("Vocabulary imported successfully!", {
         description: `Words for topic "${topic}" have been added to your vocabulary list`
       })
@@ -246,13 +246,13 @@ export function VocabularyBrowser() {
                       Enter a specific topic to automatically generate related vocabulary words
                     </p>
                   </div>
-                  <Button
+                  {/* <Button
                     type="submit"
                     className="w-full"
                     disabled={importLoading || !topic.trim()}
                   >
                     {importLoading ? "Importing..." : "Import Vocabulary"}
-                  </Button>
+                  </Button> */}
                 </form>
               ) : (
                 <div className="space-y-4">
@@ -278,13 +278,13 @@ export function VocabularyBrowser() {
                     </p>
                   </div>
 
-                  <Button
+                  {/* <Button
                     className="w-full"
                     onClick={handleJLPTImport}
                     disabled={importLoading}
                   >
                     {importLoading ? "Importing..." : `Import ${selectedLevel} Vocabulary`}
-                  </Button>
+                  </Button> */}
                 </div>
               )}
             </div>
