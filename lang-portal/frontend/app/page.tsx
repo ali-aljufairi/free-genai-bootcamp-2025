@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import Image from "next/image"
 import { motion } from "framer-motion"
-import { ArrowRight, BookOpen, Brain, CheckCircle, GraduationCap, Sparkles, Users } from "lucide-react"
+import { ArrowRight, BookOpen, Brain, CheckCircle, GraduationCap, Sparkles, Users, AlertTriangle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { StatsCards } from "@/components/stats-cards"
@@ -51,6 +51,23 @@ export default function HomePage() {
 
   return (
     <div className="flex flex-col gap-16 pb-20">
+      {/* Database Migration Warning Banner */}
+      <div className="bg-yellow-50 dark:bg-yellow-900/20 border-b border-yellow-200 dark:border-yellow-800">
+        <div className="container mx-auto px-4 py-3">
+          <div className="flex items-center gap-3">
+            <AlertTriangle className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
+                Database Migration in Progress
+              </p>
+              <p className="text-xs text-yellow-700 dark:text-yellow-300">
+                Some features are temporarily disabled. Only Word Flashcards and Kanji Cards are available.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Hero Section */}
       <section id="hero-section" className="relative min-h-[90vh] flex items-center py-20 overflow-hidden">
         {/* Animated background elements */}
@@ -132,7 +149,7 @@ export default function HomePage() {
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               ) : (
-                <SignUpButton mode="modal" afterSignUpUrl="/study" appearance={clerkAppearance}>
+                <SignUpButton mode="modal" appearance={clerkAppearance}>
                   <Button
                     size="lg"
                     className="px-8 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white border-0"
@@ -240,7 +257,7 @@ export default function HomePage() {
                     Get Started Free
                   </Button>
                 ) : (
-                  <SignUpButton mode="modal" afterSignUpUrl="/study" appearance={clerkAppearance}>
+                  <SignUpButton mode="modal" appearance={clerkAppearance}>
                     <Button
                       size="lg"
                       className="px-8 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white border-0"

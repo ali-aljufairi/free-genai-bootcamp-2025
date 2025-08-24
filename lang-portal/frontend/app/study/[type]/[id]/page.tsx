@@ -2,6 +2,8 @@
 
 import { useRouter } from "next/navigation"
 import { FlashcardStudy } from "@/components/study/flashcard-study"
+import { KanjiFlashcard } from "@/components/study/kanji-flashcard"
+import { WordsFlashcard } from "@/components/study/words-flashcard"
 import { QuizStudy } from "@/components/study/quiz-study"
 import { DrawingStudy } from "@/components/study/drawing-study"
 import { AgentStudy } from "@/components/study/agent-study"
@@ -12,7 +14,7 @@ import React from "react"
 export default function StudySessionPage({
     params
 }: {
-    params: { type: string; id: string }
+    params: Promise<{ type: string; id: string }>
 }) {
     // Use React.use to unwrap the params promise
     const { type, id } = React.use(params)
@@ -30,7 +32,15 @@ export default function StudySessionPage({
             </div>
 
             {type === "flashcards" && (
-                <FlashcardStudy sessionId={id} onComplete={handleComplete} />
+                <FlashcardStudy />
+            )}
+
+            {type === "kanji" && (
+                <KanjiFlashcard />
+            )}
+
+            {type === "words" && (
+                <WordsFlashcard />
             )}
 
             {type === "quiz" && (

@@ -228,9 +228,13 @@ func (h *StudySessionHandler) CreateFlashcardQuiz(c *fiber.Ctx) error {
 		wrongOptions := make([]map[string]interface{}, 0, 3)
 		for _, word := range wordPool {
 			if word.ID != targetWord.ID && len(wrongOptions) < 3 {
+				japanese := word.Kana
+				if word.Kanji != nil {
+					japanese = *word.Kanji
+				}
 				wrongOptions = append(wrongOptions, map[string]interface{}{
 					"id":       word.ID,
-					"japanese": word.Japanese,
+					"japanese": japanese,
 					"romaji":   word.Romaji,
 					"english":  word.English,
 					"correct":  false,
@@ -244,9 +248,13 @@ func (h *StudySessionHandler) CreateFlashcardQuiz(c *fiber.Ctx) error {
 		}
 
 		// Create the correct option
+		japanese := targetWord.Kana
+		if targetWord.Kanji != nil {
+			japanese = *targetWord.Kanji
+		}
 		correctOption := map[string]interface{}{
 			"id":       targetWord.ID,
-			"japanese": targetWord.Japanese,
+			"japanese": japanese,
 			"romaji":   targetWord.Romaji,
 			"english":  targetWord.English,
 			"correct":  true,
@@ -262,7 +270,7 @@ func (h *StudySessionHandler) CreateFlashcardQuiz(c *fiber.Ctx) error {
 		flashcard := map[string]interface{}{
 			"word": map[string]interface{}{
 				"id":       targetWord.ID,
-				"japanese": targetWord.Japanese,
+				"japanese": japanese, // reuse the japanese variable from above
 				"romaji":   targetWord.Romaji,
 				"english":  targetWord.English,
 			},

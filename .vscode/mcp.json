@@ -1,0 +1,46 @@
+{
+	"inputs": [
+		{
+			"id": "posthog_api_key",
+			"type": "promptString",
+			"description": "PostHog API Key with annotation:write and project:read scopes",
+			"password": true
+		},
+		{
+			"id": "memory_file_path",
+			"type": "promptString",
+			"description": "Path to the memory storage file (optional)",
+			"password": false
+		}
+	],
+	"servers": {
+		"github": {
+			"type": "http",
+			"url": "https://api.githubcopilot.com/mcp/"
+		},
+		"sequentialthinking": {
+			"command": "/Users/ali/.nvm/versions/node/v22.18.0/bin/npx",
+			"args": [
+				"-y",
+				"@modelcontextprotocol/server-sequential-thinking"
+			],
+			"type": "stdio",
+			"env": {
+				"MEMORY_FILE_PATH": "/Users/ali/.mcp/memory.json",
+				"PATH": "/Users/ali/.nvm/versions/node/v22.18.0/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+			}
+		},
+		"memory": {
+			"command": "/Users/ali/.nvm/versions/node/v22.18.0/bin/npx",
+			"args": [
+				"-y",
+				"@modelcontextprotocol/server-memory"
+			],
+			"env": {
+				"MEMORY_FILE_PATH": "/Users/ali/.mcp/memory.json",
+				"PATH": "/Users/ali/.nvm/versions/node/v22.18.0/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+			},
+			"type": "stdio"
+		}
+	}
+}

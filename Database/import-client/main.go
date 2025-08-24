@@ -99,8 +99,22 @@ func main() {
 		log.Fatal("Kanji SVG stroke import failed:", err)
 	}
 
+	// Create JLPT-based kanji groups in chunks of 15 (levels 1..5 only)
+	if _, err := db.Exec("SELECT created_groups, linked_kanji FROM create_kanji_groups_by_jlpt($1)", 15); err != nil {
+		log.Printf("Warning: Failed to create JLPT kanji groups: %v", err)
+	} else {
+		log.Println("JLPT kanji groups (chunks of 15) created/updated successfully")
+	}
+
 	if err := importWordsData(db); err != nil {
 		log.Fatal("Words import failed:", err)
+	}
+
+	// Create JLPT-based word groups in chunks of 10 (levels 1..5 only)
+	if _, err := db.Exec("SELECT created_groups, linked_words FROM create_word_groups_by_jlpt($1)", 10); err != nil {
+		log.Printf("Warning: Failed to create JLPT word groups: %v", err)
+	} else {
+		log.Println("JLPT word groups (chunks of 10) created/updated successfully")
 	}
 
 	if err := importGrammarData(db); err != nil {
@@ -618,6 +632,8 @@ func importWordsData(db *sql.DB) error {
 		return fmt.Errorf("failed to read words file: %w", err)
 	}
 
+	// Optional: data quality analysis disabled to speed up imports
+
 	var count int
 	err = db.QueryRow("SELECT import_words_data($1::jsonb)", string(data)).Scan(&count)
 	if err != nil {
@@ -625,6 +641,27 @@ func importWordsData(db *sql.DB) error {
 	}
 
 	log.Printf("Successfully imported %d words", count)
+	return nil
+}
+
+func analyzeWordsDataQuality(db *sql.DB, jsonData string) error {
+	rows, err := db.Query("SELECT * FROM analyze_words_data_quality($1::jsonb)", jsonData)
+	if err != nil {
+		return fmt.Errorf("failed to analyze data quality: %w", err)
+	}
+	defer rows.Close()
+
+	log.Println("=== WORDS DATA QUALITY ANALYSIS ===")
+	for rows.Next() {
+		var issueType, sampleIds, description string
+		var count int64
+		if err := rows.Scan(&issueType, &count, &sampleIds, &description); err != nil {
+			return fmt.Errorf("failed to scan analysis result: %w", err)
+		}
+		log.Printf("Issue: %s - Count: %d - Sample IDs: %s - Description: %s",
+			issueType, count, sampleIds, description)
+	}
+	log.Println("=== END ANALYSIS ===")
 	return nil
 }
 

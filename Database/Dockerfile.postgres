@@ -1,0 +1,28 @@
+FROM postgres:16
+
+# Metadata for the image
+LABEL org.opencontainers.image.title="Sorami PostgreSQL"
+LABEL org.opencontainers.image.description="PostgreSQL database with pgvector extension for Sorami language learning platform"
+LABEL org.opencontainers.image.source="https://github.com/your-username/sorami"
+LABEL org.opencontainers.image.licenses="MIT"
+
+# Install pgvector extension using the official package
+RUN apt-get update && \
+    apt-get install -y postgresql-16-pgvector && \
+    rm -rf /var/lib/apt/lists/*
+
+# Copy initialization scripts
+COPY pg.sql /docker-entrypoint-initdb.d/01-schema.sql
+COPY import_functions.sql /docker-entrypoint-initdb.d/02-import-functions.sql
+COPY user_tracking_functions.sql /docker-entrypoint-initdb.d/03-user-tracking-functions.sql
+COPY hiragana_to_romaji.sql /docker-entrypoint-initdb.d/04-hirgana-to-romaji.sql
+COPY user_tracking_functions.sql /docker-entrypoint-initdb.d/05-user-tracking-functions.sql
+COPY user_management_indexes.sql /docker-entrypoint-initdb.d/06-user-management-indexes.sql
+
+
+# Set proper permissions
+RUN chmod 644 /docker-entrypoint-initdb.d/*.sql
+
+# Health check
+HEALTHCHECK --interval=10s --timeout=5s --start-period=30s --retries=3 \
+    CMD pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-postgres} || exit 1

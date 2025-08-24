@@ -22,14 +22,7 @@ func New(dbPath string) (*DB, error) {
 		return nil, fmt.Errorf("error opening database: %v", err)
 	}
 
-	// Auto Migrate the schema
-	db.AutoMigrate(
-		&models.Group{},
-		&models.Word{},
-		&models.StudyActivity{},
-		&models.StudySession{},
-		&models.WordReviewItem{},
-	)
+	// Note: AutoMigrate removed - database schema is managed separately
 
 	return &DB{db: db}, nil
 }
