@@ -40,8 +40,6 @@ export const clerkAppearance = {
     card__main: "gap-6",
     footer: "bg-[#0A1120] border-t border-blue-900/30",
     footerText: "text-blue-200/70",
-    footerActionText: "text-blue-200/70",
-    footerActionLink: "text-blue-400 hover:text-blue-300",
     alternativeMethodsBlockButton: "bg-[#1A2333] hover:bg-[#243044] border-blue-900/30",
     navbar: "hidden",
     navbarButton: "hidden",
@@ -62,7 +60,7 @@ export const clerkAppearance = {
     socialButtonsBlockButtonContainer: "gap-3"
   },
   layout: {
-    socialButtonsPlacement: "top",
+    socialButtonsPlacement: "top" as const,
     showOptionalFields: false,
     shimmer: true
   },
@@ -75,7 +73,7 @@ export const clerkAppearance = {
     borderRadius: "0.5rem",
     spacingUnit: "0.5rem"
   }
-}
+} as const
 
 export default function Navbar() {
   const pathname = usePathname()
@@ -115,12 +113,12 @@ export default function Navbar() {
               </>
             ) : (
               <>
-                <SignInButton mode="modal" afterSignInUrl="/study" appearance={clerkAppearance}>
+                <SignInButton mode="modal">
                   <Button variant="outline" size="sm" className="mr-2">
                     Sign In
                   </Button>
                 </SignInButton>
-                <SignUpButton mode="modal" afterSignUpUrl="/study" appearance={clerkAppearance}>
+                <SignUpButton mode="modal">
                   <Button
                     className="bg-[#3B82F6] hover:bg-[#2563EB] text-white border-0 shadow-lg shadow-blue-500/20"
                     size="sm"
@@ -178,7 +176,7 @@ export default function Navbar() {
                   </>
                 ) : (
                   <>
-                    <SignInButton mode="modal" afterSignInUrl="/study" appearance={clerkAppearance}>
+                    <SignInButton mode="modal">
                       <Button
                         variant="outline"
                         size="sm"
@@ -188,7 +186,7 @@ export default function Navbar() {
                         Sign In
                       </Button>
                     </SignInButton>
-                    <SignUpButton mode="modal" afterSignUpUrl="/study" appearance={clerkAppearance}>
+                    <SignUpButton mode="modal">
                       <Button
                         className="bg-[#3B82F6] hover:bg-[#2563EB] text-white border-0 shadow-lg shadow-blue-500/20 w-full mt-2"
                         size="sm"

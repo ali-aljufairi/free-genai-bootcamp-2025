@@ -24,17 +24,17 @@
 }
 
 /* Study card transitions */
-::view-transition-old(study-card-*),
-::view-transition-new(study-card-*) {
+::view-transition-old(study-card),
+::view-transition-new(study-card) {
     animation-duration: 0.8s;
     animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-::view-transition-old(study-card-*) {
+::view-transition-old(study-card) {
     animation-name: slide-out;
 }
 
-::view-transition-new(study-card-*) {
+::view-transition-new(study-card) {
     animation-name: slide-in;
 }
 
