@@ -1001,6 +1001,7 @@ difficulty_level TEXT CHECK (
 
 -- Metadata
 
+
 device_type TEXT CHECK (device_type IN ('mobile', 'desktop', 'tablet')),
     location TEXT,
     
