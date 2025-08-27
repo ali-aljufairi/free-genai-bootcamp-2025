@@ -14,7 +14,6 @@ services:
       - "${DB_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./pg.sql:/docker-entrypoint-initdb.d/01-schema.sql
       - ./postgresql.conf:/usr/lib/postgresql/17/main/postgresql.conf
       - ./pg_hba.conf:/usr/lib/postgresql/17/main/pg_hba.conf
 

@@ -10,6 +10,9 @@
 - Maintain code quality, security, and performance standards
 - Test thoroughly before suggesting changes
 - Respect existing architectural decisions and patterns
+- **NEVER suggest quick fixes or temporary solutions**
+- **ALWAYS understand the existing database schema before proposing changes**
+- **NEVER create new tables without understanding the existing architecture**
 
 ## Architecture Overview
 
@@ -19,7 +22,6 @@ Sorami is a **production-grade microservices platform** for Japanese language le
 
 - **lang-portal**: Central Go+Next.js web application with SQLite→PostgreSQL migration in progress
 - **agent**: AI shopping/search assistant using LangGraph and Groq LLM
-- **ASL**: American Sign Language recognition with MediaPipe
 - **listening-comp**: JLPT audio comprehension using RAG
 - **quiz-gen**: AI-powered quiz generation for language tests
 - **vocab-importer**: Vocabulary extraction and management
@@ -48,6 +50,7 @@ Sorami is a **production-grade microservices platform** for Japanese language le
 - **Current State**: Mixed environment (SQLite for dev, PostgreSQL for production)
 - **Critical**: Always check current migration status before database changes
 - **Schema Location**: `Database/` directory contains comprehensive PostgreSQL schema
+- **Database Design Philosophy**: The maintainer has put significant thought and effort into the database design with careful attention to:
 - **Shared Data**: `words.db` SQLite file still used for cross-service vocabulary data
 
 ## Development Workflows
@@ -58,6 +61,7 @@ Sorami is a **production-grade microservices platform** for Japanese language le
 # Go service (lang-portal)
 make run              # Starts backend + frontend dev servers
 make docker-run       # Full Docker Compose setup
+# Note: Uses Air for hot reloading - no manual rebuilds needed
 
 # Python services
 uv run fastapi dev api.py     # FastAPI development
@@ -105,6 +109,7 @@ uv run streamlit run main.py  # Streamlit interface
 - Japanese-specific tables: `kanji`, `words`, `grammar_points`, `jlpt_questions`
 - User progress tracking with spaced repetition algorithms
 - Graph relationships for content connections (see `Database/README.md`)
+- **Important**: Always examine existing table structures and relationships before proposing changes
 
 ### Deployment
 
@@ -113,3 +118,24 @@ uv run streamlit run main.py  # Streamlit interface
 - Environment-specific configurations in Docker Compose
 
 When working on this codebase, prioritize understanding the **service boundaries** and **shared authentication patterns**. Each service is designed to be independently deployable while maintaining data consistency through the central database schema.
+
+## Problem-Solving Approach
+
+### Before Making Changes
+
+1. **Understand the existing architecture** - examine table structures, relationships, and patterns
+2. **Ask for context** - information when working with database issues or obtain it yoursel
+3. **Identify root causes** - don't jump to quick fixes without understanding the problem
+4. **Respect existing design** - the database and code patterns are carefully designed
+
+### When Debugging API Issues
+
+1. **Check database connectivity** and table existence first
+2. **Examine authentication flow** - Clerk JWT → user mapping → database operations
+3. **Verify foreign key relationships** and constraints
+4. **Use existing functions and patterns** rather than creating new ones
+
+### Working with Database
+
+- **Always request table structures** before proposing schema changes
+- **Use existing progress tracking tables** rather than creating new ones

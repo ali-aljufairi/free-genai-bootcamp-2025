@@ -333,7 +333,7 @@ CREATE INDEX idx_word_tags_tag ON word_tags (tag);
 CREATE TABLE study_activities (
     id SERIAL PRIMARY KEY,
     name TEXT NOT NULL,
-    activity_type activity_enum NOT NULL,
+    activity_type activity_enum NOT NULL UNIQUE,
     created_at TIMESTAMPTZ DEFAULT now()
 );
 
@@ -1001,10 +1001,8 @@ difficulty_level TEXT CHECK (
 
 -- Metadata
 
-
 device_type TEXT CHECK (device_type IN ('mobile', 'desktop', 'tablet')),
     location TEXT,
-    notes TEXT,
     
     created_at TIMESTAMPTZ DEFAULT now()
 );
@@ -1491,3 +1489,31 @@ CREATE TYPE audit_action_enum AS ENUM (
     'export',
     'import'
 );
+
+/* 11. SEED DATA FOR ENUM-BASED TABLES ------------------------------ */
+
+-- Seed study activities with all activity enum values
+INSERT INTO
+    study_activities (name, activity_type)
+VALUES (
+        'Flashcard Study',
+        'flashcard'
+    ),
+    (
+        'Grammar Quiz',
+        'grammar_quiz'
+    ),
+    ('Writing Practice', 'writing'),
+    (
+        'Speech to Image',
+        'speech_image'
+    ),
+    (
+        'Shadowing Practice',
+        'shadow'
+    ),
+    (
+        'Kanji Stroke Order',
+        'stroke'
+    )
+ON CONFLICT (activity_type) DO NOTHING;

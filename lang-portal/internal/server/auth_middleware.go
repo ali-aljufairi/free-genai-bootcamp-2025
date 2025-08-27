@@ -100,10 +100,8 @@ func (caa *clerkAuth) Middleware() fiber.Handler {
 		// Attempt to resolve our internal numeric user id
 		if caa.db != nil {
 			var id int64
-			// Note: schema currently defines users.clerk_id as UUID in pg.sql.
-			// If your Clerk IDs are not UUIDs, this select may fail. We attempt a generic query; if it fails, we fall back in dev.
-			// Expectation: You will ALTER COLUMN to TEXT for production (see README note).
-			if err := caa.db.Raw("SELECT id FROM users WHERE clerk_id::text = ? LIMIT 1", sub).Scan(&id).Error; err == nil && id != 0 {
+			// Query for user_id using clerk_id (TEXT column)
+			if err := caa.db.Raw("SELECT id FROM users WHERE clerk_id = ? LIMIT 1", sub).Scan(&id).Error; err == nil && id != 0 {
 				c.Locals("user_id", id)
 			} else if caa.allowDevFallback {
 				c.Locals("user_id", int64(1))

@@ -254,8 +254,8 @@ export default function TourGuide() {
             </Button>
             {!isSignedIn && (
                 <div className="hidden">
-                    <SignUpButton mode="modal" afterSignUpUrl="/study" appearance={clerkAppearance} id="tour-signup-button">
-                        <Button>Sign Up</Button>
+                    <SignUpButton mode="modal" fallbackRedirectUrl="/study" appearance={clerkAppearance}>
+                        <Button id="tour-signup-button">Sign Up</Button>
                     </SignUpButton>
                 </div>
             )}

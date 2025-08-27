@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"lang-portal/internal/database/models"
 	"math/rand"
 	"strconv"
@@ -1010,36 +1011,32 @@ func (h *FlashcardHandler) createFlashcardSession(session *FlashcardSession, see
 		ID int64 `gorm:"column:id"`
 	}
 
-	notesPayload := map[string]any{
-		"flashcard_config": session.Config,
-		"seed":             seed,
-	}
-	notesBytes, _ := json.Marshal(notesPayload)
-
 	// Create a session; session_type depends on flashcard type
-	sessionType := "vocabulary_review"
+	// Get the appropriate study activity
+	var activityID int
+	activityName := "Word Flashcards"
 	if session.Config.FlashcardType == FlashcardTypeKanji {
-		sessionType = "kanji_study"
+		activityName = "Kanji Flashcards"
 	}
 
-	// Insert into enhanced_study_sessions
-	// Columns present per pg.sql: id, user_id, session_type, started_at, ended_at, duration_minutes, ... , created_at
-	// We will set user_id, session_type, and notes (optional column). If notes column does not yet exist,
-	// please let me know and I will propose adding it.
-	// Attempt insert with notes; if it fails due to missing column, fall back without notes.
-	var s sessionRow
+	// Look up the existing study activity
 	err := h.db.Raw(
-		"INSERT INTO enhanced_study_sessions (user_id, session_type, notes) VALUES (?, ?, ?) RETURNING id",
-		session.UserID, sessionType, string(notesBytes),
+		"SELECT id FROM study_activities WHERE name = ? AND activity_type = 'flashcard'",
+		activityName,
+	).Scan(&activityID).Error
+
+	if err != nil {
+		return 0, fmt.Errorf("study activity '%s' not found. Please ensure study_activities table is seeded", activityName)
+	}
+
+	// Insert into study_sessions using your existing schema
+	var s sessionRow
+	err = h.db.Raw(
+		"INSERT INTO study_sessions (user_id, activity_id) VALUES (?, ?) RETURNING id",
+		session.UserID, activityID,
 	).Scan(&s).Error
 	if err != nil {
-		// Fallback without notes (if column not present)
-		if err2 := h.db.Raw(
-			"INSERT INTO enhanced_study_sessions (user_id, session_type) VALUES (?, ?) RETURNING id",
-			session.UserID, sessionType,
-		).Scan(&s).Error; err2 != nil {
-			return 0, err
-		}
+		return 0, fmt.Errorf("failed to create study session: %w", err)
 	}
 
 	// Assign ephemeral IDs to cards using index (not stored). Client will return positions.
