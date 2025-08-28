@@ -4,6 +4,13 @@ import { ClerkProvider } from "@clerk/nextjs";
 import { clerkAppearance } from "@/components/navbar";
 import { useEffect } from "react";
 
+// Configure Clerk to automatically include auth tokens in fetch requests
+const publishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
+
+if (!publishableKey) {
+    throw new Error("Missing NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY");
+}
+
 interface ClerkWrapperProps {
     children: React.ReactNode;
 }
@@ -20,7 +27,7 @@ export default function ClerkWrapper({ children }: ClerkWrapperProps) {
             afterSignUpUrl="/study"
             signInUrl="/sign-in"
             signUpUrl="/sign-up"
-            publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
+            publishableKey={publishableKey}
         >
             {children}
         </ClerkProvider>

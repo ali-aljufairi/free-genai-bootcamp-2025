@@ -277,7 +277,7 @@ export function WordsFlashcard() {
                             {/* Card Display Options */}
                             <div className="space-y-4">
                                 <div className="flex items-center gap-3 pb-2">
-                                    <span className="text-lg">�️</span>
+                                    <HelpCircle className="w-6 h-6 text-blue-500" />
                                     <div>
                                         <h3 className="text-lg font-medium">Card Display Options</h3>
                                         <p className="text-sm text-muted-foreground">What appears on each card.</p>
@@ -312,7 +312,7 @@ export function WordsFlashcard() {
                             {/* Quiz Settings */}
                             <div className="space-y-4">
                                 <div className="flex items-center gap-3 pb-2">
-                                    <span className="text-lg">�</span>
+                                    <HelpCircle className="w-6 h-6 text-red-500" />
                                     <div>
                                         <h3 className="text-lg font-medium">Quiz Settings</h3>
                                         <p className="text-sm text-muted-foreground">What the question asks you to recall (choose at least one).</p>

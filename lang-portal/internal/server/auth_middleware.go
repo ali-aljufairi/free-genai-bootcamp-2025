@@ -62,6 +62,7 @@ func newClerkAuth(postgresDB *gorm.DB) (*clerkAuth, error) {
 // - If token is valid, sets c.Locals("clerk_user_id") and attempts to resolve numeric user_id from DB.
 func (caa *clerkAuth) Middleware() fiber.Handler {
 	return func(c *fiber.Ctx) error {
+
 		authz := c.Get("Authorization")
 		if authz == "" {
 			if caa.allowDevFallback {

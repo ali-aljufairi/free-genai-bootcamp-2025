@@ -142,77 +142,87 @@ async function fetchData<T>(
 //   }),
 // };
 
-// v2 Flashcards API calls (skip auth; public demo)
-async function fetchV2<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  const url = `${API_V2_BASE_URL}${endpoint}`;
-  
-  try {
-    const response = await fetch(url, {
-      ...options,
-      // Avoid forwarding large auth cookies in dev which can cause 431
-      credentials: 'omit',
-      cache: 'no-store',
+
+
+// Flashcards API using Next.js API routes for proper server-side authentication
+export const flashcardsV2Api = {
+  start: async (config: FlashcardConfig): Promise<FlashcardSession> => {
+    const response = await fetch('/api/flashcards/start', {
+      method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        ...(options.headers || {}),
       },
+      body: JSON.stringify(config),
     });
-    
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({} as { message?: string }));
-      const error = new Error(errorData.message || `API request failed with status ${response.status}`);
-      
-      // Report v2 API errors to Sentry
-      Sentry.captureException(error, {
-        tags: {
-          location: 'api-service-v2',
-          endpoint: endpoint,
-          method: options.method || 'GET',
-        },
-        extra: {
-          url: url,
-          status: response.status,
-          statusText: response.statusText,
-          errorData: errorData,
-        },
-      });
-      
-      throw error;
-    }
-    
-    return response.json();
-  } catch (error) {
-    // Report v2 network errors to Sentry
-    Sentry.captureException(error, {
-      tags: {
-        location: 'api-service-v2',
-        endpoint: endpoint,
-        method: options.method || 'GET',
-        errorType: 'network',
-      },
-      extra: {
-        url: url,
-        options: options,
-      },
-    });
-    
-    throw error;
-  }
-}
 
-export const flashcardsV2Api = {
-  start: (config: FlashcardConfig) => fetchV2<FlashcardSession>(`/flashcards/start`, {
-    method: 'POST',
-    body: JSON.stringify(config),
-  }),
-  submit: (submission: FlashcardSubmission) => fetchV2<FlashcardResult>(`/flashcards/submit`, {
-    method: 'POST',
-    body: JSON.stringify(submission),
-  }),
-  history: (page: number = 1, pageSize: number = 10) => fetchV2<{ sessions: FlashcardSession[]; total: number; page: number; pageSize: number; totalPages: number }>(`/flashcards/history?page=${page}&pageSize=${pageSize}`),
-  courses: () => fetchV2<Course[]>(`/flashcards/courses`),
-  units: (courseId: number) => fetchV2<Unit[]>(`/flashcards/courses/${courseId}/units`),
-  partsOfSpeech: () => fetchV2<string[]>(`/flashcards/parts-of-speech`),
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+      throw new Error(errorData.message || `Failed to start flashcard session: ${response.status}`);
+    }
+
+    return response.json();
+  },
+
+  submit: async (submission: FlashcardSubmission): Promise<FlashcardResult> => {
+    const response = await fetch('/api/flashcards/submit', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(submission),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+      throw new Error(errorData.message || `Failed to submit flashcard session: ${response.status}`);
+    }
+
+    return response.json();
+  },
+
+  history: async (page: number = 1, pageSize: number = 10) => {
+    const response = await fetch(`/api/flashcards/history?page=${page}&pageSize=${pageSize}`);
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+      throw new Error(errorData.message || `Failed to fetch flashcard history: ${response.status}`);
+    }
+
+    return response.json();
+  },
+
+  courses: async (): Promise<Course[]> => {
+    const response = await fetch('/api/flashcards/courses');
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+      throw new Error(errorData.message || `Failed to fetch courses: ${response.status}`);
+    }
+
+    return response.json();
+  },
+
+  units: async (courseId: number): Promise<Unit[]> => {
+    const response = await fetch(`/api/flashcards/courses/${courseId}/units`);
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+      throw new Error(errorData.message || `Failed to fetch units: ${response.status}`);
+    }
+
+    return response.json();
+  },
+
+  partsOfSpeech: async (): Promise<string[]> => {
+    const response = await fetch('/api/flashcards/parts-of-speech');
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+      throw new Error(errorData.message || `Failed to fetch parts of speech: ${response.status}`);
+    }
+
+    return response.json();
+  },
 };
 
 export const api = {
