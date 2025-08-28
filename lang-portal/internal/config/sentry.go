@@ -21,15 +21,23 @@ func InitSentry() error {
 		environment = "development"
 	}
 
-	// Skip Sentry in development if explicitly disabled
-	if environment == "development" && os.Getenv("SENTRY_ENABLE_IN_DEV") != "true" {
+	// Enable Sentry in development by default, but allow override
+	enableInDev := os.Getenv("SENTRY_ENABLE_IN_DEV")
+	if environment == "development" && enableInDev != "true" && enableInDev != "false" {
+		// Default to enabled in development
+		log.Printf("Sentry enabled in development environment (set SENTRY_ENABLE_IN_DEV=false to disable)")
+	} else if environment == "development" && enableInDev == "false" {
 		log.Printf("Sentry disabled in development environment")
 		return nil
 	}
 
+	// Set debug mode for development
+	debug := environment == "development"
+
 	err := sentry.Init(sentry.ClientOptions{
 		Dsn:         dsn,
 		Environment: environment,
+		Debug:       debug,
 		// Enable performance monitoring
 		EnableTracing: true,
 		// Set the sample rate for tracing (1.0 = 100% in dev, lower in prod)
@@ -52,7 +60,7 @@ func InitSentry() error {
 		return err
 	}
 
-	log.Printf("Sentry initialized successfully for environment: %s", environment)
+	log.Printf("Sentry initialized successfully for environment: %s (debug: %v)", environment, debug)
 	return nil
 }
 

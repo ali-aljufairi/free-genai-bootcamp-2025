@@ -175,6 +175,29 @@ func NewFlashcardHandler(db *gorm.DB) *FlashcardHandler {
 	return &FlashcardHandler{db: db}
 }
 
+// getUserID gets user ID from context or falls back to first available user
+func (h *FlashcardHandler) getUserID(c *fiber.Ctx) (int64, error) {
+	// Try to get user ID from context first (from auth middleware)
+	if userIDInterface := c.Locals("user_id"); userIDInterface != nil {
+		if userID, ok := userIDInterface.(int64); ok && userID > 0 {
+			return userID, nil
+		}
+	}
+
+	// Fallback: get first available user from database
+	var userID int64
+	err := h.db.Raw("SELECT id FROM users ORDER BY id LIMIT 1").Scan(&userID).Error
+	if err != nil {
+		return 0, fmt.Errorf("no users found in database: %w", err)
+	}
+
+	if userID == 0 {
+		return 0, fmt.Errorf("no valid user ID found")
+	}
+
+	return userID, nil
+}
+
 // StartFlashcardSession starts a new flashcard session
 func (h *FlashcardHandler) StartFlashcardSession(c *fiber.Ctx) error {
 	var config FlashcardConfig
@@ -191,8 +214,13 @@ func (h *FlashcardHandler) StartFlashcardSession(c *fiber.Ctx) error {
 		})
 	}
 
-	// Get user ID from context (assuming authentication middleware sets this)
-	userID := c.Locals("user_id").(int64)
+	// Get user ID from context or use fallback
+	userID, err := h.getUserID(c)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to get user ID",
+		})
+	}
 
 	// Ensure development user exists in PostgreSQL
 	if err := h.ensureDevUserExists(userID); err != nil {
@@ -251,7 +279,12 @@ func (h *FlashcardHandler) SubmitFlashcardSession(c *fiber.Ctx) error {
 		})
 	}
 
-	userID := c.Locals("user_id").(int64)
+	userID, err := h.getUserID(c)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to get user ID",
+		})
+	}
 
 	// Get flashcard session
 	session, err := h.getFlashcardSession(submission.SessionID, userID)
@@ -299,7 +332,12 @@ func (h *FlashcardHandler) SubmitFlashcardSession(c *fiber.Ctx) error {
 
 // GetFlashcardHistory gets user's flashcard history
 func (h *FlashcardHandler) GetFlashcardHistory(c *fiber.Ctx) error {
-	userID := c.Locals("user_id").(int64)
+	userID, err := h.getUserID(c)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to get user ID",
+		})
+	}
 	page, _ := strconv.Atoi(c.Query("page", "1"))
 	pageSize, _ := strconv.Atoi(c.Query("pageSize", "10"))
 
@@ -1038,16 +1076,43 @@ func (h *FlashcardHandler) generateKanjiWrongOptions(kanjiID int64, kanji struct
 
 // createFlashcardSession creates a flashcard session in the database
 func (h *FlashcardHandler) createFlashcardSession(session *FlashcardSession, seed int64) (int64, error) {
-	// For now, skip database persistence and just return a dummy session ID
-	// This allows the flashcard functionality to work while we sort out the database schema
+	// Create payload with config and seed for deterministic regeneration
+	payload := map[string]interface{}{
+		"flashcard_config": session.Config,
+		"seed":             seed,
+		"card_count":       len(session.Cards),
+	}
+
+	payloadJSON, err := json.Marshal(payload)
+	if err != nil {
+		return 0, fmt.Errorf("failed to marshal payload: %w", err)
+	}
+
+	// Determine session type based on flashcard type
+	sessionType := "vocabulary_review"
+	if session.Config.FlashcardType == FlashcardTypeKanji {
+		sessionType = "kanji_study"
+	}
+
+	// Insert session into enhanced_study_sessions
+	var sessionID int64
+	err = h.db.Raw(`
+		INSERT INTO enhanced_study_sessions 
+		(user_id, session_type, notes, created_at, started_at) 
+		VALUES (?, ?, ?, NOW(), ?)
+		RETURNING id
+	`, session.UserID, sessionType, string(payloadJSON), session.StartedAt).Scan(&sessionID).Error
+
+	if err != nil {
+		return 0, fmt.Errorf("failed to create session: %w", err)
+	}
 
 	// Assign ephemeral IDs to cards using index (not stored). Client will return positions.
 	for i := range session.Cards {
 		session.Cards[i].ID = int64(i + 1)
 	}
 
-	// Return a dummy session ID for now
-	return 1, nil
+	return sessionID, nil
 }
 
 // getFlashcardSession gets a flashcard session by ID

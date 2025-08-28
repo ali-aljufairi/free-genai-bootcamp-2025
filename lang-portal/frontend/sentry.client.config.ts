@@ -1,11 +1,11 @@
-// This file configures the initialization of Sentry on the server side.
-// The config you add here will be used whenever the server handles a request.
+// This file configures the initialization of Sentry on the client side.
+// The config you add here will be used whenever a users loads a page in their browser.
 // https://docs.sentry.io/platforms/javascript/guides/nextjs/
 
 import * as Sentry from "@sentry/nextjs";
 
 Sentry.init({
-  dsn: process.env.SENTRY_DSN,
+  dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
 
   // Adjust this value in production, or use tracesSampler for greater control
   tracesSampleRate: 1,
@@ -21,9 +21,15 @@ Sentry.init({
 
   // Before send hook to filter out certain errors
   beforeSend(event, hint) {
-    // Filter out health check errors
-    if (event.request && event.request.url && event.request.url.includes('/health')) {
-      return null;
+    // Filter out certain errors in development
+    if (process.env.NODE_ENV === 'development') {
+      // Don't send console errors in development
+      if (event.exception && event.exception.values) {
+        const exception = event.exception.values[0];
+        if (exception.value && exception.value.includes('console.error')) {
+          return null;
+        }
+      }
     }
     return event;
   },

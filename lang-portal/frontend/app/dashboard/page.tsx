@@ -7,6 +7,7 @@ import { ProgressCircle } from "@/components/progress-circle"
 // import { ActivityFeed } from "@/components/activity-feed"
 // import { StreakCalendar } from "@/components/streak-calendar"
 import { StatsCards } from "@/components/stats-cards"
+
 import { BookOpen, Clock, TrendingUp } from "lucide-react"
 // import { useLastStudySession, useStudyProgress } from "@/hooks/api/useDashboard"
 import { useState, useEffect } from "react"
@@ -47,6 +48,9 @@ export default function Dashboard() {
           </p>
         </div>
       </div>
+
+
+
       <StatsCards />
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         <Card className="col-span-1 glass-card">

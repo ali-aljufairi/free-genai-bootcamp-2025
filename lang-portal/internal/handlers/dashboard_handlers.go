@@ -4,6 +4,7 @@ import (
 	"lang-portal/internal/database"
 	"time"
 
+	"github.com/getsentry/sentry-go"
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -87,7 +88,7 @@ func (h *DashboardHandler) GetQuickStats(c *fiber.Ctx) error {
 		Date string `gorm:"column:activity_date"`
 	}
 	var dates []StudyDate
-	
+
 	// Use Raw SQL to combine dates from both study_sessions and study_activities
 	h.DB.GetDB().Raw(`
 		SELECT activity_date FROM (
@@ -105,7 +106,7 @@ func (h *DashboardHandler) GetQuickStats(c *fiber.Ctx) error {
 	if len(dates) > 0 {
 		streak = 1
 		today := time.Now().Truncate(24 * time.Hour)
-		
+
 		// Parse the most recent date
 		lastActivity, err := time.Parse("2006-01-02", dates[0].Date)
 		if err != nil {
@@ -113,17 +114,17 @@ func (h *DashboardHandler) GetQuickStats(c *fiber.Ctx) error {
 			stats.StudyStreakDays = streak
 			return c.JSON(stats)
 		}
-		
+
 		// Check if the streak is broken (no activity today or yesterday)
 		lastActivity = lastActivity.Truncate(24 * time.Hour)
 		daysSinceLastActivity := int(today.Sub(lastActivity).Hours() / 24)
-		
+
 		if daysSinceLastActivity > 1 {
 			// Streak is broken - only count the past consecutive days
 			stats.StudyStreakDays = 0
 			return c.JSON(stats)
 		}
-		
+
 		// Parse dates manually and count consecutive days
 		var prevDate time.Time
 		for i, dateItem := range dates {
@@ -131,13 +132,13 @@ func (h *DashboardHandler) GetQuickStats(c *fiber.Ctx) error {
 			if err != nil {
 				continue
 			}
-			
+
 			// Initialize on first valid date
 			if i == 0 {
 				prevDate = currentDate
 				continue
 			}
-			
+
 			// Check for consecutive days
 			daysBetween := int(prevDate.Sub(currentDate).Hours() / 24)
 			if daysBetween == 1 {
@@ -156,4 +157,35 @@ func (h *DashboardHandler) GetQuickStats(c *fiber.Ctx) error {
 	stats.StudyStreakDays = streak
 
 	return c.JSON(stats)
+}
+
+// TestSentry is a test endpoint to verify Sentry error reporting
+func (h *DashboardHandler) TestSentry(c *fiber.Ctx) error {
+	// Test different types of Sentry events
+	testType := c.Query("type", "error")
+
+	switch testType {
+	case "error":
+		// Test error reporting
+		sentry.CaptureException(fiber.NewError(fiber.StatusInternalServerError, "Test error from backend"))
+		return c.JSON(fiber.Map{"message": "Test error sent to Sentry"})
+
+	case "message":
+		// Test message reporting
+		sentry.CaptureMessage("Test message from backend")
+		return c.JSON(fiber.Map{"message": "Test message sent to Sentry"})
+
+	case "performance":
+		// Test performance monitoring
+		transaction := sentry.StartTransaction(c.Context(), "Test Transaction")
+		defer transaction.Finish()
+
+		// Simulate some work
+		time.Sleep(100 * time.Millisecond)
+
+		return c.JSON(fiber.Map{"message": "Test performance transaction sent to Sentry"})
+
+	default:
+		return c.JSON(fiber.Map{"error": "Invalid test type. Use: error, message, or performance"})
+	}
 }

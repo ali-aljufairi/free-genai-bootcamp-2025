@@ -30,7 +30,8 @@ func (s *FiberServer) RegisterFiberRoutes() {
 
 	// Test endpoints for development
 	if strings.ToLower(os.Getenv("APP_ENV")) != "prod" {
-		s.App.Get("/test/sentry", s.testSentryHandler)
+		dashboardHandler := handlers.NewDashboardHandler(s.sqlDB)
+		s.App.Get("/test/sentry", dashboardHandler.TestSentry)
 	}
 
 	// Auth middleware (Clerk) - best effort. If not configured, routes still work; handlers may rely on dev fallback.

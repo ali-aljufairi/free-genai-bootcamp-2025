@@ -10,10 +10,19 @@ import { useIsMobile } from "@/components/ui/use-mobile"
 import { motion, AnimatePresence } from "framer-motion"
 import { useMutation } from "@tanstack/react-query"
 import { flashcardsV2Api } from "@/services/api"
-import type { 
-    Flashcard, 
-    FlashcardConfig, 
-    FlashcardSession, 
+import {
+    Settings,
+    Eye,
+    HelpCircle,
+    CheckCircle,
+    XCircle,
+    RotateCcw,
+    Play
+} from "lucide-react"
+import type {
+    Flashcard,
+    FlashcardConfig,
+    FlashcardSession,
     FlashcardAnswer,
     FlashcardSubmission,
     FlashcardResult
@@ -152,7 +161,7 @@ export function WordsFlashcard() {
             session_id: session.id,
             answers: finalAnswers,
         }
-        
+
         submitSessionMutation.mutate(submission)
     }
 
@@ -216,168 +225,171 @@ export function WordsFlashcard() {
     // Configuration screen
     if (showConfig) {
         return (
-            <Card className="glass-card">
-                <CardContent className="p-8 space-y-8">
-                    {/* Study Settings */}
-                    <div className="space-y-6">
-                        <div className="flex items-center gap-3 pb-2 border-b border-border/50">
-                            <span className="text-lg">⚙️</span>
-                            <h3 className="text-lg font-medium">Study Settings</h3>
-                            <p className="text-sm text-muted-foreground">Choose your level and session size.</p>
-                        </div>
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="space-y-2">
-                                <Label className="text-sm font-medium">JLPT Level</Label>
-                                <Select value={level.toString()} onValueChange={(value) => setLevel(parseInt(value))}>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Select level" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="5">N5 (Beginner)</SelectItem>
-                                        <SelectItem value="4">N4</SelectItem>
-                                        <SelectItem value="3">N3</SelectItem>
-                                        <SelectItem value="2">N2</SelectItem>
-                                        <SelectItem value="1">N1 (Advanced)</SelectItem>
-                                    </SelectContent>
-                                </Select>
+            <div className="h-full min-h-screen flex flex-col">
+                <Card className="glass-card flex-1 m-4">
+                    <CardContent className="p-8 space-y-8 h-full flex flex-col">
+                        {/* Study Settings */}
+                        <div className="space-y-6">
+                            <div className="flex items-center gap-3 pb-2 border-b border-border/50">
+                                <Settings className="w-6 h-6" />
+                                <h3 className="text-lg font-medium">Study Settings</h3>
+                                <p className="text-sm text-muted-foreground">Choose your level and session size.</p>
                             </div>
 
-                            <div className="space-y-2">
-                                <Label className="text-sm font-medium">Number of Cards</Label>
-                                <Select value={count.toString()} onValueChange={(value) => setCount(parseInt(value))}>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Card count" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="5">5 cards</SelectItem>
-                                        <SelectItem value="10">10 cards</SelectItem>
-                                        <SelectItem value="15">15 cards</SelectItem>
-                                        <SelectItem value="20">20 cards</SelectItem>
-                                        <SelectItem value="25">25 cards</SelectItem>
-                                        <SelectItem value="30">30 cards</SelectItem>
-                                    </SelectContent>
-                                </Select>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="space-y-2">
+                                    <Label className="text-sm font-medium">JLPT Level</Label>
+                                    <Select value={level.toString()} onValueChange={(value) => setLevel(parseInt(value))}>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Select level" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="5">N5 (Beginner)</SelectItem>
+                                            <SelectItem value="4">N4</SelectItem>
+                                            <SelectItem value="3">N3</SelectItem>
+                                            <SelectItem value="2">N2</SelectItem>
+                                            <SelectItem value="1">N1 (Advanced)</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label className="text-sm font-medium">Number of Cards</Label>
+                                    <Select value={count.toString()} onValueChange={(value) => setCount(parseInt(value))}>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Card count" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="5">5 cards</SelectItem>
+                                            <SelectItem value="10">10 cards</SelectItem>
+                                            <SelectItem value="15">15 cards</SelectItem>
+                                            <SelectItem value="20">20 cards</SelectItem>
+                                            <SelectItem value="25">25 cards</SelectItem>
+                                            <SelectItem value="30">30 cards</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
                             </div>
                         </div>
-                    </div>
 
-                    {/* Two column layout for display and quiz options */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                        {/* Card Display Options */}
-                        <div className="space-y-4">
-                            <div className="flex items-center gap-3 pb-2">
-                                <span className="text-lg">�️</span>
-                                <div>
-                                    <h3 className="text-lg font-medium">Card Display Options</h3>
-                                    <p className="text-sm text-muted-foreground">What appears on each card.</p>
+                        {/* Two column layout for display and quiz options */}
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                            {/* Card Display Options */}
+                            <div className="space-y-4">
+                                <div className="flex items-center gap-3 pb-2">
+                                    <span className="text-lg">�️</span>
+                                    <div>
+                                        <h3 className="text-lg font-medium">Card Display Options</h3>
+                                        <p className="text-sm text-muted-foreground">What appears on each card.</p>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-3">
+                                    <div className="flex items-center justify-between">
+                                        <Label>Show Kana (ひらがな/カタカナ)</Label>
+                                        <Switch checked={true} disabled />
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                        <Label>Show Kanji (漢字)</Label>
+                                        <Switch checked={showKanji} onCheckedChange={setShowKanji} />
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                        <Label>Show Romaji</Label>
+                                        <Switch checked={showRomaji} onCheckedChange={setShowRomaji} />
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                        <Label>Show English</Label>
+                                        <Switch checked={showEnglish} onCheckedChange={setShowEnglish} />
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                        <Label>Show Part of Speech</Label>
+                                        <Switch checked={showPartOfSpeech} onCheckedChange={setShowPartOfSpeech} />
+                                    </div>
+                                </div>
+                                <p className="text-xs text-muted-foreground">{[showKanji, showRomaji, showEnglish, showPartOfSpeech].filter(Boolean).length + 1} selected</p>
+                            </div>
+
+                            {/* Quiz Settings */}
+                            <div className="space-y-4">
+                                <div className="flex items-center gap-3 pb-2">
+                                    <span className="text-lg">�</span>
+                                    <div>
+                                        <h3 className="text-lg font-medium">Quiz Settings</h3>
+                                        <p className="text-sm text-muted-foreground">What the question asks you to recall (choose at least one).</p>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-3">
+                                    <div className="flex items-center justify-between">
+                                        <Label>Ask for Kana</Label>
+                                        <Switch checked={askForKana} onCheckedChange={setAskForKana} />
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                        <Label>Ask for Kanji</Label>
+                                        <Switch checked={askForKanji} onCheckedChange={setAskForKanji} />
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                        <Label>Ask for Romaji</Label>
+                                        <Switch checked={askForRomaji} onCheckedChange={setAskForRomaji} />
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                        <Label>Ask for English</Label>
+                                        <Switch checked={askForEnglish} onCheckedChange={setAskForEnglish} />
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                        <Label>Ask for Part of Speech</Label>
+                                        <Switch checked={askForPartOfSpeech} onCheckedChange={setAskForPartOfSpeech} />
+                                    </div>
+                                </div>
+
+                                <div className="flex gap-2">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => {
+                                            setAskForKana(true)
+                                            setAskForKanji(true)
+                                            setAskForRomaji(true)
+                                            setAskForEnglish(true)
+                                            setAskForPartOfSpeech(true)
+                                        }}
+                                    >
+                                        Select All
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => {
+                                            setAskForKana(false)
+                                            setAskForKanji(false)
+                                            setAskForRomaji(false)
+                                            setAskForEnglish(false)
+                                            setAskForPartOfSpeech(false)
+                                        }}
+                                    >
+                                        Clear
+                                    </Button>
+                                    <p className="text-xs text-muted-foreground self-center ml-2">
+                                        {[askForKana, askForKanji, askForRomaji, askForEnglish, askForPartOfSpeech].filter(Boolean).length} selected
+                                    </p>
                                 </div>
                             </div>
-                            
-                            <div className="space-y-3">
-                                <div className="flex items-center justify-between">
-                                    <Label>Show Kana (ひらがな/カタカナ)</Label>
-                                    <Switch checked={true} disabled />
-                                </div>
-                                <div className="flex items-center justify-between">
-                                    <Label>Show Kanji (漢字)</Label>
-                                    <Switch checked={showKanji} onCheckedChange={setShowKanji} />
-                                </div>
-                                <div className="flex items-center justify-between">
-                                    <Label>Show Romaji</Label>
-                                    <Switch checked={showRomaji} onCheckedChange={setShowRomaji} />
-                                </div>
-                                <div className="flex items-center justify-between">
-                                    <Label>Show English</Label>
-                                    <Switch checked={showEnglish} onCheckedChange={setShowEnglish} />
-                                </div>
-                                <div className="flex items-center justify-between">
-                                    <Label>Show Part of Speech</Label>
-                                    <Switch checked={showPartOfSpeech} onCheckedChange={setShowPartOfSpeech} />
-                                </div>
-                            </div>
-                            <p className="text-xs text-muted-foreground">{[showKanji, showRomaji, showEnglish, showPartOfSpeech].filter(Boolean).length + 1} selected</p>
                         </div>
 
-                        {/* Quiz Settings */}
-                        <div className="space-y-4">
-                            <div className="flex items-center gap-3 pb-2">
-                                <span className="text-lg">�</span>
-                                <div>
-                                    <h3 className="text-lg font-medium">Quiz Settings</h3>
-                                    <p className="text-sm text-muted-foreground">What the question asks you to recall (choose at least one).</p>
-                                </div>
-                            </div>
-                            
-                            <div className="space-y-3">
-                                <div className="flex items-center justify-between">
-                                    <Label>Ask for Kana</Label>
-                                    <Switch checked={askForKana} onCheckedChange={setAskForKana} />
-                                </div>
-                                <div className="flex items-center justify-between">
-                                    <Label>Ask for Kanji</Label>
-                                    <Switch checked={askForKanji} onCheckedChange={setAskForKanji} />
-                                </div>
-                                <div className="flex items-center justify-between">
-                                    <Label>Ask for Romaji</Label>
-                                    <Switch checked={askForRomaji} onCheckedChange={setAskForRomaji} />
-                                </div>
-                                <div className="flex items-center justify-between">
-                                    <Label>Ask for English</Label>
-                                    <Switch checked={askForEnglish} onCheckedChange={setAskForEnglish} />
-                                </div>
-                                <div className="flex items-center justify-between">
-                                    <Label>Ask for Part of Speech</Label>
-                                    <Switch checked={askForPartOfSpeech} onCheckedChange={setAskForPartOfSpeech} />
-                                </div>
-                            </div>
-                            
-                            <div className="flex gap-2">
-                                <Button 
-                                    variant="outline" 
-                                    size="sm"
-                                    onClick={() => {
-                                        setAskForKana(true)
-                                        setAskForKanji(true)
-                                        setAskForRomaji(true)
-                                        setAskForEnglish(true)
-                                        setAskForPartOfSpeech(true)
-                                    }}
-                                >
-                                    Select All
-                                </Button>
-                                <Button 
-                                    variant="outline" 
-                                    size="sm"
-                                    onClick={() => {
-                                        setAskForKana(false)
-                                        setAskForKanji(false)
-                                        setAskForRomaji(false)
-                                        setAskForEnglish(false)
-                                        setAskForPartOfSpeech(false)
-                                    }}
-                                >
-                                    Clear
-                                </Button>
-                                <p className="text-xs text-muted-foreground self-center ml-2">
-                                    {[askForKana, askForKanji, askForRomaji, askForEnglish, askForPartOfSpeech].filter(Boolean).length} selected
-                                </p>
-                            </div>
+                        {/* Start Button */}
+                        <div className="pt-4 border-t border-border/50">
+                            <Button
+                                onClick={startSession}
+                                className="w-full h-12 text-lg font-medium"
+                                disabled={startSessionMutation.isPending}
+                            >
+                                <Play className="w-5 h-5 mr-2" />
+                                {startSessionMutation.isPending ? "Loading..." : "Start Word Study"}
+                            </Button>
                         </div>
-                    </div>
-
-                    {/* Start Button */}
-                    <div className="pt-4 border-t border-border/50">
-                        <Button
-                            onClick={startSession}
-                            className="w-full h-12 text-lg font-medium"
-                            disabled={startSessionMutation.isPending}
-                        >
-                            {startSessionMutation.isPending ? "Loading..." : "Start Word Study"}
-                        </Button>
-                    </div>
-                </CardContent>
-            </Card>
+                    </CardContent>
+                </Card>
+            </div>
         )
     }
 
@@ -404,7 +416,7 @@ export function WordsFlashcard() {
                         <span>Score: {score}/{cards.length}</span>
                     </div>
                     <div className="w-full bg-muted rounded-full h-2">
-                        <div 
+                        <div
                             className="bg-primary h-2 rounded-full transition-all duration-300"
                             style={{ width: `${progressPercentage}%` }}
                         />
@@ -442,12 +454,12 @@ export function WordsFlashcard() {
                                 >
                                     <Button
                                         className={`w-full p-4 h-auto text-lg justify-center transition-all duration-200 ${selectedOption !== null
-                                                ? index === currentCard.correct_index
-                                                    ? "bg-green-500 hover:bg-green-600 text-white"
-                                                    : selectedOption === index
-                                                        ? "bg-red-400 hover:bg-red-400 text-white"
-                                                        : "opacity-70"
-                                                : "hover:bg-accent"
+                                            ? index === currentCard.correct_index
+                                                ? "bg-green-500 hover:bg-green-600 text-white"
+                                                : selectedOption === index
+                                                    ? "bg-red-400 hover:bg-red-400 text-white"
+                                                    : "opacity-70"
+                                            : "hover:bg-accent"
                                             }`}
                                         variant="outline"
                                         onClick={() => handleOptionSelect(index)}
@@ -474,7 +486,7 @@ export function WordsFlashcard() {
                     <span>Score: {score}/{cards.length}</span>
                 </div>
                 <div className="w-full bg-muted rounded-full h-3">
-                    <div 
+                    <div
                         className="bg-primary h-3 rounded-full transition-all duration-300"
                         style={{ width: `${progressPercentage}%` }}
                     />
@@ -513,12 +525,12 @@ export function WordsFlashcard() {
                                 >
                                     <Button
                                         className={`w-full p-8 h-auto text-2xl justify-center transition-all duration-200 ${selectedOption !== null
-                                                ? index === currentCard.correct_index
-                                                    ? "bg-green-500 hover:bg-green-600 text-white"
-                                                    : selectedOption === index
-                                                        ? "bg-red-400 hover:bg-red-400 text-white"
-                                                        : "opacity-70"
-                                                : "hover:bg-accent hover:scale-102"
+                                            ? index === currentCard.correct_index
+                                                ? "bg-green-500 hover:bg-green-600 text-white"
+                                                : selectedOption === index
+                                                    ? "bg-red-400 hover:bg-red-400 text-white"
+                                                    : "opacity-70"
+                                            : "hover:bg-accent hover:scale-102"
                                             }`}
                                         variant="outline"
                                         onClick={() => handleOptionSelect(index)}
