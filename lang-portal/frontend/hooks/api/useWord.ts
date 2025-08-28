@@ -1,7 +1,7 @@
 "use client";
 
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { wordApi } from "@/services/api";
+// import { wordApi } from "@/services/api";
 import { Word, WordsResponse } from "@/types/api";
 
 const ITEMS_PER_PAGE = 20;
@@ -19,7 +19,7 @@ export function useWords() {
     error
   } = useInfiniteQuery({
     queryKey: ['words'],
-    queryFn: ({ pageParam = 1 }) => wordApi.getWords(pageParam, ITEMS_PER_PAGE),
+    // queryFn: ({ pageParam = 1 }) => wordApi.getWords(pageParam, ITEMS_PER_PAGE),
     getNextPageParam: (lastPage) => 
       lastPage.page < lastPage.totalPages ? lastPage.page + 1 : undefined,
     initialPageParam: 1
@@ -49,7 +49,7 @@ export function useWords() {
 export function useWord(id: string) {
   return useQuery({
     queryKey: ['word', id],
-    queryFn: () => wordApi.getWord(id),
+    // queryFn: () => wordApi.getWord(id),
     enabled: !!id
   });
 }
@@ -61,7 +61,7 @@ export function useCreateWord() {
   const queryClient = useQueryClient();
   
   const { mutate, isPending: isLoading, error } = useMutation({
-    mutationFn: (data: Partial<Word>) => wordApi.createWord(data),
+    // mutationFn: (data: Partial<Word>) => wordApi.createWord(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['words'] });
     }

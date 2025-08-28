@@ -193,7 +193,7 @@ func (h *FlashcardHandler) StartFlashcardSession(c *fiber.Ctx) error {
 
 	// Get user ID from context (assuming authentication middleware sets this)
 	userID := c.Locals("user_id").(int64)
-	
+
 	// Ensure development user exists in PostgreSQL
 	if err := h.ensureDevUserExists(userID); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -369,12 +369,12 @@ func (h *FlashcardHandler) GetCourseUnits(c *fiber.Ctx) error {
 
 	var units []struct {
 		ID   int    `json:"id"`
-		Name string `json:"name"`
 		Path string `json:"path"`
 	}
 
+	// First, let's try to get just id and path since name column doesn't exist
 	err = h.db.Table("units").
-		Select("id, name, path").
+		Select("id, path").
 		Where("course_id = ?", courseIDInt).
 		Order("path").
 		Find(&units).Error
@@ -385,7 +385,26 @@ func (h *FlashcardHandler) GetCourseUnits(c *fiber.Ctx) error {
 		})
 	}
 
-	return c.JSON(units)
+	// Transform to include a generated name based on path
+	var result []struct {
+		ID   int    `json:"id"`
+		Name string `json:"name"`
+		Path string `json:"path"`
+	}
+
+	for _, unit := range units {
+		result = append(result, struct {
+			ID   int    `json:"id"`
+			Name string `json:"name"`
+			Path string `json:"path"`
+		}{
+			ID:   unit.ID,
+			Name: fmt.Sprintf("Unit %d", unit.ID), // Generate a simple name
+			Path: unit.Path,
+		})
+	}
+
+	return c.JSON(result)
 }
 
 // GetAvailablePartsOfSpeech gets available parts of speech
@@ -1021,7 +1040,7 @@ func (h *FlashcardHandler) generateKanjiWrongOptions(kanjiID int64, kanji struct
 func (h *FlashcardHandler) createFlashcardSession(session *FlashcardSession, seed int64) (int64, error) {
 	// For now, skip database persistence and just return a dummy session ID
 	// This allows the flashcard functionality to work while we sort out the database schema
-	
+
 	// Assign ephemeral IDs to cards using index (not stored). Client will return positions.
 	for i := range session.Cards {
 		session.Cards[i].ID = int64(i + 1)
@@ -1283,7 +1302,7 @@ func (h *FlashcardHandler) ensureDevUserExists(userID int64) error {
 	if err != nil {
 		return fmt.Errorf("failed to check user existence: %w", err)
 	}
-	
+
 	if count == 0 {
 		// Create development user
 		err = h.db.Exec(`
@@ -1291,12 +1310,12 @@ func (h *FlashcardHandler) ensureDevUserExists(userID int64) error {
 			VALUES (?, ?, ?, ?)
 			ON CONFLICT (id) DO NOTHING
 		`, userID, fmt.Sprintf("dev_user_%d", userID), fmt.Sprintf("dev%d@example.com", userID), fmt.Sprintf("Dev User %d", userID)).Error
-		
+
 		if err != nil {
 			return fmt.Errorf("failed to create development user: %w", err)
 		}
 	}
-	
+
 	return nil
 }
 
