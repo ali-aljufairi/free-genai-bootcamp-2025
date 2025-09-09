@@ -58,9 +58,8 @@ export function WordsFlashcard() {
     const startSessionMutation = useMutation({
         mutationFn: (config: FlashcardConfig) => flashcardsV2Api.start(config),
         onSuccess: (data) => {
-            console.log("API Response:", data) // Debug log
             setSession(data)
-            setCards(data.cards || [])
+            setCards(data.cards)
             setCurrentIndex(0)
             setSelectedOption(null)
             setIsCorrect(null)
@@ -398,7 +397,7 @@ export function WordsFlashcard() {
         return <div className="flex items-center justify-center min-h-[calc(100vh-8rem)]">Loading...</div>
     }
 
-    if (!session || !cards || cards.length === 0) {
+    if (!session || cards.length === 0) {
         return <div className="flex items-center justify-center min-h-[calc(100vh-8rem)]">No words available</div>
     }
 
