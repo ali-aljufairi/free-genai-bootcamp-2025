@@ -183,4 +183,4 @@ export interface FlashcardResult {
 }
 
 export interface Course { id: number; name: string; level: number }
-export interface Unit { id: number; name: string; path: string }
+export interface Unit { id: number; name: string; path: string; title?: string }

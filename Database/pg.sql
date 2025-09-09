@@ -63,7 +63,8 @@ CREATE TABLE users (
     email TEXT NOT NULL,
     display_name TEXT,
     stripe_customer_id TEXT UNIQUE, -- NEW
-    created_at TIMESTAMPTZ DEFAULT now()
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
 );
 
 CREATE TABLE roles (

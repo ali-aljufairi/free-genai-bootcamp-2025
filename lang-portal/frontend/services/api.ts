@@ -208,7 +208,9 @@ export const flashcardsV2Api = {
       throw new Error(errorData.message || `Failed to fetch courses: ${response.status}`);
     }
 
-    return response.json();
+    const result = await response.json();
+    // Handle wrapped response from api-proxy
+    return result.data || result;
   },
 
   units: async (courseId: number): Promise<Unit[]> => {
@@ -219,7 +221,9 @@ export const flashcardsV2Api = {
       throw new Error(errorData.message || `Failed to fetch units: ${response.status}`);
     }
 
-    return response.json();
+    const result = await response.json();
+    // Handle wrapped response from api-proxy
+    return result.data || result;
   },
 
   partsOfSpeech: async (): Promise<string[]> => {

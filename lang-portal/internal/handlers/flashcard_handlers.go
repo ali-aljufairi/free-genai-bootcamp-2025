@@ -7,6 +7,7 @@ import (
 	"lang-portal/internal/database/models"
 	"math/rand"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -173,6 +174,18 @@ type FlashcardHandler struct {
 
 func NewFlashcardHandler(db *gorm.DB) *FlashcardHandler {
 	return &FlashcardHandler{db: db}
+}
+
+// getFirstMeaning extracts the first meaning from a comma-separated string
+func getFirstMeaning(meanings string) string {
+	if meanings == "" {
+		return ""
+	}
+	parts := strings.Split(meanings, ",")
+	if len(parts) > 0 {
+		return strings.TrimSpace(parts[0])
+	}
+	return meanings
 }
 
 // getUserID gets user ID from context or falls back to first available user
@@ -406,13 +419,14 @@ func (h *FlashcardHandler) GetCourseUnits(c *fiber.Ctx) error {
 	}
 
 	var units []struct {
-		ID   int    `json:"id"`
-		Path string `json:"path"`
+		ID    int    `json:"id"`
+		Title string `json:"title"`
+		Path  string `json:"path"`
 	}
 
-	// First, let's try to get just id and path since name column doesn't exist
+	// Get id, title, and path from the database
 	err = h.db.Table("units").
-		Select("id, path").
+		Select("id, title, path").
 		Where("course_id = ?", courseIDInt).
 		Order("path").
 		Find(&units).Error
@@ -423,7 +437,7 @@ func (h *FlashcardHandler) GetCourseUnits(c *fiber.Ctx) error {
 		})
 	}
 
-	// Transform to include a generated name based on path
+	// Transform to include name field for frontend compatibility
 	var result []struct {
 		ID   int    `json:"id"`
 		Name string `json:"name"`
@@ -437,7 +451,7 @@ func (h *FlashcardHandler) GetCourseUnits(c *fiber.Ctx) error {
 			Path string `json:"path"`
 		}{
 			ID:   unit.ID,
-			Name: fmt.Sprintf("Unit %d", unit.ID), // Generate a simple name
+			Name: unit.Title, // Use the actual title from database
 			Path: unit.Path,
 		})
 	}
@@ -809,7 +823,8 @@ func (h *FlashcardHandler) generateWordFlashcard(wordID int64, config *Flashcard
 		question.Romaji = &word.Romaji
 	}
 	if options.ShowEnglish {
-		question.English = &word.English
+		firstMeaning := getFirstMeaning(word.English)
+		question.English = &firstMeaning
 	}
 	if options.ShowPartOfSpeech {
 		question.PartOfSpeech = &word.PartOfSpeech
@@ -827,7 +842,8 @@ func (h *FlashcardHandler) generateWordFlashcard(wordID int64, config *Flashcard
 		answer.Romaji = &word.Romaji
 	}
 	if options.AskForEnglish {
-		answer.English = &word.English
+		firstMeaning := getFirstMeaning(word.English)
+		answer.English = &firstMeaning
 	}
 	if options.AskForPartOfSpeech {
 		answer.PartOfSpeech = &word.PartOfSpeech
@@ -903,7 +919,8 @@ func (h *FlashcardHandler) generateWordWrongOptions(wordID int64, word models.Wo
 			wrongOption.Romaji = &wrongWord.Romaji
 		}
 		if options.AskForEnglish {
-			wrongOption.English = &wrongWord.English
+			firstMeaning := getFirstMeaning(wrongWord.English)
+			wrongOption.English = &firstMeaning
 		}
 		if options.AskForPartOfSpeech {
 			wrongOption.PartOfSpeech = &wrongWord.PartOfSpeech

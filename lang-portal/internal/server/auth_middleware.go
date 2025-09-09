@@ -2,6 +2,7 @@ package server
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -159,11 +160,47 @@ func (caa *clerkAuth) Middleware() fiber.Handler {
 			if err := caa.db.Raw("SELECT id FROM users WHERE clerk_id = ? LIMIT 1", sub).Scan(&id).Error; err == nil && id != 0 {
 				c.Locals("user_id", id)
 				log.Printf("Mapped Clerk user %s to internal user_id %d", sub, id)
-			} else if caa.allowDevFallback {
-				c.Locals("user_id", int64(1))
-				log.Printf("Using dev fallback user_id=1 for Clerk user %s", sub)
 			} else {
-				log.Printf("No internal user mapping found for Clerk user %s", sub)
+				// User doesn't exist, let's create them automatically
+				log.Printf("No user found for Clerk ID %s, creating new user", sub)
+
+				// Get user info from JWT claims if available
+				email, _ := claims["email"].(string)
+				if email == "" {
+					email = fmt.Sprintf("%s@clerk.user", sub) // Fallback email
+				}
+
+				name, _ := claims["name"].(string)
+				if name == "" {
+					if firstName, _ := claims["given_name"].(string); firstName != "" {
+						if lastName, _ := claims["family_name"].(string); lastName != "" {
+							name = firstName + " " + lastName
+						} else {
+							name = firstName
+						}
+					} else {
+						name = "User" // Fallback name
+					}
+				}
+
+				// Create the user
+				createUserQuery := `
+					INSERT INTO users (clerk_id, email, display_name, created_at, updated_at) 
+					VALUES (?, ?, ?, NOW(), NOW()) 
+					RETURNING id`
+
+				if err := caa.db.Raw(createUserQuery, sub, email, name).Scan(&id).Error; err != nil {
+					log.Printf("Failed to create user for Clerk ID %s: %v", sub, err)
+					if caa.allowDevFallback {
+						c.Locals("user_id", int64(1))
+						log.Printf("Using dev fallback user_id=1 for Clerk user %s", sub)
+					} else {
+						log.Printf("No internal user mapping found for Clerk user %s", sub)
+					}
+				} else {
+					c.Locals("user_id", id)
+					log.Printf("Created and mapped Clerk user %s to new internal user_id %d", sub, id)
+				}
 			}
 		} else if caa.allowDevFallback {
 			c.Locals("user_id", int64(1))

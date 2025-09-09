@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -8,8 +8,10 @@ import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { useIsMobile } from "@/components/ui/use-mobile"
 import { motion, AnimatePresence } from "framer-motion"
-import { useMutation } from "@tanstack/react-query"
+import { useMutation, useQuery } from "@tanstack/react-query"
 import { flashcardsV2Api } from "@/services/api"
+import { useFlashcardStore } from '@/stores/flashcard-store'
+import { FlashcardConfigSchema } from '@/lib/flashcard-validation'
 import {
     Settings,
     Eye,
@@ -25,7 +27,10 @@ import type {
     FlashcardSession,
     FlashcardAnswer,
     FlashcardSubmission,
-    FlashcardResult
+    FlashcardResult,
+    Course,
+    Unit,
+    ContentSource
 } from "@/types/api"
 
 export function WordsFlashcard() {
@@ -41,18 +46,44 @@ export function WordsFlashcard() {
     const [answers, setAnswers] = useState<FlashcardAnswer[]>([])
     const [score, setScore] = useState(0)
 
-    // Configuration options
-    const [level, setLevel] = useState<number>(5)
-    const [count, setCount] = useState<number>(10)
-    const [showRomaji, setShowRomaji] = useState<boolean>(true)
-    const [showKanji, setShowKanji] = useState<boolean>(true)
-    const [showEnglish, setShowEnglish] = useState<boolean>(false)
-    const [showPartOfSpeech, setShowPartOfSpeech] = useState<boolean>(false)
-    const [askForKana, setAskForKana] = useState<boolean>(false)
-    const [askForKanji, setAskForKanji] = useState<boolean>(false)
-    const [askForRomaji, setAskForRomaji] = useState<boolean>(false)
-    const [askForEnglish, setAskForEnglish] = useState<boolean>(true)
-    const [askForPartOfSpeech, setAskForPartOfSpeech] = useState<boolean>(false)
+    // Use Zustand store for persistent configuration
+    const store = useFlashcardStore()
+    const {
+        level, selectedCourse, selectedUnit, count, selectedPartsOfSpeech,
+        showKana, showKanji, showRomaji, showEnglish, showPartOfSpeech,
+        askForKana, askForKanji, askForRomaji, askForEnglish, askForPartOfSpeech,
+        setLevel, setCourse, setUnit, setCount, setPartsOfSpeech,
+        setShowOptions, setAskOptions, validateAndFixOptions
+    } = store
+
+    // Validate options on mount and when they change
+    useEffect(() => {
+        validateAndFixOptions()
+    }, [showKana, showKanji, showRomaji, showEnglish, showPartOfSpeech,
+        askForKana, askForKanji, askForRomaji, askForEnglish, askForPartOfSpeech])
+
+    // React Query for courses and units based on JLPT level
+    const { data: allCourses = [] } = useQuery({
+        queryKey: ['courses'],
+        queryFn: flashcardsV2Api.courses
+    })
+
+    // Filter courses by selected JLPT level (with defensive programming)
+    const availableCourses = Array.isArray(allCourses)
+        ? allCourses.filter(course => course.level === level)
+        : []
+
+    const { data: units = [] } = useQuery({
+        queryKey: ['units', selectedCourse],
+        queryFn: () => flashcardsV2Api.units(selectedCourse!),
+        enabled: selectedCourse !== null
+    })
+
+    // Query for available parts of speech
+    const { data: availablePartsOfSpeech = [] } = useQuery({
+        queryKey: ['parts-of-speech'],
+        queryFn: flashcardsV2Api.partsOfSpeech
+    })
 
     // React Query mutations
     const startSessionMutation = useMutation({
@@ -87,40 +118,81 @@ export function WordsFlashcard() {
     })
 
     const startSession = async () => {
-        // Validate that at least one ask option is selected
-        if (!askForKana && !askForKanji && !askForRomaji && !askForEnglish && !askForPartOfSpeech) {
-            alert("Please select at least one option to ask for")
+        // Use Zod to validate configuration
+        try {
+            const configData = {
+                level,
+                selectedCourse,
+                selectedUnit,
+                count,
+                showKana,
+                showKanji,
+                showRomaji,
+                showEnglish,
+                showPartOfSpeech,
+                askForKana,
+                askForKanji,
+                askForRomaji,
+                askForEnglish,
+                askForPartOfSpeech,
+            }
+
+            const validConfig = FlashcardConfigSchema.parse(configData)
+
+            // Determine content source based on selections
+            const hasUnitSelection = selectedCourse !== null && selectedUnit !== null
+            const hasCourseSelection = selectedCourse !== null
+
+            let contentSource: ContentSource = 'jlpt'
+            let apiConfig: any = {
+                flashcard_type: 'word',
+                content_source: contentSource,
+                filters: {
+                    jlpt_levels: [level],
+                    parts_of_speech: selectedPartsOfSpeech,
+                    difficulty_levels: [],
+                    has_kanji: undefined,
+                }
+            }
+
+            // Override content source and add course/unit info if selected
+            if (hasUnitSelection) {
+                apiConfig.content_source = 'unit'
+                apiConfig.course_id = selectedCourse
+                apiConfig.unit_id = selectedUnit
+                apiConfig.filters.jlpt_levels = [] // Don't filter by JLPT when using specific unit
+            } else if (hasCourseSelection) {
+                // For course-only selection, we can still use JLPT filtering but with course context
+                // This might need backend support - for now, we'll use JLPT filtering
+                apiConfig.filters.jlpt_levels = [level]
+            }
+
+            const config: FlashcardConfig = {
+                ...apiConfig,
+                word_options: {
+                    show_kana: true,
+                    show_kanji: showKanji,
+                    show_romaji: showRomaji,
+                    show_english: showEnglish,
+                    show_part_of_speech: showPartOfSpeech,
+                    ask_for_kana: askForKana,
+                    ask_for_kanji: askForKanji,
+                    ask_for_romaji: askForRomaji,
+                    ask_for_english: askForEnglish,
+                    ask_for_part_of_speech: askForPartOfSpeech,
+                },
+                kanji_options: undefined,
+                card_count: count,
+                time_limit: undefined,
+                shuffle_options: true,
+            }
+
+            startSessionMutation.mutate(config)
+        } catch (error) {
+            console.error('Configuration validation failed:', error)
+            alert('Please check your configuration settings')
             return
         }
-
-        const config: FlashcardConfig = {
-            flashcard_type: 'word',
-            content_source: 'jlpt',
-            filters: {
-                jlpt_levels: [level],
-                parts_of_speech: [],
-                difficulty_levels: [],
-                has_kanji: undefined,
-            },
-            word_options: {
-                show_kana: true,
-                show_kanji: showKanji,
-                show_romaji: showRomaji,
-                show_english: showEnglish,
-                show_part_of_speech: showPartOfSpeech,
-                ask_for_kana: askForKana,
-                ask_for_kanji: askForKanji,
-                ask_for_romaji: askForRomaji,
-                ask_for_english: askForEnglish,
-                ask_for_part_of_speech: askForPartOfSpeech,
-            },
-            kanji_options: undefined,
-            card_count: count,
-            time_limit: undefined,
-            shuffle_options: true,
-        }
-
-        startSessionMutation.mutate(config)
     }
 
     const handleOptionSelect = (optionIndex: number) => {
@@ -233,22 +305,107 @@ export function WordsFlashcard() {
                             <div className="flex items-center gap-3 pb-2 border-b border-border/50">
                                 <Settings className="w-6 h-6" />
                                 <h3 className="text-lg font-medium">Study Settings</h3>
-                                <p className="text-sm text-muted-foreground">Choose your level and session size.</p>
+                                <p className="text-sm text-muted-foreground">Choose your JLPT level and optionally select specific course/unit. Settings are automatically saved.</p>
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div className="space-y-2">
                                     <Label className="text-sm font-medium">JLPT Level</Label>
-                                    <Select value={level.toString()} onValueChange={(value) => setLevel(parseInt(value))}>
+                                    <Select value={level.toString()} onValueChange={(value) => {
+                                        setLevel(parseInt(value))
+                                        // Reset course/unit when level changes
+                                        setCourse(null)
+                                        setUnit(null)
+                                    }}>
                                         <SelectTrigger>
                                             <SelectValue placeholder="Select level" />
                                         </SelectTrigger>
                                         <SelectContent>
                                             <SelectItem value="5">N5 (Beginner)</SelectItem>
-                                            <SelectItem value="4">N4</SelectItem>
-                                            <SelectItem value="3">N3</SelectItem>
-                                            <SelectItem value="2">N2</SelectItem>
+                                            <SelectItem value="4">N4 (Elementary)</SelectItem>
+                                            <SelectItem value="3">N3 (Intermediate)</SelectItem>
+                                            <SelectItem value="2">N2 (Upper Intermediate)</SelectItem>
                                             <SelectItem value="1">N1 (Advanced)</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label className="text-sm font-medium">Course (Optional)</Label>
+                                    <Select value={selectedCourse?.toString() || "none"} onValueChange={(value) => {
+                                        if (value === "none") {
+                                            setCourse(null)
+                                        } else {
+                                            setCourse(parseInt(value))
+                                        }
+                                        setUnit(null) // Reset unit when course changes
+                                    }}>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Select course" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="none">No Course (All N{level} words)</SelectItem>
+                                            {availableCourses.map((course) => (
+                                                <SelectItem key={course.id} value={course.id.toString()}>
+                                                    {course.name}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label className="text-sm font-medium">Unit (Optional)</Label>
+                                    <Select
+                                        value={selectedUnit?.toString() || "none"}
+                                        onValueChange={(value) => {
+                                            if (value === "none") {
+                                                setUnit(null)
+                                            } else {
+                                                setUnit(parseInt(value))
+                                            }
+                                        }}
+                                        disabled={selectedCourse === null}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue placeholder={selectedCourse === null ? "Select course first" : "Select unit"} />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="none">
+                                                {selectedCourse === null ? "Select course first" : "No Unit (All course words)"}
+                                            </SelectItem>
+                                            {units.map((unit) => (
+                                                <SelectItem key={unit.id} value={unit.id.toString()}>
+                                                    {unit.name}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label className="text-sm font-medium">Part of Speech Filter (Optional)</Label>
+                                    <p className="text-xs text-muted-foreground">Filter by word types (e.g., "verb", "noun"). Useful for focused practice like "all N4 verbs".</p>
+                                    <Select
+                                        value={selectedPartsOfSpeech.length === 1 ? selectedPartsOfSpeech[0] : "none"}
+                                        onValueChange={(value) => {
+                                            if (value === "none") {
+                                                setPartsOfSpeech([])
+                                            } else {
+                                                setPartsOfSpeech([value])
+                                            }
+                                        }}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="All parts of speech" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="none">All parts of speech</SelectItem>
+                                            {availablePartsOfSpeech.map((pos) => (
+                                                <SelectItem key={pos} value={pos}>
+                                                    {pos.charAt(0).toUpperCase() + pos.slice(1)}s
+                                                </SelectItem>
+                                            ))}
                                         </SelectContent>
                                     </Select>
                                 </div>
@@ -257,7 +414,7 @@ export function WordsFlashcard() {
                                     <Label className="text-sm font-medium">Number of Cards</Label>
                                     <Select value={count.toString()} onValueChange={(value) => setCount(parseInt(value))}>
                                         <SelectTrigger>
-                                            <SelectValue placeholder="Card count" />
+                                            <SelectValue placeholder="Select count" />
                                         </SelectTrigger>
                                         <SelectContent>
                                             <SelectItem value="5">5 cards</SelectItem>
@@ -265,7 +422,6 @@ export function WordsFlashcard() {
                                             <SelectItem value="15">15 cards</SelectItem>
                                             <SelectItem value="20">20 cards</SelectItem>
                                             <SelectItem value="25">25 cards</SelectItem>
-                                            <SelectItem value="30">30 cards</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
@@ -291,19 +447,31 @@ export function WordsFlashcard() {
                                     </div>
                                     <div className="flex items-center justify-between">
                                         <Label>Show Kanji (漢字)</Label>
-                                        <Switch checked={showKanji} onCheckedChange={setShowKanji} />
+                                        <Switch
+                                            checked={showKanji}
+                                            onCheckedChange={(checked) => setShowOptions({ showKanji: checked })}
+                                        />
                                     </div>
                                     <div className="flex items-center justify-between">
                                         <Label>Show Romaji</Label>
-                                        <Switch checked={showRomaji} onCheckedChange={setShowRomaji} />
+                                        <Switch
+                                            checked={showRomaji}
+                                            onCheckedChange={(checked) => setShowOptions({ showRomaji: checked })}
+                                        />
                                     </div>
                                     <div className="flex items-center justify-between">
                                         <Label>Show English</Label>
-                                        <Switch checked={showEnglish} onCheckedChange={setShowEnglish} />
+                                        <Switch
+                                            checked={showEnglish}
+                                            onCheckedChange={(checked) => setShowOptions({ showEnglish: checked })}
+                                        />
                                     </div>
                                     <div className="flex items-center justify-between">
                                         <Label>Show Part of Speech</Label>
-                                        <Switch checked={showPartOfSpeech} onCheckedChange={setShowPartOfSpeech} />
+                                        <Switch
+                                            checked={showPartOfSpeech}
+                                            onCheckedChange={(checked) => setShowOptions({ showPartOfSpeech: checked })}
+                                        />
                                     </div>
                                 </div>
                                 <p className="text-xs text-muted-foreground">{[showKanji, showRomaji, showEnglish, showPartOfSpeech].filter(Boolean).length + 1} selected</p>
@@ -322,23 +490,38 @@ export function WordsFlashcard() {
                                 <div className="space-y-3">
                                     <div className="flex items-center justify-between">
                                         <Label>Ask for Kana</Label>
-                                        <Switch checked={askForKana} onCheckedChange={setAskForKana} />
+                                        <Switch
+                                            checked={askForKana}
+                                            onCheckedChange={(checked) => setAskOptions({ askForKana: checked })}
+                                        />
                                     </div>
                                     <div className="flex items-center justify-between">
                                         <Label>Ask for Kanji</Label>
-                                        <Switch checked={askForKanji} onCheckedChange={setAskForKanji} />
+                                        <Switch
+                                            checked={askForKanji}
+                                            onCheckedChange={(checked) => setAskOptions({ askForKanji: checked })}
+                                        />
                                     </div>
                                     <div className="flex items-center justify-between">
                                         <Label>Ask for Romaji</Label>
-                                        <Switch checked={askForRomaji} onCheckedChange={setAskForRomaji} />
+                                        <Switch
+                                            checked={askForRomaji}
+                                            onCheckedChange={(checked) => setAskOptions({ askForRomaji: checked })}
+                                        />
                                     </div>
                                     <div className="flex items-center justify-between">
                                         <Label>Ask for English</Label>
-                                        <Switch checked={askForEnglish} onCheckedChange={setAskForEnglish} />
+                                        <Switch
+                                            checked={askForEnglish}
+                                            onCheckedChange={(checked) => setAskOptions({ askForEnglish: checked })}
+                                        />
                                     </div>
                                     <div className="flex items-center justify-between">
                                         <Label>Ask for Part of Speech</Label>
-                                        <Switch checked={askForPartOfSpeech} onCheckedChange={setAskForPartOfSpeech} />
+                                        <Switch
+                                            checked={askForPartOfSpeech}
+                                            onCheckedChange={(checked) => setAskOptions({ askForPartOfSpeech: checked })}
+                                        />
                                     </div>
                                 </div>
 
@@ -347,11 +530,13 @@ export function WordsFlashcard() {
                                         variant="outline"
                                         size="sm"
                                         onClick={() => {
-                                            setAskForKana(true)
-                                            setAskForKanji(true)
-                                            setAskForRomaji(true)
-                                            setAskForEnglish(true)
-                                            setAskForPartOfSpeech(true)
+                                            setAskOptions({
+                                                askForKana: true,
+                                                askForKanji: true,
+                                                askForRomaji: true,
+                                                askForEnglish: true,
+                                                askForPartOfSpeech: true
+                                            })
                                         }}
                                     >
                                         Select All
@@ -360,11 +545,13 @@ export function WordsFlashcard() {
                                         variant="outline"
                                         size="sm"
                                         onClick={() => {
-                                            setAskForKana(false)
-                                            setAskForKanji(false)
-                                            setAskForRomaji(false)
-                                            setAskForEnglish(false)
-                                            setAskForPartOfSpeech(false)
+                                            setAskOptions({
+                                                askForKana: false,
+                                                askForKanji: false,
+                                                askForRomaji: false,
+                                                askForEnglish: true, // Keep at least one enabled
+                                                askForPartOfSpeech: false
+                                            })
                                         }}
                                     >
                                         Clear
@@ -384,7 +571,11 @@ export function WordsFlashcard() {
                                 disabled={startSessionMutation.isPending}
                             >
                                 <Play className="w-5 h-5 mr-2" />
-                                {startSessionMutation.isPending ? "Loading..." : "Start Word Study"}
+                                {startSessionMutation.isPending ? "Loading..." :
+                                    selectedCourse && selectedUnit ? "Start Unit Study" :
+                                        selectedCourse ? "Start Course Study" :
+                                            `Start N${level} Study`
+                                }
                             </Button>
                         </div>
                     </CardContent>
