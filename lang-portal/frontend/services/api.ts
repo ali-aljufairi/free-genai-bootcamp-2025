@@ -160,7 +160,16 @@ export const flashcardsV2Api = {
       throw new Error(errorData.message || `Failed to start flashcard session: ${response.status}`);
     }
 
-    return response.json();
+    const result = await response.json();
+    console.log("Raw API response:", result); // Debug log
+    
+    // Handle wrapped response from Next.js API route
+    if (result.success && result.data) {
+      return result.data;
+    }
+    
+    // Handle direct response (fallback)
+    return result;
   },
 
   submit: async (submission: FlashcardSubmission): Promise<FlashcardResult> => {

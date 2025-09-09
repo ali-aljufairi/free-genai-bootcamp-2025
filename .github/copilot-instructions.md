@@ -135,7 +135,7 @@ When working on this codebase, prioritize understanding the **service boundaries
 
 ### Before Making Changes
 
-1. **Understand the existing architecture** - examine table structures, relationships, and patterns
+1. **Understane the existing architecture** - examine table structures, relationships, and patterns
 2. **Ask for context** - information when working with database issues or obtain it yoursel
 3. **Identify root causes** - don't jump to quick fixes without understanding the problem
 4. **Respect existing design** - the database and code patterns are carefully designed
