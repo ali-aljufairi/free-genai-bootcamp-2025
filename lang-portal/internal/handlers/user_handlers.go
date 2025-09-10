@@ -17,6 +17,54 @@ func NewUserHandler(db *database.DB) *UserHandler {
 	return &UserHandler{DB: db}
 }
 
+// GetMe returns the current authenticated user's profile
+func (h *UserHandler) GetMe(c *fiber.Ctx) error {
+	// Get user_id from the middleware (set by auth middleware)
+	userID, ok := c.Locals("user_id").(int64)
+	if !ok || userID == 0 {
+		return c.Status(401).JSON(fiber.Map{"error": "User not authenticated"})
+	}
+
+	var profile models.UserProfile
+
+	// Get user information
+	if err := h.DB.GetDB().First(&profile.User, userID).Error; err != nil {
+		return c.Status(404).JSON(fiber.Map{"error": "User not found"})
+	}
+
+	// Get user settings
+	if err := h.DB.GetDB().Where("user_id = ?", userID).First(&profile.Settings).Error; err != nil {
+		// Create default settings if not found
+		profile.Settings = models.UserSettings{
+			UserID:            userID,
+			HideEnglish:       false,
+			UILanguage:        "en",
+			Timezone:          "UTC",
+			DailyReviewTarget: 20,
+			CurrentJLPTLevel:  5,
+		}
+		// Save the default settings
+		h.DB.GetDB().Create(&profile.Settings)
+	}
+
+	// Get user roles
+	if err := h.DB.GetDB().Table("user_roles").
+		Select("roles.role_name, user_roles.user_id, user_roles.role_id").
+		Joins("JOIN roles ON user_roles.role_id = roles.id").
+		Where("user_roles.user_id = ?", userID).
+		Find(&profile.Roles).Error; err != nil {
+		profile.Roles = []models.UserRole{}
+	}
+
+	// Get active subscription
+	if err := h.DB.GetDB().Where("user_id = ? AND status = 'active'", userID).
+		First(&profile.Subscription).Error; err != nil {
+		profile.Subscription = nil
+	}
+
+	return c.JSON(profile)
+}
+
 func (h *UserHandler) GetUserProfile(c *fiber.Ctx) error {
 	userID := c.Params("id")
 	if userID == "" {

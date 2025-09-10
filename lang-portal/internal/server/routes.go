@@ -150,8 +150,16 @@ func (s *FiberServer) healthHandler(c *fiber.Ctx) error {
 }
 
 func setupV2Routes(app *fiber.App, db *database.DB, postgresDB *gorm.DB) {
-	// User management routes
-	userHandler := handlers.NewUserHandler(db)
+	// User management routes - use PostgreSQL when available
+	var userHandler *handlers.UserHandler
+	if postgresDB != nil {
+		userHandler = handlers.NewUserHandler(&database.DB{PostgresDB: postgresDB})
+	} else {
+		userHandler = handlers.NewUserHandler(db)
+	}
+
+	// Current user endpoint (no ID needed - uses auth middleware)
+	app.Get("/api/v2/users/me", userHandler.GetMe)
 
 	// User profile and management
 	app.Get("/api/v2/users/:id/profile", userHandler.GetUserProfile)

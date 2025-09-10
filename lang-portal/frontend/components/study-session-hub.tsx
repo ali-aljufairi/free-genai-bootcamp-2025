@@ -10,6 +10,7 @@ import { useIsMobile } from "@/hooks/use-mobile"
 import { useMemo, useCallback, useEffect } from 'react'
 import { motion, AnimatePresence } from "framer-motion"
 import { useSidebar } from "@/hooks/use-sidebar"
+import { useAuthSetup } from "@/hooks/use-auth-setup"
 import { CARD_IMAGE_DIMENSIONS, studyImages, studyOptions, ENABLED_FEATURES } from "./study-session/constants"
 
 export function StudySessionHub() {
@@ -18,6 +19,9 @@ export function StudySessionHub() {
   // const { data: groups } = useGroups()
   const isMobile = useIsMobile()
   const { isExpanded, setIsExpanded } = useSidebar()
+  
+  // Initialize user setup after authentication (runs in background)
+  useAuthSetup()
 
   // Move prefetching to useEffect to ensure it only runs on client
   useEffect(() => {

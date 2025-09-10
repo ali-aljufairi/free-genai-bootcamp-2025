@@ -164,16 +164,38 @@ func (caa *clerkAuth) Middleware() fiber.Handler {
 				// User doesn't exist, let's create them automatically
 				log.Printf("No user found for Clerk ID %s, creating new user", sub)
 
+				// Debug: Log all available claims
+				log.Printf("Available JWT claims for user %s: %+v", sub, claims)
+
 				// Get user info from JWT claims if available
 				email, _ := claims["email"].(string)
 				if email == "" {
-					email = fmt.Sprintf("%s@clerk.user", sub) // Fallback email
+					// Try alternative email claim paths
+					if primaryEmail, ok := claims["primaryEmailAddress"]; ok {
+						if emailMap, ok := primaryEmail.(map[string]interface{}); ok {
+							if emailAddr, ok := emailMap["emailAddress"].(string); ok {
+								email = emailAddr
+							}
+						}
+					}
+					if email == "" {
+						email = fmt.Sprintf("%s@clerk.user", sub) // Fallback email
+					}
 				}
 
 				name, _ := claims["name"].(string)
 				if name == "" {
-					if firstName, _ := claims["given_name"].(string); firstName != "" {
+					// Try fullName claim
+					if fullName, ok := claims["fullName"].(string); ok && fullName != "" {
+						name = fullName
+					} else if firstName, _ := claims["given_name"].(string); firstName != "" {
 						if lastName, _ := claims["family_name"].(string); lastName != "" {
+							name = firstName + " " + lastName
+						} else {
+							name = firstName
+						}
+					} else if firstName, _ := claims["firstName"].(string); firstName != "" {
+						if lastName, _ := claims["lastName"].(string); lastName != "" {
 							name = firstName + " " + lastName
 						} else {
 							name = firstName
@@ -183,7 +205,7 @@ func (caa *clerkAuth) Middleware() fiber.Handler {
 					}
 				}
 
-				// Create the user
+				// Create the user with proper setup
 				createUserQuery := `
 					INSERT INTO users (clerk_id, email, display_name, created_at, updated_at) 
 					VALUES (?, ?, ?, NOW(), NOW()) 
@@ -198,8 +220,29 @@ func (caa *clerkAuth) Middleware() fiber.Handler {
 						log.Printf("No internal user mapping found for Clerk user %s", sub)
 					}
 				} else {
+					// Create default user settings
+					settingsQuery := `
+						INSERT INTO user_settings (user_id, hide_english, ui_language, timezone, daily_review_target, current_jlpt_level)
+						VALUES (?, false, 'en', 'UTC', 20, 5)`
+					
+					if err := caa.db.Exec(settingsQuery, id).Error; err != nil {
+						log.Printf("Failed to create user settings for user_id %d: %v", id, err)
+					}
+
+					// Assign default student role
+					roleQuery := `
+						INSERT INTO user_roles (user_id, role_id)
+						SELECT ?, r.id
+						FROM roles r 
+						WHERE r.role_name = 'student'
+						LIMIT 1`
+					
+					if err := caa.db.Exec(roleQuery, id).Error; err != nil {
+						log.Printf("Failed to assign student role to user_id %d: %v", id, err)
+					}
+
 					c.Locals("user_id", id)
-					log.Printf("Created and mapped Clerk user %s to new internal user_id %d", sub, id)
+					log.Printf("Created and mapped Clerk user %s to new internal user_id %d with full setup", sub, id)
 				}
 			}
 		} else if caa.allowDevFallback {

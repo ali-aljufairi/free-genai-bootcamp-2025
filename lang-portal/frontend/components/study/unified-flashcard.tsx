@@ -11,10 +11,10 @@ import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { motion, AnimatePresence } from "framer-motion"
 import { flashcardsV2Api } from "@/services/api"
-import type { 
-  Flashcard, 
-  FlashcardConfig, 
-  FlashcardSession, 
+import type {
+  Flashcard,
+  FlashcardConfig,
+  FlashcardSession,
   FlashcardAnswer,
   FlashcardSubmission,
   FlashcardResult,
@@ -299,7 +299,7 @@ export function UnifiedFlashcard() {
             <span>{Math.round(((currentIndex) / cards.length) * 100)}% Complete</span>
           </div>
           <div className="w-full bg-muted rounded-full h-2">
-            <div 
+            <div
               className="bg-primary h-2 rounded-full transition-all duration-300"
               style={{ width: `${((currentIndex) / cards.length) * 100}%` }}
             />

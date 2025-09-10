@@ -299,8 +299,8 @@ export function WordsFlashcard() {
 
                                 <div className="space-y-2">
                                     <Label className="text-sm font-medium">Course (Optional)</Label>
-                                    <Select 
-                                        value={selectedCourse?.toString() || "all"} 
+                                    <Select
+                                        value={selectedCourse?.toString() || "all"}
                                         onValueChange={(value) => setCourse(value === "all" ? null : parseInt(value))}
                                     >
                                         <SelectTrigger>
@@ -319,8 +319,8 @@ export function WordsFlashcard() {
 
                                 <div className="space-y-2">
                                     <Label className="text-sm font-medium">Unit (Optional)</Label>
-                                    <Select 
-                                        value={selectedUnit?.toString() || "all"} 
+                                    <Select
+                                        value={selectedUnit?.toString() || "all"}
                                         onValueChange={(value) => setUnit(value === "all" ? null : parseInt(value))}
                                         disabled={!selectedCourse}
                                     >
@@ -366,7 +366,7 @@ export function WordsFlashcard() {
                                     <p className="text-sm text-muted-foreground">Filter words by grammatical category.</p>
                                 </div>
                             </div>
-                            
+
                             <PartOfSpeechSelector
                                 selectedParts={selectedPartsOfSpeech}
                                 availableParts={Array.isArray(availablePartsOfSpeech) ? availablePartsOfSpeech : []}
@@ -389,37 +389,37 @@ export function WordsFlashcard() {
                                 <div className="space-y-3">
                                     <div className="flex items-center justify-between">
                                         <Label>Show Kana (ひらがな/カタカナ)</Label>
-                                        <Switch 
-                                            checked={showKana} 
-                                            onCheckedChange={(value) => setShowOptions({ showKana: value })} 
+                                        <Switch
+                                            checked={showKana}
+                                            onCheckedChange={(value) => setShowOptions({ showKana: value })}
                                         />
                                     </div>
                                     <div className="flex items-center justify-between">
                                         <Label>Show Kanji (漢字)</Label>
-                                        <Switch 
-                                            checked={showKanji} 
-                                            onCheckedChange={(value) => setShowOptions({ showKanji: value })} 
+                                        <Switch
+                                            checked={showKanji}
+                                            onCheckedChange={(value) => setShowOptions({ showKanji: value })}
                                         />
                                     </div>
                                     <div className="flex items-center justify-between">
                                         <Label>Show Romaji</Label>
-                                        <Switch 
-                                            checked={showRomaji} 
-                                            onCheckedChange={(value) => setShowOptions({ showRomaji: value })} 
+                                        <Switch
+                                            checked={showRomaji}
+                                            onCheckedChange={(value) => setShowOptions({ showRomaji: value })}
                                         />
                                     </div>
                                     <div className="flex items-center justify-between">
                                         <Label>Show English</Label>
-                                        <Switch 
-                                            checked={showEnglish} 
-                                            onCheckedChange={(value) => setShowOptions({ showEnglish: value })} 
+                                        <Switch
+                                            checked={showEnglish}
+                                            onCheckedChange={(value) => setShowOptions({ showEnglish: value })}
                                         />
                                     </div>
                                     <div className="flex items-center justify-between">
                                         <Label>Show Part of Speech</Label>
-                                        <Switch 
-                                            checked={showPartOfSpeech} 
-                                            onCheckedChange={(value) => setShowOptions({ showPartOfSpeech: value })} 
+                                        <Switch
+                                            checked={showPartOfSpeech}
+                                            onCheckedChange={(value) => setShowOptions({ showPartOfSpeech: value })}
                                         />
                                     </div>
                                 </div>
@@ -439,37 +439,37 @@ export function WordsFlashcard() {
                                 <div className="space-y-3">
                                     <div className="flex items-center justify-between">
                                         <Label>Ask for Kana</Label>
-                                        <Switch 
-                                            checked={askForKana} 
-                                            onCheckedChange={(value) => setAskOptions({ askForKana: value })} 
+                                        <Switch
+                                            checked={askForKana}
+                                            onCheckedChange={(value) => setAskOptions({ askForKana: value })}
                                         />
                                     </div>
                                     <div className="flex items-center justify-between">
                                         <Label>Ask for Kanji</Label>
-                                        <Switch 
-                                            checked={askForKanji} 
-                                            onCheckedChange={(value) => setAskOptions({ askForKanji: value })} 
+                                        <Switch
+                                            checked={askForKanji}
+                                            onCheckedChange={(value) => setAskOptions({ askForKanji: value })}
                                         />
                                     </div>
                                     <div className="flex items-center justify-between">
                                         <Label>Ask for Romaji</Label>
-                                        <Switch 
-                                            checked={askForRomaji} 
-                                            onCheckedChange={(value) => setAskOptions({ askForRomaji: value })} 
+                                        <Switch
+                                            checked={askForRomaji}
+                                            onCheckedChange={(value) => setAskOptions({ askForRomaji: value })}
                                         />
                                     </div>
                                     <div className="flex items-center justify-between">
                                         <Label>Ask for English</Label>
-                                        <Switch 
-                                            checked={askForEnglish} 
-                                            onCheckedChange={(value) => setAskOptions({ askForEnglish: value })} 
+                                        <Switch
+                                            checked={askForEnglish}
+                                            onCheckedChange={(value) => setAskOptions({ askForEnglish: value })}
                                         />
                                     </div>
                                     <div className="flex items-center justify-between">
                                         <Label>Ask for Part of Speech</Label>
-                                        <Switch 
-                                            checked={askForPartOfSpeech} 
-                                            onCheckedChange={(value) => setAskOptions({ askForPartOfSpeech: value })} 
+                                        <Switch
+                                            checked={askForPartOfSpeech}
+                                            onCheckedChange={(value) => setAskOptions({ askForPartOfSpeech: value })}
                                         />
                                     </div>
                                 </div>
