@@ -464,8 +464,8 @@ func (h *FlashcardHandler) GetAvailablePartsOfSpeech(c *fiber.Ctx) error {
 	var partsOfSpeech []string
 
 	err := h.db.Table("words").
-		Select("DISTINCT part_of_speech").
-		Where("part_of_speech IS NOT NULL AND part_of_speech != ''").
+		Select("DISTINCT part_of_speech::text").
+		Where("part_of_speech IS NOT NULL").
 		Order("part_of_speech").
 		Pluck("part_of_speech", &partsOfSpeech).Error
 

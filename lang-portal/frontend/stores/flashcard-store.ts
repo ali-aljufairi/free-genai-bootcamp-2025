@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { PartOfSpeech } from '@/types/pos-enum'
 
 export interface FlashcardPreferences {
   // Content Selection
@@ -9,7 +10,7 @@ export interface FlashcardPreferences {
   count: number
   
   // Part of Speech Filtering
-  selectedPartsOfSpeech: string[]
+  selectedPartsOfSpeech: PartOfSpeech[]
   
   // Display Options
   showKana: boolean
@@ -32,7 +33,7 @@ interface FlashcardStore extends FlashcardPreferences {
   setCourse: (courseId: number | null) => void
   setUnit: (unitId: number | null) => void
   setCount: (count: number) => void
-  setPartsOfSpeech: (parts: string[]) => void
+  setPartsOfSpeech: (parts: PartOfSpeech[]) => void
   
   setShowOptions: (options: Partial<Pick<FlashcardPreferences, 'showKana' | 'showKanji' | 'showRomaji' | 'showEnglish' | 'showPartOfSpeech'>>) => void
   setAskOptions: (options: Partial<Pick<FlashcardPreferences, 'askForKana' | 'askForKanji' | 'askForRomaji' | 'askForEnglish' | 'askForPartOfSpeech'>>) => void

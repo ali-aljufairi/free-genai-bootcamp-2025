@@ -48,3 +48,4 @@ import_data.sql
 *.swo
 *~
 import-client/*
+tools/*

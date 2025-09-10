@@ -1,3 +1,5 @@
+import { PartOfSpeech } from './pos-enum'
+
 // Study Session Types
 export interface StudySession {
   id: string;
@@ -101,7 +103,7 @@ export interface KanjiPracticeOptions {
 
 export interface ContentFilters {
   jlpt_levels: number[]
-  parts_of_speech: string[]
+  parts_of_speech: PartOfSpeech[]
   difficulty_levels: number[]
   has_kanji?: boolean
 }

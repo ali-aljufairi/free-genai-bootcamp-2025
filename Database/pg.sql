@@ -37,7 +37,7 @@ CREATE TYPE pos_enum AS ENUM (
     'prefix','suffix','counter','expression','unclassified'
 );
 
-CREATE TYPE activity_enum AS ENUM (          -- ❌ generic 'quiz' removed
+CREATE TYPE activity_enum AS ENUM (          
     'flashcard',
     'grammar_quiz',   -- JLPT grammar MCQ
     'writing',        -- handwriting / drawing practice
@@ -59,10 +59,10 @@ CREATE TYPE review_item_enum AS ENUM ('word','kanji','grammar','sentence');
 -- clerk_id stores Clerk user IDs (format: user_xxxxxxxxxxxxx)
 CREATE TABLE users (
     id BIGSERIAL PRIMARY KEY,
-    clerk_id TEXT NOT NULL UNIQUE, -- Clerk user ID
+    clerk_id TEXT NOT NULL UNIQUE,
     email TEXT NOT NULL,
     display_name TEXT,
-    stripe_customer_id TEXT UNIQUE, -- NEW
+    stripe_customer_id TEXT UNIQUE,
     created_at TIMESTAMPTZ DEFAULT now(),
     updated_at TIMESTAMPTZ DEFAULT now()
 );
