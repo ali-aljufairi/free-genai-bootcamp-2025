@@ -56,24 +56,33 @@ export async function proxyToBackend(
 
     // Handle authentication if required
     if (requireAuth) {
-      const authResult = await auth();
-      userId = authResult.userId;
-      
-      if (!userId) {
-        return createErrorResponse(
-          'Authentication required',
-          'UNAUTHORIZED',
-          401
-        );
+      // Prefer the Authorization header from the incoming request to avoid
+      // rehydrating session from cookies (which can be large and cause 431s).
+      const incomingAuth = request.headers.get('authorization') || request.headers.get('Authorization');
+      if (incomingAuth?.toLowerCase().startsWith('bearer ')) {
+        token = incomingAuth.slice(7).trim();
       }
 
-      token = await authResult.getToken();
       if (!token) {
-        return createErrorResponse(
-          'No authentication token available',
-          'NO_TOKEN',
-          401
-        );
+        const authResult = await auth();
+        userId = authResult.userId;
+
+        if (!userId) {
+          return createErrorResponse(
+            'Authentication required',
+            'UNAUTHORIZED',
+            401
+          );
+        }
+
+        token = await authResult.getToken();
+        if (!token) {
+          return createErrorResponse(
+            'No authentication token available',
+            'NO_TOKEN',
+            401
+          );
+        }
       }
     }
 
@@ -110,6 +119,8 @@ export async function proxyToBackend(
       method,
       headers,
       body: body ? JSON.stringify(body) : undefined,
+      // Prevent any intermediate caching of auth bootstrap calls
+      cache: 'no-store',
     });
 
     // Handle backend errors

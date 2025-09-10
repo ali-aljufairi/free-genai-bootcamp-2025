@@ -153,7 +153,9 @@ func setupV2Routes(app *fiber.App, db *database.DB, postgresDB *gorm.DB) {
 	// User management routes - use PostgreSQL when available
 	var userHandler *handlers.UserHandler
 	if postgresDB != nil {
-		userHandler = handlers.NewUserHandler(&database.DB{PostgresDB: postgresDB})
+		// Create a DB instance with PostgreSQL support
+		dbWithPostgres := database.NewWithPostgres(db.GetDB(), postgresDB)
+		userHandler = handlers.NewUserHandler(dbWithPostgres)
 	} else {
 		userHandler = handlers.NewUserHandler(db)
 	}

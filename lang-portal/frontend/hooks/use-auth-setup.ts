@@ -28,6 +28,9 @@ export function useAuthSetup() {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
           },
+          // Avoid sending cookies to Next.js to prevent 431 (header too large)
+          credentials: 'omit',
+          cache: 'no-store',
         });
 
         // No need to handle response - working optimistically

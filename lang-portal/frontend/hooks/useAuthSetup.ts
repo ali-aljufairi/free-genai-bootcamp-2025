@@ -21,6 +21,8 @@ export function useAuthSetup() {
                             'Authorization': `Bearer ${token}`,
                             'Content-Type': 'application/json',
                         },
+                        credentials: 'omit',
+                        cache: 'no-store',
                     });
 
                     // If user doesn't exist (404), the middleware has already created them

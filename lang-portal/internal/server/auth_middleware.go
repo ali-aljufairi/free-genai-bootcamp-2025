@@ -1,8 +1,10 @@
 package server
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -14,6 +16,59 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"gorm.io/gorm"
 )
+
+// ClerkUser represents the user data from Clerk API
+type ClerkUser struct {
+	ID              string `json:"id"`
+	EmailAddresses  []struct {
+		EmailAddress string `json:"email_address"`
+		Primary      bool   `json:"primary"`
+	} `json:"email_addresses"`
+	FirstName   *string `json:"first_name"`
+	LastName    *string `json:"last_name"`
+	FullName    *string `json:"full_name"`
+	Username    *string `json:"username"`
+}
+
+// fetchClerkUser fetches user data from Clerk API
+func fetchClerkUser(userID string) (*ClerkUser, error) {
+	secretKey := os.Getenv("CLERK_SECRET_KEY")
+	if secretKey == "" {
+		return nil, errors.New("CLERK_SECRET_KEY environment variable not set")
+	}
+
+	url := fmt.Sprintf("https://api.clerk.com/v1/users/%s", userID)
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Authorization", "Bearer "+secretKey)
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to make request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("clerk API returned status %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	var user ClerkUser
+	if err := json.Unmarshal(body, &user); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &user, nil
+}
 
 // clerkAuth holds deps for validating Clerk JWTs and mapping to internal users.
 type clerkAuth struct {
@@ -164,45 +219,56 @@ func (caa *clerkAuth) Middleware() fiber.Handler {
 				// User doesn't exist, let's create them automatically
 				log.Printf("No user found for Clerk ID %s, creating new user", sub)
 
-				// Debug: Log all available claims
-				log.Printf("Available JWT claims for user %s: %+v", sub, claims)
-
-				// Get user info from JWT claims if available
-				email, _ := claims["email"].(string)
-				if email == "" {
-					// Try alternative email claim paths
-					if primaryEmail, ok := claims["primaryEmailAddress"]; ok {
-						if emailMap, ok := primaryEmail.(map[string]interface{}); ok {
-							if emailAddr, ok := emailMap["emailAddress"].(string); ok {
-								email = emailAddr
-							}
-						}
-					}
+				// Fetch real user data from Clerk API
+				clerkUser, err := fetchClerkUser(sub)
+				var email, name string
+				
+				if err != nil {
+					log.Printf("Failed to fetch user data from Clerk API for user %s: %v", sub, err)
+					// Fallback to JWT claims and defaults
+					log.Printf("Available JWT claims for user %s: %+v", sub, claims)
+					
+					email, _ = claims["email"].(string)
 					if email == "" {
 						email = fmt.Sprintf("%s@clerk.user", sub) // Fallback email
 					}
-				}
-
-				name, _ := claims["name"].(string)
-				if name == "" {
-					// Try fullName claim
-					if fullName, ok := claims["fullName"].(string); ok && fullName != "" {
-						name = fullName
-					} else if firstName, _ := claims["given_name"].(string); firstName != "" {
-						if lastName, _ := claims["family_name"].(string); lastName != "" {
-							name = firstName + " " + lastName
-						} else {
-							name = firstName
-						}
-					} else if firstName, _ := claims["firstName"].(string); firstName != "" {
-						if lastName, _ := claims["lastName"].(string); lastName != "" {
-							name = firstName + " " + lastName
-						} else {
-							name = firstName
-						}
-					} else {
+					
+					name, _ = claims["name"].(string)
+					if name == "" {
 						name = "User" // Fallback name
 					}
+				} else {
+					// Use real data from Clerk API
+					log.Printf("Successfully fetched user data from Clerk API for user %s", sub)
+					
+					// Get primary email
+					email = fmt.Sprintf("%s@clerk.user", sub) // Default fallback
+					for _, emailAddr := range clerkUser.EmailAddresses {
+						if emailAddr.Primary {
+							email = emailAddr.EmailAddress
+							break
+						}
+					}
+					// If no primary email found, use the first one
+					if email == fmt.Sprintf("%s@clerk.user", sub) && len(clerkUser.EmailAddresses) > 0 {
+						email = clerkUser.EmailAddresses[0].EmailAddress
+					}
+					
+					// Get display name
+					name = "User" // Default fallback
+					if clerkUser.FullName != nil && *clerkUser.FullName != "" {
+						name = *clerkUser.FullName
+					} else if clerkUser.FirstName != nil && *clerkUser.FirstName != "" {
+						if clerkUser.LastName != nil && *clerkUser.LastName != "" {
+							name = *clerkUser.FirstName + " " + *clerkUser.LastName
+						} else {
+							name = *clerkUser.FirstName
+						}
+					} else if clerkUser.Username != nil && *clerkUser.Username != "" {
+						name = *clerkUser.Username
+					}
+					
+					log.Printf("Using real user data: email=%s, name=%s", email, name)
 				}
 
 				// Create the user with proper setup

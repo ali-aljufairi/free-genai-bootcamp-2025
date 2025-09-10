@@ -81,7 +81,9 @@ VALUES ('admin'),
 CREATE TABLE user_roles (
     user_id BIGINT REFERENCES users (id) ON DELETE CASCADE,
     role_id INT REFERENCES roles (id) ON DELETE CASCADE,
-    PRIMARY KEY (user_id, role_id)
+    PRIMARY KEY (user_id, role_id),
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
 );
 
 CREATE TABLE user_settings ( -- UPDATED
@@ -93,7 +95,9 @@ CREATE TABLE user_settings ( -- UPDATED
     daily_review_target INT DEFAULT 20, -- # of reviews the user aims for
     current_jlpt_level INT DEFAULT 5, -- User's current JLPT level (1-5)
     jlpt_level_assessed_at TIMESTAMPTZ, -- When the level was last assessed
-    jlpt_level_assessment_method TEXT -- 'manual', 'automatic', 'exam'
+    jlpt_level_assessment_method TEXT ,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
 );
 
 -- Add constraint for valid JLPT levels

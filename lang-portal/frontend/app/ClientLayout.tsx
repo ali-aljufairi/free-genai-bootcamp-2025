@@ -24,6 +24,7 @@ const queryClient = new QueryClient({
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const isHomePage = pathname === "/"
+  const isAuthPage = pathname?.startsWith("/sign-in") || pathname?.startsWith("/sign-up")
 
   if (isHomePage) {
     return (
@@ -38,6 +39,24 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
             <Navbar />
             <main className="flex-1">{children}</main>
           </div>
+          <Toaster />
+        </ThemeProvider>
+      </QueryClientProvider>
+    )
+  }
+
+  if (isAuthPage) {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <main className="min-h-screen flex items-center justify-center p-4 md:p-8">
+            {children}
+          </main>
           <Toaster />
         </ThemeProvider>
       </QueryClientProvider>
@@ -67,4 +86,3 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
     </QueryClientProvider>
   )
 }
-

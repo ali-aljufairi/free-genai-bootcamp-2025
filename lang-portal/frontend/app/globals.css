@@ -258,6 +258,15 @@
   @apply relative overflow-hidden;
 }
 
+/* Clerk UserButton popover: remove any entrance animations/slides */
+:where([class*="cl-userButtonPopover"]) {
+  animation: none !important;
+  transition: none !important;
+  transform: none !important;
+  opacity: 1 !important;
+}
+
+
 .theme-toggle::after {
   content: "";
   @apply absolute inset-0 bg-blue-400/20 dark:bg-blue-600/20 rounded-full scale-0 transition-transform duration-500;

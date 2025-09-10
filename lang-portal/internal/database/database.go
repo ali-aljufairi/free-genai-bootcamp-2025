@@ -12,10 +12,11 @@ import (
 
 // DB represents our database connection
 type DB struct {
-	db *gorm.DB
+	db         *gorm.DB // Primary database (SQLite for words, etc.)
+	PostgresDB *gorm.DB // PostgreSQL for users and other features
 }
 
-// New creates a new database connection
+// New creates a new database connection (SQLite)
 func New(dbPath string) (*DB, error) {
 	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
 	if err != nil {
@@ -27,8 +28,25 @@ func New(dbPath string) (*DB, error) {
 	return &DB{db: db}, nil
 }
 
-// GetDB returns the underlying GORM database instance
+// NewWithPostgres creates a new database connection with PostgreSQL support
+func NewWithPostgres(sqliteDB, postgresDB *gorm.DB) *DB {
+	return &DB{
+		db:         sqliteDB,
+		PostgresDB: postgresDB,
+	}
+}
+
+// GetDB returns the underlying GORM database instance (SQLite for words)
 func (db *DB) GetDB() *gorm.DB {
+	return db.db
+}
+
+// GetPostgresDB returns the PostgreSQL database instance for users
+func (db *DB) GetPostgresDB() *gorm.DB {
+	if db.PostgresDB != nil {
+		return db.PostgresDB
+	}
+	// Fallback to SQLite if PostgreSQL not available
 	return db.db
 }
 

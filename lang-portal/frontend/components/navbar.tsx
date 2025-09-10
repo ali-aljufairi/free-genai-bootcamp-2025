@@ -13,13 +13,16 @@ import { SignInButton, SignUpButton, UserButton, useUser } from "@clerk/nextjs"
 export const clerkAppearance = {
   elements: {
     rootBox: "w-full",
-    card: "bg-[#0A1120] border border-blue-900/30 shadow-2xl",
-    modalBackdrop: "backdrop-blur-md bg-black/60",
-    modalContent: "bg-transparent",
+    // Use the glass-card styling language for consistency
+    card: "glass-card rounded-2xl bg-white/5 dark:bg-[#0A1120]/70 border border-blue-900/30 shadow-2xl backdrop-blur-md duration-0",
+    // Remove default entrance animations for Clerk modals/popovers
+    modalBackdrop: "backdrop-blur-md bg-black/60 animate-none duration-0",
+    modalContent: "bg-transparent animate-none duration-0 grid place-items-center p-4",
+    modalCloseButton: "absolute top-3 right-3 left-auto translate-x-0 text-blue-200 hover:text-white",
     headerTitle: "text-white font-bold text-2xl",
     headerSubtitle: "text-blue-200/70",
     formFieldLabel: "text-blue-100/90 font-medium",
-    formFieldInput: "bg-[#1A2333] text-white border-blue-900/50 placeholder:text-blue-300/30 focus:border-blue-500/50 focus:ring-blue-500/20",
+    formFieldInput: "bg-[#1A2333] text-white border-blue-900/50 placeholder:text-blue-300/50 focus:border-blue-500/50 focus:ring-blue-500/20",
     formButtonPrimary: "bg-[#3B82F6] hover:bg-[#2563EB] text-white font-medium shadow-lg shadow-blue-900/20",
     formButtonReset: "text-blue-200/70 hover:text-blue-100",
     footerActionLink: "text-blue-400 hover:text-blue-300 font-medium",
@@ -57,12 +60,21 @@ export const clerkAppearance = {
     main__signUp: "gap-2",
     socialButtonsIconButton__github: "w-6 h-6 scale-125",
     socialButtonsIconButton__google: "w-6 h-6 scale-125",
-    socialButtonsBlockButtonContainer: "gap-3"
+    socialButtonsBlockButtonContainer: "gap-3",
+    // User button popover readability + no animation
+    userButtonBox: "animate-none duration-0 transition-none",
+    // Ensure the popover opens instantly without slide/zoom and stays anchored
+    userButtonPopoverCard: "glass-card bg-[#0A1120]/80 border border-blue-900/40 text-white animate-none transition-none duration-0 transform-none opacity-100",
+    userButtonPopoverActionButton: "text-blue-100 hover:text-white hover:bg-blue-900/30 duration-0 transition-none",
+    userButtonPopoverActionButtonText: "text-blue-100",
+    userButtonPopoverActionButtonIcon: "text-blue-200",
+    userButtonPopoverFooter: "bg-transparent border-t border-blue-900/30 text-blue-200/80",
+    userButtonPopoverActions: "gap-1",
   },
   layout: {
     socialButtonsPlacement: "top" as const,
     showOptionalFields: false,
-    shimmer: true
+    shimmer: false
   },
   variables: {
     colorPrimary: "#3B82F6",
@@ -205,4 +217,3 @@ export default function Navbar() {
     </header>
   )
 }
-
