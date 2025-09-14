@@ -7,7 +7,8 @@ import { Menu } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { SignInButton, SignUpButton, UserButton, useUser } from "@clerk/nextjs"
+import { UserButton, useUser } from "@clerk/nextjs"
+import AuthDialog from "@/components/auth/auth-dialog"
 
 // Common appearance settings for Clerk modals
 export const clerkAppearance = {
@@ -90,6 +91,8 @@ export const clerkAppearance = {
 export default function Navbar() {
   const pathname = usePathname()
   const [open, setOpen] = useState(false)
+  const [signInOpen, setSignInOpen] = useState(false)
+  const [signUpOpen, setSignUpOpen] = useState(false)
   const { isSignedIn } = useUser()
 
   // Only show navbar on homepage
@@ -98,6 +101,7 @@ export default function Navbar() {
   if (!isHomePage) return null
 
   return (
+    <>
     <header className="sticky top-0 z-40 w-full backdrop-blur-sm bg-white/70 dark:bg-slate-900/70 border-b border-blue-100/50 dark:border-blue-900/50">
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
         <div className="flex gap-6 md:gap-10">
@@ -125,19 +129,16 @@ export default function Navbar() {
               </>
             ) : (
               <>
-                <SignInButton mode="modal">
-                  <Button variant="outline" size="sm" className="mr-2">
-                    Sign In
-                  </Button>
-                </SignInButton>
-                <SignUpButton mode="modal">
-                  <Button
-                    className="bg-[#3B82F6] hover:bg-[#2563EB] text-white border-0 shadow-lg shadow-blue-500/20"
-                    size="sm"
-                  >
-                    Sign Up
-                  </Button>
-                </SignUpButton>
+                <Button variant="outline" size="sm" className="mr-2" onClick={() => setSignInOpen(true)}>
+                  Sign In
+                </Button>
+                <Button
+                  className="bg-[#3B82F6] hover:bg-[#2563EB] text-white border-0 shadow-lg shadow-blue-500/20"
+                  size="sm"
+                  onClick={() => setSignUpOpen(true)}
+                >
+                  Sign Up
+                </Button>
               </>
             )}
           </div>
@@ -188,25 +189,21 @@ export default function Navbar() {
                   </>
                 ) : (
                   <>
-                    <SignInButton mode="modal">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="w-full mt-2"
-                        onClick={() => setOpen(false)}
-                      >
-                        Sign In
-                      </Button>
-                    </SignInButton>
-                    <SignUpButton mode="modal">
-                      <Button
-                        className="bg-[#3B82F6] hover:bg-[#2563EB] text-white border-0 shadow-lg shadow-blue-500/20 w-full mt-2"
-                        size="sm"
-                        onClick={() => setOpen(false)}
-                      >
-                        Sign Up
-                      </Button>
-                    </SignUpButton>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full mt-2"
+                      onClick={() => { setOpen(false); setSignInOpen(true) }}
+                    >
+                      Sign In
+                    </Button>
+                    <Button
+                      className="bg-[#3B82F6] hover:bg-[#2563EB] text-white border-0 shadow-lg shadow-blue-500/20 w-full mt-2"
+                      size="sm"
+                      onClick={() => { setOpen(false); setSignUpOpen(true) }}
+                    >
+                      Sign Up
+                    </Button>
                   </>
                 )}
               </nav>
@@ -215,5 +212,11 @@ export default function Navbar() {
         </div>
       </div>
     </header>
+    <AuthDialog mode="sign-in" open={signInOpen} onOpenChange={setSignInOpen} />
+    <AuthDialog mode="sign-up" open={signUpOpen} onOpenChange={setSignUpOpen} />
+    </>
   )
 }
+
+// Mount our auth dialogs once to avoid re-creating on every click
+// (no-op placeholder retained intentionally; dialogs rendered in Navbar)

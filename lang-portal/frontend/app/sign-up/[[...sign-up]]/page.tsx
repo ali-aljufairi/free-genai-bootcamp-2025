@@ -3,6 +3,7 @@
 import { SignUp } from "@clerk/nextjs";
 import { Card, CardContent } from "@/components/ui/card";
 import { GraduationCap, Sparkles } from "lucide-react";
+import { authAppearance } from "@/components/auth/appearance";
 
 export default function Page() {
     return (
@@ -24,46 +25,7 @@ export default function Page() {
 
                         <div className="space-y-6">
                             <SignUp
-                                appearance={{
-                                    elements: {
-                                        rootBox: "w-full",
-                                        card: "bg-transparent shadow-none border-0 p-0",
-                                        headerTitle: "hidden",
-                                        headerSubtitle: "hidden",
-                                        socialButtonsBlockButton:
-                                            "bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors",
-                                        socialButtonsBlockButtonText:
-                                            "text-gray-900 dark:text-gray-100 font-medium",
-                                        formButtonPrimary:
-                                            "bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-medium py-3 transition-all duration-200",
-                                        formFieldInput:
-                                            "bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-transparent",
-                                        formFieldLabel:
-                                            "text-gray-700 dark:text-gray-300 font-medium",
-                                        identityPreviewText:
-                                            "text-gray-600 dark:text-gray-400",
-                                        formHeaderTitle:
-                                            "text-gray-900 dark:text-gray-100",
-                                        formHeaderSubtitle:
-                                            "text-gray-600 dark:text-gray-400",
-                                        footerAction:
-                                            "text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300",
-                                        footerActionText:
-                                            "text-gray-600 dark:text-gray-400",
-                                        dividerLine:
-                                            "bg-gray-200 dark:bg-gray-700",
-                                        dividerText:
-                                            "text-gray-500 dark:text-gray-400",
-                                        alternativeMethodsBlockButton:
-                                            "text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300",
-                                        otpCodeFieldInput:
-                                            "bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100",
-                                    },
-                                    layout: {
-                                        socialButtonsPlacement: "top",
-                                        showOptionalFields: false,
-                                    }
-                                }}
+                                appearance={authAppearance}
                                 afterSignUpUrl="/study"
                                 signInUrl="/sign-in"
                                 redirectUrl="/study"
@@ -82,4 +44,3 @@ export default function Page() {
         </div>
     );
 }
-

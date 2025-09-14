@@ -3,6 +3,7 @@
 import { SignIn } from "@clerk/nextjs";
 import { Card, CardContent } from "@/components/ui/card";
 import { BookOpen, ArrowRight } from "lucide-react";
+import { authAppearance } from "@/components/auth/appearance";
 
 export default function Page() {
     return (
@@ -24,44 +25,7 @@ export default function Page() {
 
                         <div className="space-y-6">
                             <SignIn
-                                appearance={{
-                                    elements: {
-                                        rootBox: "w-full",
-                                        card: "bg-transparent shadow-none border-0 p-0",
-                                        headerTitle: "hidden",
-                                        headerSubtitle: "hidden",
-                                        socialButtonsBlockButton:
-                                            "bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors",
-                                        socialButtonsBlockButtonText:
-                                            "text-gray-900 dark:text-gray-100 font-medium",
-                                        formButtonPrimary:
-                                            "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium py-3 transition-all duration-200",
-                                        formFieldInput:
-                                            "bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent",
-                                        formFieldLabel:
-                                            "text-gray-700 dark:text-gray-300 font-medium",
-                                        identityPreviewText:
-                                            "text-gray-600 dark:text-gray-400",
-                                        formHeaderTitle:
-                                            "text-gray-900 dark:text-gray-100",
-                                        formHeaderSubtitle:
-                                            "text-gray-600 dark:text-gray-400",
-                                        footerAction:
-                                            "text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300",
-                                        footerActionText:
-                                            "text-gray-600 dark:text-gray-400",
-                                        dividerLine:
-                                            "bg-gray-200 dark:bg-gray-700",
-                                        dividerText:
-                                            "text-gray-500 dark:text-gray-400",
-                                        alternativeMethodsBlockButton:
-                                            "text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300",
-                                    },
-                                    layout: {
-                                        socialButtonsPlacement: "top",
-                                        showOptionalFields: false,
-                                    }
-                                }}
+                                appearance={authAppearance}
                                 afterSignInUrl="/study"
                                 signUpUrl="/sign-up"
                                 redirectUrl="/study"
@@ -80,4 +44,3 @@ export default function Page() {
         </div>
     );
 }
-

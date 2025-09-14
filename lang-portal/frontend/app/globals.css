@@ -266,6 +266,13 @@
   opacity: 1 !important;
 }
 
+/* De-emphasize Clerk dev badge in footer (dev only). This does not affect production. */
+:where([data-localization-key*="badge"], [data-localization-key*="development"], [class*="cl-badge"]) {
+  color: rgb(148 163 184 / 0.8) !important; /* slate-400 */
+  background: transparent !important;
+  text-shadow: none !important;
+}
+
 
 .theme-toggle::after {
   content: "";

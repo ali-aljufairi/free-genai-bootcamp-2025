@@ -19,15 +19,15 @@ import (
 
 // ClerkUser represents the user data from Clerk API
 type ClerkUser struct {
-	ID              string `json:"id"`
-	EmailAddresses  []struct {
+	ID             string `json:"id"`
+	EmailAddresses []struct {
 		EmailAddress string `json:"email_address"`
 		Primary      bool   `json:"primary"`
 	} `json:"email_addresses"`
-	FirstName   *string `json:"first_name"`
-	LastName    *string `json:"last_name"`
-	FullName    *string `json:"full_name"`
-	Username    *string `json:"username"`
+	FirstName *string `json:"first_name"`
+	LastName  *string `json:"last_name"`
+	FullName  *string `json:"full_name"`
+	Username  *string `json:"username"`
 }
 
 // fetchClerkUser fetches user data from Clerk API
@@ -222,17 +222,17 @@ func (caa *clerkAuth) Middleware() fiber.Handler {
 				// Fetch real user data from Clerk API
 				clerkUser, err := fetchClerkUser(sub)
 				var email, name string
-				
+
 				if err != nil {
 					log.Printf("Failed to fetch user data from Clerk API for user %s: %v", sub, err)
 					// Fallback to JWT claims and defaults
 					log.Printf("Available JWT claims for user %s: %+v", sub, claims)
-					
+
 					email, _ = claims["email"].(string)
 					if email == "" {
 						email = fmt.Sprintf("%s@clerk.user", sub) // Fallback email
 					}
-					
+
 					name, _ = claims["name"].(string)
 					if name == "" {
 						name = "User" // Fallback name
@@ -240,7 +240,7 @@ func (caa *clerkAuth) Middleware() fiber.Handler {
 				} else {
 					// Use real data from Clerk API
 					log.Printf("Successfully fetched user data from Clerk API for user %s", sub)
-					
+
 					// Get primary email
 					email = fmt.Sprintf("%s@clerk.user", sub) // Default fallback
 					for _, emailAddr := range clerkUser.EmailAddresses {
@@ -253,7 +253,7 @@ func (caa *clerkAuth) Middleware() fiber.Handler {
 					if email == fmt.Sprintf("%s@clerk.user", sub) && len(clerkUser.EmailAddresses) > 0 {
 						email = clerkUser.EmailAddresses[0].EmailAddress
 					}
-					
+
 					// Get display name
 					name = "User" // Default fallback
 					if clerkUser.FullName != nil && *clerkUser.FullName != "" {
@@ -267,7 +267,7 @@ func (caa *clerkAuth) Middleware() fiber.Handler {
 					} else if clerkUser.Username != nil && *clerkUser.Username != "" {
 						name = *clerkUser.Username
 					}
-					
+
 					log.Printf("Using real user data: email=%s, name=%s", email, name)
 				}
 
@@ -290,7 +290,7 @@ func (caa *clerkAuth) Middleware() fiber.Handler {
 					settingsQuery := `
 						INSERT INTO user_settings (user_id, hide_english, ui_language, timezone, daily_review_target, current_jlpt_level)
 						VALUES (?, false, 'en', 'UTC', 20, 5)`
-					
+
 					if err := caa.db.Exec(settingsQuery, id).Error; err != nil {
 						log.Printf("Failed to create user settings for user_id %d: %v", id, err)
 					}
@@ -302,7 +302,7 @@ func (caa *clerkAuth) Middleware() fiber.Handler {
 						FROM roles r 
 						WHERE r.role_name = 'student'
 						LIMIT 1`
-					
+
 					if err := caa.db.Exec(roleQuery, id).Error; err != nil {
 						log.Printf("Failed to assign student role to user_id %d: %v", id, err)
 					}
