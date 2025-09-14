@@ -3,7 +3,7 @@
 import { SignIn } from "@clerk/nextjs";
 import { Card, CardContent } from "@/components/ui/card";
 import { BookOpen, ArrowRight } from "lucide-react";
-import { authAppearance } from "@/components/auth/appearance";
+import { clerkAppearance } from "@/lib/clerk-appearance";
 
 export default function Page() {
     return (
@@ -25,7 +25,7 @@ export default function Page() {
 
                         <div className="space-y-6">
                             <SignIn
-                                appearance={authAppearance}
+                                appearance={clerkAppearance}
                                 afterSignInUrl="/study"
                                 signUpUrl="/sign-up"
                                 redirectUrl="/study"

@@ -6,21 +6,7 @@ import "driver.js/dist/driver.css"
 import { useRouter } from "next/navigation"
 import { SignUpButton, useUser } from "@clerk/nextjs"
 import { Button } from "@/components/ui/button"
-
-// Updated appearance settings to match the sign-up page
-const clerkAppearance = {
-    elements: {
-        formButtonPrimary:
-            "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white",
-        card: "bg-transparent shadow-none",
-        headerTitle: "hidden",
-        headerSubtitle: "hidden",
-        footerAction: "text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300",
-        rootBox: "",
-        modalBackdrop: "backdrop-blur-md",
-        modalContent: "bg-white/70 dark:bg-slate-900/70 p-6 shadow-lg border border-blue-100/50 dark:border-blue-900/50 backdrop-blur-sm rounded-md"
-    }
-}
+import { clerkAppearance } from "@/lib/clerk-appearance"
 
 // Custom CSS to be injected for driver.js styling to match our site design
 const customStyles = `
@@ -150,115 +136,115 @@ const customStyles = `
 `;
 
 export default function TourGuide() {
-    const [driverObj, setDriverObj] = useState<any>(null)
-    const router = useRouter()
-    const { isSignedIn } = useUser()
+  const [driverObj, setDriverObj] = useState<any>(null)
+  const router = useRouter()
+  const { isSignedIn } = useUser()
 
-    // Initialize driver.js when component mounts
-    useEffect(() => {
-        // First, inject our custom styles
-        const styleEl = document.createElement('style')
-        styleEl.innerHTML = customStyles
-        document.head.appendChild(styleEl)
+  // Initialize driver.js when component mounts
+  useEffect(() => {
+    // First, inject our custom styles
+    const styleEl = document.createElement('style')
+    styleEl.innerHTML = customStyles
+    document.head.appendChild(styleEl)
 
-        // Initialize driver.js with our custom styles already applied
-        const driverInstance = driver({
-            showProgress: true,
-            animate: true,
-            smoothScroll: true,
-            stagePadding: 10,
-            steps: [
-                {
-                    element: "#hero-section",
-                    popover: {
-                        title: "Welcome to Sorami",
-                        description: "Begin your immersive language learning journey with our innovative platform.",
-                        side: "bottom",
-                        align: "center",
-                    }
-                },
-                {
-                    element: "#features-section",
-                    popover: {
-                        title: "Core Features",
-                        description: "Discover all the powerful tools we offer to make your language learning efficient and enjoyable.",
-                        side: "bottom",
-                        align: "center",
-                    }
-                },
-                {
-                    element: "#stats-section",
-                    popover: {
-                        title: "Track Your Progress",
-                        description: "View detailed statistics on your learning journey with our analytics dashboard.",
-                        side: "top",
-                        align: "center",
-                    }
-                },
-                {
-                    element: "#cta-section",
-                    popover: {
-                        title: "Join Our Community",
-                        description: "Sign up now to begin your personalized language learning experience with thousands of other learners.",
-                        side: "top",
-                        align: "center",
-                    }
-                },
-                {
-                    popover: {
-                        title: "Ready to Start Learning?",
-                        description: "Sign up now to unlock all features and begin your language journey!",
-                        onNextClick: () => {
-                            if (!isSignedIn) {
-                                // We'll show the signup modal after closing the tour
-                                driverInstance.destroy()
-                                // Small timeout to ensure driver has cleaned up
-                                setTimeout(() => {
-                                    const signupButton = document.getElementById("tour-signup-button")
-                                    signupButton?.click()
-                                }, 300)
-                                return false // Prevents driver from moving to next step
-                            } else {
-                                router.push("/study")
-                                return false // We'll handle navigation ourselves
-                            }
-                        }
-                    }
-                }
-            ],
-        })
-
-        setDriverObj(driverInstance)
-
-        return () => {
-            if (driverInstance) {
+    // Initialize driver.js with our custom styles already applied
+    const driverInstance = driver({
+      showProgress: true,
+      animate: true,
+      smoothScroll: true,
+      stagePadding: 10,
+      steps: [
+        {
+          element: "#hero-section",
+          popover: {
+            title: "Welcome to Sorami",
+            description: "Begin your immersive language learning journey with our innovative platform.",
+            side: "bottom",
+            align: "center",
+          }
+        },
+        {
+          element: "#features-section",
+          popover: {
+            title: "Core Features",
+            description: "Discover all the powerful tools we offer to make your language learning efficient and enjoyable.",
+            side: "bottom",
+            align: "center",
+          }
+        },
+        {
+          element: "#stats-section",
+          popover: {
+            title: "Track Your Progress",
+            description: "View detailed statistics on your learning journey with our analytics dashboard.",
+            side: "top",
+            align: "center",
+          }
+        },
+        {
+          element: "#cta-section",
+          popover: {
+            title: "Join Our Community",
+            description: "Sign up now to begin your personalized language learning experience with thousands of other learners.",
+            side: "top",
+            align: "center",
+          }
+        },
+        {
+          popover: {
+            title: "Ready to Start Learning?",
+            description: "Sign up now to unlock all features and begin your language journey!",
+            onNextClick: () => {
+              if (!isSignedIn) {
+                // We'll show the signup modal after closing the tour
                 driverInstance.destroy()
+                // Small timeout to ensure driver has cleaned up
+                setTimeout(() => {
+                  const signupButton = document.getElementById("tour-signup-button")
+                  signupButton?.click()
+                }, 300)
+                return false // Prevents driver from moving to next step
+              } else {
+                router.push("/study")
+                return false // We'll handle navigation ourselves
+              }
             }
-            // Clean up our custom styles
-            if (styleEl.parentNode) {
-                styleEl.parentNode.removeChild(styleEl)
-            }
+          }
         }
-    }, [isSignedIn, router])
+      ],
+    })
 
-    const startTour = () => {
-        if (driverObj) {
-            driverObj.drive()
-        }
+    setDriverObj(driverInstance)
+
+    return () => {
+      if (driverInstance) {
+        driverInstance.destroy()
+      }
+      // Clean up our custom styles
+      if (styleEl.parentNode) {
+        styleEl.parentNode.removeChild(styleEl)
+      }
     }
+  }, [isSignedIn, router])
 
-    return (
-        <>
-            <Button size="lg" variant="outline" className="px-8" onClick={startTour}>
-                Take a Tour
-            </Button>
-            {!isSignedIn && (
-                <div className="hidden">
-                    <SignUpButton mode="modal" fallbackRedirectUrl="/study" appearance={clerkAppearance}>
-                        <Button id="tour-signup-button">Sign Up</Button>
-                    </SignUpButton>
-                </div>
-            )}
-        </>
-    )
+  const startTour = () => {
+    if (driverObj) {
+      driverObj.drive()
+    }
+  }
+
+  return (
+    <>
+      <Button size="lg" variant="outline" className="px-8" onClick={startTour}>
+        Take a Tour
+      </Button>
+      {!isSignedIn && (
+        <div className="hidden">
+          <SignUpButton mode="modal" fallbackRedirectUrl="/study" appearance={clerkAppearance}>
+            <Button id="tour-signup-button">Sign Up</Button>
+          </SignUpButton>
+        </div>
+      )}
+    </>
+  )
 }

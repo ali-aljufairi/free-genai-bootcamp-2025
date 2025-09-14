@@ -12,6 +12,7 @@
   "dependencies": {
     "@ai-sdk/groq": "^1.2.1",
     "@clerk/nextjs": "^6.14.1",
+    "@clerk/themes": "^2.4.19",
     "@emotion/is-prop-valid": "latest",
     "@google/genai": "^0.7.0",
     "@hookform/resolvers": "^3.9.1",

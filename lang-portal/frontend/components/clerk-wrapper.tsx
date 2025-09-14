@@ -1,7 +1,7 @@
 "use client";
 
 import { ClerkProvider } from "@clerk/nextjs";
-import { clerkAppearance } from "@/components/navbar";
+import { clerkAppearance } from "@/lib/clerk-appearance";
 import { useEffect } from "react";
 
 // Configure Clerk to automatically include auth tokens in fetch requests

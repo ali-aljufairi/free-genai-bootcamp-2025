@@ -4,7 +4,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { ClerkProvider } from "@clerk/nextjs";
 import ClientLayout from "./ClientLayout";
-import { clerkAppearance } from "@/components/navbar";
+import { clerkAppearance } from "@/lib/clerk-appearance";
 
 const inter = Inter({
   subsets: ["latin"],

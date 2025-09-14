@@ -4,6 +4,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Define CSS layers with Clerk having higher priority than base styles */
+@layer base, clerk-styles, components, utilities;
+
 @layer base {
   :root {
     --background: 210 40% 98%;
@@ -268,7 +271,8 @@
 
 /* De-emphasize Clerk dev badge in footer (dev only). This does not affect production. */
 :where([data-localization-key*="badge"], [data-localization-key*="development"], [class*="cl-badge"]) {
-  color: rgb(148 163 184 / 0.8) !important; /* slate-400 */
+  color: rgb(148 163 184 / 0.8) !important;
+  /* slate-400 */
   background: transparent !important;
   text-shadow: none !important;
 }
@@ -281,4 +285,43 @@
 
 .theme-toggle:active::after {
   @apply scale-[2.5];
+}
+
+/* Clerk Components CSS Layer - Higher specificity to override global styles */
+@layer clerk-styles {
+
+  /* Ensure Clerk buttons aren't affected by global button styles */
+  [class*="cl-formButton"]:not([class*="cl-formButtonPrimary"]) {
+    background-color: transparent !important;
+    background-image: none !important;
+    border: 1px solid rgba(147, 197, 253, 0.5) !important;
+    color: rgba(219, 234, 254, 0.8) !important;
+  }
+
+  [class*="cl-formButton"]:not([class*="cl-formButtonPrimary"]):hover {
+    background-color: rgba(30, 64, 175, 0.3) !important;
+    color: rgba(219, 234, 254, 1) !important;
+  }
+
+  /* Ensure primary buttons maintain their gradient */
+  [class*="cl-formButtonPrimary"] {
+    background: linear-gradient(to right, #2563eb, #4f46e5) !important;
+    color: white !important;
+    border: none !important;
+  }
+
+  [class*="cl-formButtonPrimary"]:hover {
+    background: linear-gradient(to right, #1d4ed8, #4338ca) !important;
+  }
+
+  /* Fix any reset/cancel/clear buttons specifically */
+  [class*="cl-formButtonReset"],
+  [class*="cl-formButtonSecondary"],
+  [data-localization-key*="signIn.start.actionText"],
+  [data-localization-key*="signUp.start.actionText"] {
+    background-color: transparent !important;
+    background-image: none !important;
+    border: 1px solid rgba(147, 197, 253, 0.5) !important;
+    color: rgba(219, 234, 254, 0.8) !important;
+  }
 }
