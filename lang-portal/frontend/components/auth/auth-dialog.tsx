@@ -26,16 +26,12 @@ export function AuthDialog({ mode, open, onOpenChange }: AuthDialogProps) {
           {mode === "sign-in" ? (
             <SignIn
               appearance={appearance}
-              afterSignInUrl="/study"
               signUpUrl="/sign-up"
-              redirectUrl="/study"
             />
           ) : (
             <SignUp
               appearance={appearance}
-              afterSignUpUrl="/study"
               signInUrl="/sign-in"
-              redirectUrl="/study"
             />
           )}
           <DialogClose className="absolute top-4 right-4 z-50 inline-flex items-center justify-center rounded-full w-8 h-8 bg-blue-900/20 backdrop-blur-sm text-blue-200/80 hover:text-white hover:bg-blue-800/30 focus:outline-none focus:ring-2 focus:ring-blue-500/40 border border-blue-700/40 transition-all duration-200 hover:scale-105">
