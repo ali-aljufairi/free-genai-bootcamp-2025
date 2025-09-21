@@ -17,6 +17,9 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "Sorami - Language Learning Portal",
   description: "Learn Japanese with AI-powered tools and interactive features",
+  icons: {
+    icon: '/fav.ico',
+  },
 };
 
 export default function RootLayout({
@@ -27,8 +30,6 @@ export default function RootLayout({
   return (
     <ClerkProvider
       appearance={clerkAppearance}
-      afterSignInUrl="/study"
-      afterSignUpUrl="/study"
       signInUrl="/sign-in"
       signUpUrl="/sign-up"
       publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
