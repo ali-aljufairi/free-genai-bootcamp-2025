@@ -1,5 +1,5 @@
 "use client";
-import { Dialog, DialogContent, DialogClose } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogClose, DialogTitle } from "@/components/ui/dialog";
 import { SignIn, SignUp } from "@clerk/nextjs";
 import { X } from "lucide-react";
 import { clerkAppearance } from "@/lib/clerk-appearance";
@@ -18,11 +18,14 @@ export function AuthDialog({ mode, open, onOpenChange }: AuthDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="bg-transparent border-0 shadow-none p-8 rounded-none max-w-none w-full h-full animate-none duration-0 data-[state=open]:!animate-none data-[state=closed]:!animate-none flex items-center justify-center"
+        className="bg-transparent border-0 shadow-none p-4 sm:p-8 rounded-none max-w-none w-full h-full animate-none duration-0 data-[state=open]:!animate-none data-[state=closed]:!animate-none flex items-center justify-center"
         overlayClassName="bg-black/80 backdrop-blur-lg animate-none duration-0"
         hideClose
       >
-        <div className="relative w-full max-w-lg mx-auto min-h-[520px]">
+        <DialogTitle className="sr-only">
+          {mode === "sign-in" ? "Sign in to Sorami" : "Sign up for Sorami"}
+        </DialogTitle>
+        <div className="relative mx-auto w-full max-w-full sm:w-fit sm:max-w-lg min-h-[520px]">
           {mode === "sign-in" ? (
             <SignIn
               appearance={appearance}
@@ -34,8 +37,8 @@ export function AuthDialog({ mode, open, onOpenChange }: AuthDialogProps) {
               signInUrl="/sign-in"
             />
           )}
-          <DialogClose className="absolute top-4 right-4 z-50 inline-flex items-center justify-center rounded-full w-8 h-8 bg-blue-900/20 backdrop-blur-sm text-blue-200/80 hover:text-white hover:bg-blue-800/30 focus:outline-none focus:ring-2 focus:ring-blue-500/40 border border-blue-700/40 transition-all duration-200 hover:scale-105">
-            <X className="h-4 w-4" />
+          <DialogClose className="absolute top-3 right-3 sm:top-4 sm:right-4 z-50 inline-flex h-9 w-9 items-center justify-center rounded-full border border-blue-500/30 bg-blue-900/60 text-blue-100 shadow-lg shadow-blue-900/40 transition-colors duration-200 hover:border-blue-400/40 hover:bg-blue-800/70 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400">
+            <X className="h-5 w-5" />
             <span className="sr-only">Close</span>
           </DialogClose>
         </div>

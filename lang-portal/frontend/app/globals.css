@@ -269,12 +269,34 @@
   opacity: 1 !important;
 }
 
-/* De-emphasize Clerk dev badge in footer (dev only). This does not affect production. */
-:where([data-localization-key*="badge"], [data-localization-key*="development"], [class*="cl-badge"]) {
-  color: rgb(148 163 184 / 0.8) !important;
-  /* slate-400 */
-  background: transparent !important;
-  text-shadow: none !important;
+/* Hide only the problematic development elements */
+:where([data-localization-key*="badge"], [class*="cl-badge"]) {
+  display: none !important;
+}
+
+/* Hide Sentry development notifications */
+:where([class*="sentry"], [id*="sentry"], [data-sentry]) {
+  display: none !important;
+}
+
+/* Hide bottom corner logos and overlays */
+:where([class*="logo"], [class*="brand"], [id*="logo"], [id*="brand"]) {
+  display: none !important;
+}
+
+/* Hide any corner overlays */
+:where([class*="corner"], [class*="overlay"]) {
+  display: none !important;
+}
+
+/* Style development mode banner to match theme */
+:where([class*="development"], [class*="dev-mode"], [data-localization-key*="development"]) {
+  background: rgba(30, 58, 138, 0.8) !important;
+  border: 1px solid rgba(59, 130, 246, 0.5) !important;
+  color: rgba(219, 234, 254, 0.9) !important;
+  border-radius: 0.5rem !important;
+  padding: 0.5rem 0.75rem !important;
+  font-size: 0.875rem !important;
 }
 
 
@@ -324,4 +346,33 @@
     border: 1px solid rgba(147, 197, 253, 0.5) !important;
     color: rgba(219, 234, 254, 0.8) !important;
   }
+
+  /* Ensure Continue button matches website styling */
+  [class*="cl-formButtonPrimary"] {
+    background: linear-gradient(to right, #2563eb, #4f46e5) !important;
+    color: white !important;
+    border: none !important;
+    height: 3.5rem !important;
+    font-size: 1rem !important;
+    font-weight: 600 !important;
+    border-radius: 0.5rem !important;
+    transition: all 0.2s ease-in-out !important;
+    box-shadow: 0 10px 15px -3px rgba(37, 99, 235, 0.3) !important;
+  }
+
+  [class*="cl-formButtonPrimary"]:hover {
+    background: linear-gradient(to right, #1d4ed8, #4338ca) !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 20px 25px -5px rgba(37, 99, 235, 0.4) !important;
+  }
+
+  /* Responsive dialog styling for full screen */
+  @media (min-width: 1024px) {
+    [class*="cl-card"] {
+      max-width: 28rem !important;
+      margin: 0 auto !important;
+    }
+  }
+
+  /* Preserve original glass card styling - let appearance config handle it */
 }
