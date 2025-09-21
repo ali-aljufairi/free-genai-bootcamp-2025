@@ -29,7 +29,7 @@ export const clerkAppearance = {
     userButtonPopoverActionButton: "text-blue-100 hover:text-white hover:bg-blue-900/30 duration-0 transition-none",
     userButtonPopoverActionButtonText: "text-blue-100",
     userButtonPopoverActionButtonIcon: "text-blue-200",
-    userButtonPopoverFooter: "bg-transparent border-t border-blue-900/30 text-blue-200/80",
+    userButtonPopoverFooter: "hidden",
     userButtonPopoverActions: "gap-1",
     
     // Form fields - restore original theming
@@ -42,7 +42,7 @@ export const clerkAppearance = {
     formFieldLabelRow: "text-blue-100/90 mb-3",
     
     // Buttons - restore original consistent styling
-    formButtonPrimary: "h-14 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold shadow-lg shadow-blue-900/30 text-base mt-6",
+    formButtonPrimary: "h-14 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold shadow-lg shadow-blue-900/30 text-base transition-all duration-200",
     formButtonSecondary: "h-14 rounded-lg bg-transparent border border-blue-900/50 text-blue-200 hover:bg-blue-900/30 hover:text-blue-100 font-medium transition-colors text-base",
     formButtonReset: "h-14 rounded-lg bg-transparent border border-blue-900/50 text-blue-200 hover:bg-blue-900/30 hover:text-blue-100 font-medium transition-colors text-base",
     
@@ -70,12 +70,12 @@ export const clerkAppearance = {
     dividerLine: "bg-white/15",
     dividerText: "text-blue-100/85 text-base",
     
-    // Footer - restore original theming
-    footer: "bg-transparent border-t border-blue-700/30 mt-8 pt-6",
-    footerText: "text-blue-200/70 text-base",
-    footerAction: "text-blue-300 hover:text-blue-200 font-medium underline underline-offset-2 transition-colors text-base",
-    footerActionText: "text-blue-200/70 text-base",
-    footerActionLink: "text-blue-400 hover:text-blue-300 font-medium transition-colors text-base",
+    // Footer - completely hide all footer elements
+    footer: "hidden",
+    footerText: "hidden",
+    footerAction: "hidden",
+    footerActionText: "hidden",
+    footerActionLink: "hidden",
     
     // Identity preview - restore original theming
     identityPreview: "bg-[#0A1120]/60 border border-blue-700/40 rounded-lg backdrop-blur-sm p-4 mt-4",
@@ -94,11 +94,9 @@ export const clerkAppearance = {
     page: "bg-transparent w-full",
     
     // Hide development banners and debug elements
-    footerActionLink__signUp: "text-blue-400 hover:text-blue-300 font-medium transition-colors text-base",
-    footerActionLink__signIn: "text-blue-400 hover:text-blue-300 font-medium transition-colors text-base",
-    
-    // Style development mode indicators to match theme
-    developmentModeIndicator: "bg-blue-900/80 border border-blue-700/50 text-blue-200 rounded-lg px-3 py-2 text-sm",
+    footerActionLink__signUp: "hidden",
+    footerActionLink__signIn: "hidden",
+    developmentModeIndicator: "hidden",
     debugPanel: "hidden",
     debugInfo: "hidden",
   },
