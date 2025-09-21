@@ -47,12 +47,12 @@ export const clerkAppearance = {
     formButtonReset: "h-14 rounded-lg bg-transparent border border-blue-900/50 text-blue-200 hover:bg-blue-900/30 hover:text-blue-100 font-medium transition-colors text-base",
     
     // Social authentication - restore original consistent styling
-    socialButtonsBlockButton: "h-14 px-6 bg-[#0A1120]/40 border border-blue-700/40 text-white hover:bg-[#0A1120]/60 hover:border-blue-600/50 transition-all duration-200 flex items-center justify-center gap-3 rounded-lg backdrop-blur-sm mb-4",
+    socialButtonsBlockButton: "h-14 w-full px-6 bg-[#0A1120]/40 border border-blue-700/40 text-white hover:bg-[#0A1120]/60 hover:border-blue-600/50 transition-all duration-200 flex items-center justify-center gap-3 rounded-lg backdrop-blur-sm mb-4",
     socialButtonsBlockButtonText: "text-white font-medium text-base leading-none",
     socialButtonsBlockButtonContainer: "gap-4 mt-4 mb-8",
     socialButtonsBlockButtonArrow: "text-blue-200/70",
     socialButtonsProviderIcon: "!text-white filter brightness-100 contrast-100 w-6 h-6",
-    socialButtonsProviderIcon__github: "w-6 h-6 filter invert brightness-0 contrast-100", 
+    socialButtonsProviderIcon__github: "w-6 h-6 filter brightness-0 invert-1", 
     socialButtonsProviderIcon__google: "w-6 h-6",
     socialButtonsIconButton: "!text-white w-6 h-6",
     socialButtonsIconButton__github: "!text-white w-6 h-6",

@@ -31,8 +31,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
       <QueryClientProvider client={queryClient}>
         <ThemeProvider
           attribute="class"
-          defaultTheme="system"
-          enableSystem
+          defaultTheme="dark"
           disableTransitionOnChange
         >
           <div className="flex flex-col min-h-screen">
@@ -50,8 +49,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
       <QueryClientProvider client={queryClient}>
         <ThemeProvider
           attribute="class"
-          defaultTheme="system"
-          enableSystem
+          defaultTheme="dark"
           disableTransitionOnChange
         >
           <main className="min-h-screen flex items-center justify-center p-4 md:p-8">
@@ -67,8 +65,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
     <QueryClientProvider client={queryClient}>
       <ThemeProvider
         attribute="class"
-        defaultTheme="system"
-        enableSystem
+        defaultTheme="dark"
         disableTransitionOnChange
       >
         <div className="flex min-h-screen">

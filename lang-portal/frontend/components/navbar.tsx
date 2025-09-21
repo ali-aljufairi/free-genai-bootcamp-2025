@@ -5,7 +5,6 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Menu } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { ThemeToggle } from "@/components/theme-toggle"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { UserButton, useUser } from "@clerk/nextjs"
 import AuthDialog from "@/components/auth/auth-dialog"
@@ -37,7 +36,6 @@ export default function Navbar() {
           </div>
 
           <div className="flex items-center gap-2">
-            <ThemeToggle />
 
             <div className="hidden md:flex items-center gap-2">
               {isSignedIn ? (

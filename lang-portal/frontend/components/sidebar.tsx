@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation"
 import { BookOpen, GraduationCap, Home, LayoutDashboard, Menu, Settings, X, ChevronLeft, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { ThemeToggle } from "@/components/theme-toggle"
 import { cn } from "@/lib/utils"
 import { useSidebar } from "@/hooks/use-sidebar"
 
@@ -87,7 +86,6 @@ export default function Sidebar() {
               <Link href="/" className="text-sm text-muted-foreground hover:text-blue-600 dark:hover:text-blue-400">
                 Back to Home
               </Link>
-              <ThemeToggle />
             </div>
           </nav>
         </SheetContent>
@@ -157,7 +155,6 @@ export default function Sidebar() {
               Back to Home
             </Link>
           )}
-          <ThemeToggle />
         </div>
       </div>
     </>
