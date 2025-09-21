@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { cn } from "@/lib/utils"
 import { useSidebar } from "@/hooks/use-sidebar"
+import Logo from "@/components/Logo"
 
 export default function Sidebar() {
   const pathname = usePathname()
@@ -54,7 +55,7 @@ export default function Sidebar() {
           <nav className="flex flex-col h-full bg-white/90 dark:bg-slate-900/90 paper-texture backdrop-blur-sm overflow-y-auto">
             <div className="flex items-center justify-between p-4 border-b">
               <div className="flex items-center gap-2">
-                <img src="/logo.ico" alt="Logo" className="h-5 w-5" />
+                <Logo width={20} height={20} />
                 <span className="font-bold text-lg">Sorami</span>
                 <span className="text-xs text-muted-foreground">空見</span>
               </div>
@@ -96,7 +97,7 @@ export default function Sidebar() {
         !isExpanded ? "w-20" : "w-64"
       )}>
         <div className="flex items-center gap-2 p-4 border-b">
-          <img src="/logo.ico" alt="Logo" className="h-5 w-5" />
+          <Logo width={20} height={20} />
           {isExpanded && (
             <>
               <span className="font-bold text-lg">Sorami</span>

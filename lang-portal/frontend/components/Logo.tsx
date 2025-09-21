@@ -1,3 +1,5 @@
+import Image from 'next/image'
+
 interface LogoProps {
     width?: number;
     height?: number;
@@ -6,9 +8,9 @@ interface LogoProps {
 
 export default function Logo({ width = 32, height = 32, className }: LogoProps) {
     return (
-        <img
+        <Image
             src="/logo.svg"
-            alt="Logo"
+            alt="website logo"
             width={width}
             height={height}
             className={className}
