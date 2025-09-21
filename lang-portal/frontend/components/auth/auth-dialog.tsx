@@ -37,7 +37,7 @@ export function AuthDialog({ mode, open, onOpenChange }: AuthDialogProps) {
               signInUrl="/sign-in"
             />
           )}
-          <DialogClose className="absolute top-3 right-3 sm:top-4 sm:right-4 z-50 inline-flex h-9 w-9 items-center justify-center rounded-full border border-blue-500/30 bg-blue-900/60 text-blue-100 shadow-lg shadow-blue-900/40 transition-colors duration-200 hover:border-blue-400/40 hover:bg-blue-800/70 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400">
+          <DialogClose className="absolute top-3 right-3 sm:top-4 sm:right-4 z-50 inline-flex h-9 w-9 items-center justify-center text-blue-200/80 transition-colors duration-200 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400">
             <X className="h-5 w-5" />
             <span className="sr-only">Close</span>
           </DialogClose>

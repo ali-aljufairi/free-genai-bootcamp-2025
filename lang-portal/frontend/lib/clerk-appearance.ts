@@ -13,7 +13,7 @@ export const clerkAppearance = {
     card: "glass-card rounded-2xl border border-blue-700/30 shadow-2xl bg-[#0A1120]/75 backdrop-blur-md p-12 w-full max-w-lg mx-auto min-h-[520px] relative",
     
     // Headers - restore original styling
-    headerTitle: "text-4xl font-bold text-white text-center mb-4",
+    headerTitle: "text-3xl font-bold text-white text-center mb-4",
     headerSubtitle: "text-lg text-blue-200/80 text-center mb-8", 
     formHeaderTitle: "hidden",
     formHeaderSubtitle: "hidden",
