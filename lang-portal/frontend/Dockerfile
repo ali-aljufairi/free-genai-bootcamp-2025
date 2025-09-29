@@ -1,4 +1,4 @@
-FROM oven/bun:1 AS base
+FROM oven/bun:latest AS base
 
 WORKDIR /usr/src/app
 
@@ -9,7 +9,7 @@ COPY package.json bun.lock ./
 RUN bun install 
 
 
-FROM oven/bun:1 AS release
+FROM oven/bun:latest AS release
 
 COPY --from=base /usr/src/app/node_modules node_modules
 

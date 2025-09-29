@@ -629,29 +629,29 @@ export function WordsFlashcard() {
                 </div>
             </div>
 
-            <Card className="glass-card">
-                <CardContent className="p-12">
-                    <div className="max-w-4xl mx-auto">
+            <Card className="glass-card min-h-[70vh]">
+                <CardContent className="p-12 h-full flex flex-col justify-center">
+                    <div className="max-w-4xl mx-auto w-full">
                         <motion.div
                             key={currentIndex}
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: -20 }}
                             transition={{ duration: 0.3 }}
-                            className="text-center mb-12 space-y-4"
+                            className="text-center mb-16 space-y-6"
                         >
                             {currentCard.question.kanji && showKanji && (
-                                <h2 className="text-7xl font-bold">{currentCard.question.kanji}</h2>
+                                <h2 className="text-8xl font-bold">{currentCard.question.kanji}</h2>
                             )}
                             {currentCard.question.kana && (
-                                <p className="text-4xl text-primary">{currentCard.question.kana}</p>
+                                <p className="text-5xl text-primary">{currentCard.question.kana}</p>
                             )}
                             {currentCard.question.romaji && showRomaji && (
-                                <p className="text-3xl text-muted-foreground">{currentCard.question.romaji}</p>
+                                <p className="text-4xl text-muted-foreground">{currentCard.question.romaji}</p>
                             )}
                         </motion.div>
 
-                        <div className="grid grid-cols-2 gap-6">
+                        <div className="grid grid-cols-2 gap-8">
                             {currentCard.options.map((option, index) => (
                                 <motion.div
                                     key={index}
@@ -660,7 +660,7 @@ export function WordsFlashcard() {
                                     transition={{ duration: 0.3, delay: index * 0.1 }}
                                 >
                                     <Button
-                                        className={`w-full p-8 h-auto text-2xl justify-center transition-all duration-200 ${selectedOption !== null
+                                        className={`w-full p-10 h-auto text-3xl justify-center transition-all duration-200 ${selectedOption !== null
                                             ? index === currentCard.correct_index
                                                 ? "bg-green-500 hover:bg-green-600 text-white"
                                                 : selectedOption === index
