@@ -294,6 +294,107 @@ EXCEPTION
 END;
 $$ LANGUAGE plpgsql IMMUTABLE;
 
+-- Function to convert katakana to hiragana
+CREATE OR REPLACE FUNCTION katakana_to_hiragana(input_text TEXT)
+RETURNS TEXT AS $$
+DECLARE
+    result TEXT := '';
+    i INTEGER := 1;
+    char_code INTEGER;
+    new_char TEXT;
+BEGIN
+    IF input_text IS NULL THEN
+        RETURN NULL;
+    END IF;
+    
+    WHILE i <= length(input_text) LOOP
+        char_code := ascii(substring(input_text, i, 1));
+        -- Katakana range: 0x30A1 to 0x30F6
+        IF char_code >= 12449 AND char_code <= 12534 THEN
+            new_char := chr(char_code - 96);
+        ELSE
+            new_char := substring(input_text, i, 1);
+        END IF;
+        result := result || new_char;
+        i := i + 1;
+    END LOOP;
+    
+    RETURN result;
+END;
+$$ LANGUAGE plpgsql IMMUTABLE;
+
+-- Function to check if text is katakana
+CREATE OR REPLACE FUNCTION is_katakana(input_text TEXT)
+RETURNS BOOLEAN AS $$
+DECLARE
+    i INTEGER := 1;
+    char_code INTEGER;
+BEGIN
+    IF input_text IS NULL OR input_text = '' THEN
+        RETURN FALSE;
+    END IF;
+    
+    WHILE i <= length(input_text) LOOP
+        char_code := ascii(substring(input_text, i, 1));
+        -- Katakana range: 0x30A1 to 0x30F6, plus some punctuation
+        IF NOT (char_code >= 12449 AND char_code <= 12534 OR char_code IN (12539, 12540, 12541)) THEN
+            RETURN FALSE;
+        END IF;
+        i := i + 1;
+    END LOOP;
+    
+    RETURN TRUE;
+END;
+$$ LANGUAGE plpgsql IMMUTABLE;
+
+-- Function to check if text is hiragana
+CREATE OR REPLACE FUNCTION is_hiragana(input_text TEXT)
+RETURNS BOOLEAN AS $$
+DECLARE
+    i INTEGER := 1;
+    char_code INTEGER;
+BEGIN
+    IF input_text IS NULL OR input_text = '' THEN
+        RETURN FALSE;
+    END IF;
+    
+    WHILE i <= length(input_text) LOOP
+        char_code := ascii(substring(input_text, i, 1));
+        -- Hiragana range: 0x3041 to 0x3096
+        IF NOT (char_code >= 12353 AND char_code <= 12438 OR char_code IN (12443, 12444)) THEN
+            RETURN FALSE;
+        END IF;
+        i := i + 1;
+    END LOOP;
+    
+    RETURN TRUE;
+END;
+$$ LANGUAGE plpgsql IMMUTABLE;
+
+-- Function to check if text contains kanji
+CREATE OR REPLACE FUNCTION contains_kanji(input_text TEXT)
+RETURNS BOOLEAN AS $$
+DECLARE
+    i INTEGER := 1;
+    char_code INTEGER;
+BEGIN
+    IF input_text IS NULL OR input_text = '' THEN
+        RETURN FALSE;
+    END IF;
+    
+    WHILE i <= length(input_text) LOOP
+        char_code := ascii(substring(input_text, i, 1));
+        -- Kanji range: 0x4E00 to 0x9FFF
+        IF char_code >= 19968 AND char_code <= 40959 THEN
+            RETURN TRUE;
+        END IF;
+        i := i + 1;
+    END LOOP;
+    
+    RETURN FALSE;
+END;
+$$ LANGUAGE plpgsql IMMUTABLE;
+
 -- Validate and convert part of speech to enum
 CREATE OR REPLACE FUNCTION validate_part_of_speech(pos_array JSONB)
 RETURNS pos_enum AS $$
@@ -498,6 +599,7 @@ DECLARE
     phonetic_text TEXT;
     pos_array JSONB;
     level_text TEXT;
+    determined_kana TEXT;
 BEGIN
     -- Validate input
     IF json_data IS NULL OR jsonb_typeof(json_data) != 'array' THEN
@@ -515,6 +617,17 @@ BEGIN
             pos_array := record_data -> 'part_of_speech';
             level_text := safe_jsonb_extract_text(record_data, 'level');
             
+            -- Determine kana reading
+            IF phonetic_text IS NOT NULL AND phonetic_text != '' THEN
+                determined_kana := phonetic_text;
+            ELSIF is_hiragana(word_text) THEN
+                determined_kana := word_text;
+            ELSIF is_katakana(word_text) THEN
+                determined_kana := katakana_to_hiragana(word_text);
+            ELSE
+                determined_kana := NULL;
+            END IF;
+            
             -- Extract and join short meanings
             short_mean_array := safe_jsonb_extract_text_array(record_data, 'short_mean');
             english_text := CASE 
@@ -528,14 +641,14 @@ BEGIN
                 id, kana, kanji, romaji, english, part_of_speech, jlpt, level, raw_data
             ) VALUES (
                 word_id,
-                phonetic_text, -- Can be NULL
+                determined_kana, -- Determined kana reading
                 word_text,
                 CASE 
-                    WHEN phonetic_text IS NOT NULL AND phonetic_text != '' THEN 
-                        hiragana_to_romaji(phonetic_text)
+                    WHEN determined_kana IS NOT NULL THEN 
+                        hiragana_to_romaji(determined_kana)
                     ELSE 
                         NULL 
-                END, -- Convert hiragana to romaji during import
+                END, -- Convert hiragana to romaji
                 english_text,
                 validate_part_of_speech(pos_array),
                 COALESCE(validate_jlpt_level(level_text), 0), -- Default to 0 if no level

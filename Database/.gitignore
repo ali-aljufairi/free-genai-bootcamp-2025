@@ -49,3 +49,4 @@ import_data.sql
 *~
 import-client/*
 tools/*
+mcp.json
