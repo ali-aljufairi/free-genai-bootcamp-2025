@@ -31,6 +31,7 @@ import type {
 import { useFlashcardStore } from "@/stores/flashcard-store"
 import { PartOfSpeech } from "@/types/pos-enum"
 import { PartOfSpeechSelector } from "@/components/ui/part-of-speech-selector"
+import { MobileStudySession } from "@/components/study/mobile-study-session"
 
 export function WordsFlashcard() {
     const isMobile = useIsMobile()
@@ -39,11 +40,12 @@ export function WordsFlashcard() {
     const [currentIndex, setCurrentIndex] = useState(0)
     const [selectedOption, setSelectedOption] = useState<number | null>(null)
     const [isCorrect, setIsCorrect] = useState<boolean | null>(null)
-    const [showConfig, setShowConfig] = useState(true)
+    const [showConfig, setShowConfig] = useState(false) // Start with false, will check if we need to show it
     const [showResults, setShowResults] = useState(false)
     const [results, setResults] = useState<FlashcardResult | null>(null)
     const [answers, setAnswers] = useState<FlashcardAnswer[]>([])
     const [score, setScore] = useState(0)
+    const [hasAutoStarted, setHasAutoStarted] = useState(false)
 
     // Use Zustand store for persistent configuration
     const store = useFlashcardStore()
@@ -54,6 +56,21 @@ export function WordsFlashcard() {
         setLevel, setCourse, setUnit, setCount, setPartsOfSpeech,
         setShowOptions, setAskOptions, validateAndFixOptions
     } = store
+
+    // Auto-start session if preferences exist and haven't auto-started yet
+    useEffect(() => {
+        // Check if at least one "ask" option is enabled (valid configuration)
+        const hasValidConfig = askForKana || askForKanji || askForRomaji || askForEnglish || askForPartOfSpeech
+
+        if (hasValidConfig && !hasAutoStarted && !session && !showResults) {
+            setHasAutoStarted(true)
+            startSession()
+        } else if (!hasValidConfig && !hasAutoStarted) {
+            // No valid config, show settings
+            setShowConfig(true)
+            setHasAutoStarted(true)
+        }
+    }, [hasAutoStarted, session, showResults])
 
     // Validate options on mount and when they change
     useEffect(() => {
@@ -268,6 +285,290 @@ export function WordsFlashcard() {
 
     // Configuration screen
     if (showConfig) {
+        // Mobile-optimized configuration layout
+        if (isMobile) {
+            return (
+                <div className="pb-20">
+                    {/* Quick Settings Card - Most Important First */}
+                    <Card className="glass-card mb-4">
+                        <CardContent className="p-4 space-y-4">
+                            <div className="flex items-center gap-2 pb-2 border-b">
+                                <Settings className="w-5 h-5 text-primary" />
+                                <h3 className="font-semibold">Quick Start</h3>
+                            </div>
+
+                            <div className="space-y-4">
+                                {/* JLPT Level - Most Important */}
+                                <div className="space-y-2">
+                                    <Label className="text-sm font-medium">JLPT Level</Label>
+                                    <Select value={level.toString()} onValueChange={(value) => setLevel(parseInt(value))}>
+                                        <SelectTrigger className="h-12">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="5">N5 (Beginner)</SelectItem>
+                                            <SelectItem value="4">N4</SelectItem>
+                                            <SelectItem value="3">N3</SelectItem>
+                                            <SelectItem value="2">N2</SelectItem>
+                                            <SelectItem value="1">N1 (Advanced)</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                {/* Number of Cards */}
+                                <div className="space-y-2">
+                                    <Label className="text-sm font-medium">Number of Cards</Label>
+                                    <Select value={count.toString()} onValueChange={(value) => setCount(parseInt(value))}>
+                                        <SelectTrigger className="h-12">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="5">5 cards</SelectItem>
+                                            <SelectItem value="10">10 cards</SelectItem>
+                                            <SelectItem value="15">15 cards</SelectItem>
+                                            <SelectItem value="20">20 cards</SelectItem>
+                                            <SelectItem value="25">25 cards</SelectItem>
+                                            <SelectItem value="30">30 cards</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    {/* Course & Unit - Collapsible */}
+                    <Card className="glass-card mb-4">
+                        <CardContent className="p-4 space-y-4">
+                            <div className="flex items-center gap-2 pb-2 border-b">
+                                <Settings className="w-5 h-5 text-primary" />
+                                <h3 className="font-semibold">Course Selection</h3>
+                                <span className="text-xs text-muted-foreground ml-auto">Optional</span>
+                            </div>
+
+                            <div className="space-y-4">
+                                <div className="space-y-2">
+                                    <Label className="text-sm font-medium">Course</Label>
+                                    <Select
+                                        value={selectedCourse?.toString() || "all"}
+                                        onValueChange={(value) => setCourse(value === "all" ? null : parseInt(value))}
+                                    >
+                                        <SelectTrigger className="h-12">
+                                            <SelectValue placeholder="All Courses" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">All Courses</SelectItem>
+                                            {availableCourses.map((course) => (
+                                                <SelectItem key={course.id} value={course.id.toString()}>
+                                                    {course.name}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                {selectedCourse && (
+                                    <div className="space-y-2">
+                                        <Label className="text-sm font-medium">Unit</Label>
+                                        <Select
+                                            value={selectedUnit?.toString() || "all"}
+                                            onValueChange={(value) => setUnit(value === "all" ? null : parseInt(value))}
+                                        >
+                                            <SelectTrigger className="h-12">
+                                                <SelectValue placeholder="All Units" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="all">All Units</SelectItem>
+                                                {units.map((unit) => (
+                                                    <SelectItem key={unit.id} value={unit.id.toString()}>
+                                                        {unit.name}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                )}
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    {/* Quiz Settings - What to Ask */}
+                    <Card className="glass-card mb-4">
+                        <CardContent className="p-4 space-y-4">
+                            <div className="flex items-center gap-2 pb-2 border-b">
+                                <HelpCircle className="w-5 h-5 text-red-500" />
+                                <div className="flex-1">
+                                    <h3 className="font-semibold">What to Ask</h3>
+                                    <p className="text-xs text-muted-foreground">Choose at least one</p>
+                                </div>
+                                <span className="text-xs font-medium text-primary">
+                                    {[askForKana, askForKanji, askForRomaji, askForEnglish, askForPartOfSpeech].filter(Boolean).length} selected
+                                </span>
+                            </div>
+
+                            <div className="space-y-3">
+                                <div className="flex items-center justify-between py-2 px-3 rounded-md hover:bg-accent/50 transition-colors">
+                                    <Label className="text-sm">Ask for English</Label>
+                                    <Switch
+                                        checked={askForEnglish}
+                                        onCheckedChange={(value) => setAskOptions({ askForEnglish: value })}
+                                    />
+                                </div>
+                                <div className="flex items-center justify-between py-2 px-3 rounded-md hover:bg-accent/50 transition-colors">
+                                    <Label className="text-sm">Ask for Kana</Label>
+                                    <Switch
+                                        checked={askForKana}
+                                        onCheckedChange={(value) => setAskOptions({ askForKana: value })}
+                                    />
+                                </div>
+                                <div className="flex items-center justify-between py-2 px-3 rounded-md hover:bg-accent/50 transition-colors">
+                                    <Label className="text-sm">Ask for Kanji</Label>
+                                    <Switch
+                                        checked={askForKanji}
+                                        onCheckedChange={(value) => setAskOptions({ askForKanji: value })}
+                                    />
+                                </div>
+                                <div className="flex items-center justify-between py-2 px-3 rounded-md hover:bg-accent/50 transition-colors">
+                                    <Label className="text-sm">Ask for Romaji</Label>
+                                    <Switch
+                                        checked={askForRomaji}
+                                        onCheckedChange={(value) => setAskOptions({ askForRomaji: value })}
+                                    />
+                                </div>
+                                <div className="flex items-center justify-between py-2 px-3 rounded-md hover:bg-accent/50 transition-colors">
+                                    <Label className="text-sm">Ask for Part of Speech</Label>
+                                    <Switch
+                                        checked={askForPartOfSpeech}
+                                        onCheckedChange={(value) => setAskOptions({ askForPartOfSpeech: value })}
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="flex gap-2 pt-2">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="flex-1"
+                                    onClick={() => {
+                                        setAskOptions({
+                                            askForKana: true,
+                                            askForKanji: true,
+                                            askForRomaji: true,
+                                            askForEnglish: true,
+                                            askForPartOfSpeech: true
+                                        })
+                                    }}
+                                >
+                                    All
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="flex-1"
+                                    onClick={() => {
+                                        setAskOptions({
+                                            askForKana: false,
+                                            askForKanji: false,
+                                            askForRomaji: false,
+                                            askForEnglish: false,
+                                            askForPartOfSpeech: false
+                                        })
+                                    }}
+                                >
+                                    Clear
+                                </Button>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    {/* Card Display Options */}
+                    <Card className="glass-card mb-4">
+                        <CardContent className="p-4 space-y-4">
+                            <div className="flex items-center gap-2 pb-2 border-b">
+                                <Eye className="w-5 h-5 text-blue-500" />
+                                <div className="flex-1">
+                                    <h3 className="font-semibold">What to Show</h3>
+                                    <p className="text-xs text-muted-foreground">Display on cards</p>
+                                </div>
+                                <span className="text-xs font-medium text-primary">
+                                    {[showKana, showKanji, showRomaji, showEnglish, showPartOfSpeech].filter(Boolean).length} selected
+                                </span>
+                            </div>
+
+                            <div className="space-y-3">
+                                <div className="flex items-center justify-between py-2 px-3 rounded-md hover:bg-accent/50 transition-colors">
+                                    <Label className="text-sm">Show Kana</Label>
+                                    <Switch
+                                        checked={showKana}
+                                        onCheckedChange={(value) => setShowOptions({ showKana: value })}
+                                    />
+                                </div>
+                                <div className="flex items-center justify-between py-2 px-3 rounded-md hover:bg-accent/50 transition-colors">
+                                    <Label className="text-sm">Show Kanji</Label>
+                                    <Switch
+                                        checked={showKanji}
+                                        onCheckedChange={(value) => setShowOptions({ showKanji: value })}
+                                    />
+                                </div>
+                                <div className="flex items-center justify-between py-2 px-3 rounded-md hover:bg-accent/50 transition-colors">
+                                    <Label className="text-sm">Show Romaji</Label>
+                                    <Switch
+                                        checked={showRomaji}
+                                        onCheckedChange={(value) => setShowOptions({ showRomaji: value })}
+                                    />
+                                </div>
+                                <div className="flex items-center justify-between py-2 px-3 rounded-md hover:bg-accent/50 transition-colors">
+                                    <Label className="text-sm">Show English</Label>
+                                    <Switch
+                                        checked={showEnglish}
+                                        onCheckedChange={(value) => setShowOptions({ showEnglish: value })}
+                                    />
+                                </div>
+                                <div className="flex items-center justify-between py-2 px-3 rounded-md hover:bg-accent/50 transition-colors">
+                                    <Label className="text-sm">Show Part of Speech</Label>
+                                    <Switch
+                                        checked={showPartOfSpeech}
+                                        onCheckedChange={(value) => setShowOptions({ showPartOfSpeech: value })}
+                                    />
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    {/* Part of Speech Filter */}
+                    <Card className="glass-card mb-4">
+                        <CardContent className="p-4 space-y-4">
+                            <div className="flex items-center gap-2 pb-2 border-b">
+                                <HelpCircle className="w-5 h-5 text-green-500" />
+                                <div className="flex-1">
+                                    <h3 className="font-semibold">Part of Speech</h3>
+                                    <p className="text-xs text-muted-foreground">Filter by category</p>
+                                </div>
+                            </div>
+
+                            <PartOfSpeechSelector
+                                selectedParts={selectedPartsOfSpeech}
+                                availableParts={Array.isArray(availablePartsOfSpeech) ? availablePartsOfSpeech : []}
+                                onSelectionChange={setPartsOfSpeech}
+                            />
+                        </CardContent>
+                    </Card>
+
+                    {/* Start Button - Fixed at bottom */}
+                    <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/95 backdrop-blur-sm border-t">
+                        <Button
+                            onClick={startSession}
+                            className="w-full h-14 text-lg font-medium"
+                            disabled={startSessionMutation.isPending}
+                        >
+                            <Play className="w-5 h-5 mr-2" />
+                            {startSessionMutation.isPending ? "Loading..." : "Start Word Study"}
+                        </Button>
+                    </div>
+                </div>
+            )
+        }
+
+        // Desktop configuration layout
         return (
             <div className="h-full min-h-screen flex flex-col">
                 <Card className="glass-card flex-1 m-4">
@@ -541,85 +842,43 @@ export function WordsFlashcard() {
     const progressText = `Word ${currentIndex + 1} of ${cards.length}`
     const progressPercentage = ((currentIndex + 1) / cards.length) * 100
 
-    // Mobile layout
+    // Mobile layout - Full screen immersive experience
     if (isMobile) {
         return (
-            <div className="space-y-4">
-                {/* Progress Bar */}
-                <div className="space-y-2">
-                    <div className="flex justify-between text-sm text-muted-foreground">
-                        <span>{progressText}</span>
-                        <span>Score: {score}/{cards.length}</span>
-                    </div>
-                    <div className="w-full bg-muted rounded-full h-2">
-                        <div
-                            className="bg-primary h-2 rounded-full transition-all duration-300"
-                            style={{ width: `${progressPercentage}%` }}
-                        />
-                    </div>
-                </div>
-
-                <Card className="glass-card">
-                    <CardContent className="p-6 space-y-6">
-                        <motion.div
-                            key={currentIndex}
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -20 }}
-                            transition={{ duration: 0.3 }}
-                            className="text-center space-y-3"
-                        >
-                            {currentCard.question.kanji && showKanji && (
-                                <h2 className="text-4xl font-bold">{currentCard.question.kanji}</h2>
-                            )}
-                            {currentCard.question.kana && (
-                                <p className="text-3xl text-primary">{currentCard.question.kana}</p>
-                            )}
-                            {currentCard.question.romaji && showRomaji && (
-                                <p className="text-xl text-muted-foreground">{currentCard.question.romaji}</p>
-                            )}
-                        </motion.div>
-
-                        <div className="space-y-3">
-                            {currentCard.options.map((option, index) => (
-                                <motion.div
-                                    key={index}
-                                    initial={{ opacity: 0, x: -20 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    transition={{ duration: 0.3, delay: index * 0.1 }}
-                                >
-                                    <Button
-                                        className={`w-full p-4 h-auto text-lg justify-center transition-all duration-200 ${selectedOption !== null
-                                            ? index === currentCard.correct_index
-                                                ? "bg-green-500 hover:bg-green-600 text-white"
-                                                : selectedOption === index
-                                                    ? "bg-red-400 hover:bg-red-400 text-white"
-                                                    : "opacity-70"
-                                            : "hover:bg-accent"
-                                            }`}
-                                        variant="outline"
-                                        onClick={() => handleOptionSelect(index)}
-                                        disabled={selectedOption !== null}
-                                    >
-                                        {option.english || option.kana || option.romaji || option.kanji}
-                                    </Button>
-                                </motion.div>
-                            ))}
-                        </div>
-                    </CardContent>
-                </Card>
-            </div>
+            <MobileStudySession
+                cards={cards}
+                currentIndex={currentIndex}
+                selectedOption={selectedOption}
+                isCorrect={isCorrect}
+                score={score}
+                showKanji={showKanji}
+                showRomaji={showRomaji}
+                onOptionSelect={handleOptionSelect}
+                onExit={resetSession}
+                onShowSettings={() => setShowConfig(true)}
+            />
         )
     }
 
     // Desktop layout
     return (
         <div className="space-y-6">
-            {/* Progress Bar */}
+            {/* Progress Bar with Settings Button */}
             <div className="space-y-3">
-                <div className="flex justify-between text-lg text-muted-foreground">
+                <div className="flex justify-between text-lg text-muted-foreground items-center">
                     <span>{progressText}</span>
-                    <span>Score: {score}/{cards.length}</span>
+                    <div className="flex items-center gap-4">
+                        <span>Score: {score}/{cards.length}</span>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setShowConfig(true)}
+                            className="h-8 px-3 gap-2"
+                        >
+                            <Settings className="h-4 w-4" />
+                            Settings
+                        </Button>
+                    </div>
                 </div>
                 <div className="w-full bg-muted rounded-full h-3">
                     <div
@@ -652,30 +911,36 @@ export function WordsFlashcard() {
                         </motion.div>
 
                         <div className="grid grid-cols-2 gap-8">
-                            {currentCard.options.map((option, index) => (
-                                <motion.div
-                                    key={index}
-                                    initial={{ opacity: 0, x: index % 2 === 0 ? -20 : 20 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    transition={{ duration: 0.3, delay: index * 0.1 }}
-                                >
-                                    <Button
-                                        className={`w-full p-10 h-auto text-3xl justify-center transition-all duration-200 ${selectedOption !== null
-                                            ? index === currentCard.correct_index
-                                                ? "bg-green-500 hover:bg-green-600 text-white"
-                                                : selectedOption === index
-                                                    ? "bg-red-400 hover:bg-red-400 text-white"
-                                                    : "opacity-70"
-                                            : "hover:bg-accent hover:scale-102"
-                                            }`}
-                                        variant="outline"
-                                        onClick={() => handleOptionSelect(index)}
-                                        disabled={selectedOption !== null}
+                            {currentCard.options.map((option, index) => {
+                                const isCorrectAnswer = index === currentCard.correct_index
+                                const isSelectedWrong = selectedOption === index && !isCorrectAnswer
+                                const isUnselected = selectedOption !== null && selectedOption !== index && !isCorrectAnswer
+
+                                return (
+                                    <motion.div
+                                        key={index}
+                                        initial={{ opacity: 0, x: index % 2 === 0 ? -20 : 20 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        transition={{ duration: 0.3, delay: index * 0.1 }}
                                     >
-                                        {option.english || option.kana || option.romaji || option.kanji}
-                                    </Button>
-                                </motion.div>
-                            ))}
+                                        <Button
+                                            className={`w-full p-10 h-auto text-3xl justify-center transition-all duration-200 border-2 ${selectedOption !== null
+                                                    ? isCorrectAnswer
+                                                        ? "!bg-green-500 hover:!bg-green-600 !text-white !border-green-600 shadow-xl shadow-green-500/30"
+                                                        : isSelectedWrong
+                                                            ? "!bg-red-500 hover:!bg-red-500 !text-white !border-red-600 shadow-xl shadow-red-500/30"
+                                                            : "opacity-50 bg-muted/20"
+                                                    : "hover:bg-accent hover:scale-[1.02] active:scale-[0.98]"
+                                                }`}
+                                            variant="outline"
+                                            onClick={() => handleOptionSelect(index)}
+                                            disabled={selectedOption !== null}
+                                        >
+                                            {option.english || option.kana || option.romaji || option.kanji}
+                                        </Button>
+                                    </motion.div>
+                                )
+                            })}
                         </div>
                     </div>
                 </CardContent>
