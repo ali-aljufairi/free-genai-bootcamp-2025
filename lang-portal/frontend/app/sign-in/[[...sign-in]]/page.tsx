@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { ArrowRight, Sparkles } from "lucide-react";
 import { useSignIn } from "@clerk/nextjs";
 import { toast } from "sonner";
-import Logo from "@/components/Logo";
+import Logo from "@/components/ui/Logo";
 
 export default function Page() {
     const [email, setEmail] = useState("");

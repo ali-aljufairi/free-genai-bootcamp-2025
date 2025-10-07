@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { cn } from "@/lib/utils"
 import { useSidebar } from "@/hooks/use-sidebar"
-import Logo from "@/components/Logo"
+import Logo from "@/components/ui/Logo"
 
 export default function Sidebar() {
   const pathname = usePathname()

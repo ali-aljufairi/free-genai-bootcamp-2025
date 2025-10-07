@@ -17,9 +17,8 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
-  turbopack: {
-    enabled: process.env.NODE_ENV === 'development',
-  },
+  turbopack: process.env.NODE_ENV === 'development',
+  productionBrowserSourceMaps: false, // Disable source maps in production for performance
   experimental: {
     webpackBuildWorker: true,
     parallelServerBuildTraces: true,
@@ -31,6 +30,16 @@ const nextConfig = {
   },
   images: {
     unoptimized: true,
+  },
+  webpack: (config, { dev }) => {
+    // Suppress source map warnings in production builds
+    if (!dev) {
+      config.stats = {
+        ...config.stats,
+        warningsFilter: (warning) => warning.includes('Could not auto-detect referenced sourcemap'),
+      };
+    }
+    return config;
   },
 };
 

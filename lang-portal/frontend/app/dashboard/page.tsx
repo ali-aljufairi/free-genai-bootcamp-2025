@@ -3,10 +3,10 @@
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { ProgressCircle } from "@/components/progress-circle"
+import { ProgressCircle } from "@/components/dashboard/progress-circle"
 // import { ActivityFeed } from "@/components/activity-feed"
 // import { StreakCalendar } from "@/components/streak-calendar"
-import { StatsCards } from "@/components/stats-cards"
+import { StatsCards } from "@/components/dashboard/stats-cards"
 
 import { BookOpen, Clock, TrendingUp } from "lucide-react"
 // import { useLastStudySession, useStudyProgress } from "@/hooks/api/useDashboard"

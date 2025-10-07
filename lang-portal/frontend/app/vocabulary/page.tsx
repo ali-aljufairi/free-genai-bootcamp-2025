@@ -1,5 +1,5 @@
 import type { Metadata } from "next"
-import { VocabularyBrowser } from "@/components/vocabulary-browser"
+import { VocabularyBrowser } from "@/components/vocabulary/vocabulary-browser"
 
 export const metadata: Metadata = {
   title: "Vocabulary | Sorami (空見)",

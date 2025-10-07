@@ -855,7 +855,7 @@ This implementation provides:
 ✅ **Auto-start** - Sessions begin automatically with saved preferences  
 ✅ **Fullscreen mobile** - Immersive, distraction-free learning  
 ✅ **Visual feedback** - Clear green/red indicators  
-✅ **Settings access** - Available via button, not forced  
+✅ **Settings access** - Available via button, not forced 
 ✅ **Consistent design** - Same experience on mobile and desktop  
 ✅ **Persistent preferences** - Zustand store saves user choices  
 ✅ **Clean navigation** - No duplicate menus or UI conflicts  

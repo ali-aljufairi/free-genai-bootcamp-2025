@@ -11,7 +11,7 @@ import { useMemo, useCallback, useEffect } from 'react'
 import { motion, AnimatePresence } from "framer-motion"
 import { useSidebar } from "@/hooks/use-sidebar"
 import { useAuthSetup } from "@/hooks/use-auth-setup"
-import { CARD_IMAGE_DIMENSIONS, studyImages, studyOptions, ENABLED_FEATURES } from "./study-session/constants"
+import { CARD_IMAGE_DIMENSIONS, studyImages, studyOptions, ENABLED_FEATURES } from "./constants"
 
 export function StudySessionHub() {
   const router = useRouter()

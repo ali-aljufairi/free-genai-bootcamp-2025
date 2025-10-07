@@ -6,10 +6,10 @@ import { motion } from "framer-motion"
 import { ArrowRight, BookOpen, Brain, CheckCircle, GraduationCap, Sparkles, Users, AlertTriangle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { StatsCards } from "@/components/stats-cards"
+import { StatsCards } from "@/components/dashboard/stats-cards"
 import { useRouter } from "next/navigation"
 import { SignUpButton, useUser } from "@clerk/nextjs"
-import TourGuide from "@/components/tour-guide"
+import TourGuide from "@/components/common/tour-guide"
 
 // Common appearance settings for Clerk modals - matching navbar.tsx
 const clerkAppearance = {

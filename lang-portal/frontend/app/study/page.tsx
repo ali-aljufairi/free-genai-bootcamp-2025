@@ -1,5 +1,5 @@
 import type { Metadata } from "next"
-import { StudySessionHub } from "@/components/study-session-hub"
+import { StudySessionHub } from "@/components/study-session/study-session-hub"
 
 export const metadata: Metadata = {
   title: "Study | Sorami (空見)",

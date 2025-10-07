@@ -1,8 +1,8 @@
 "use client";
 
 import { Component, ErrorInfo, ReactNode } from "react";
-import { Button } from "./ui/button";
-import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
 import * as Sentry from "@sentry/nextjs";
 
