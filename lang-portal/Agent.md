@@ -60,12 +60,54 @@
 - [ ] Write unit tests for schema edge cases and Playwright tests covering the auto-save pathway.
 - [ ] Log failures to Sentry with enough context (user id, page, field) for triage.
 
-## Working Style for Agents
-- **Recon**: Inspect existing code, schema, and design tokens before proposing changes; confirm assumptions with the maintainer.
-- **Plan**: Break work into measurable increments, document risk areas, and update the task plan after each milestone.
-- **Implement**: Follow linting/formatting tools (`pnpm lint`, `go test`, `make watch`) and reuse established patterns; no ad-hoc libraries without approval.
-- **Validate**: Run targeted unit, integration, and E2E tests; capture mobile viewport regressions before handing off.
-- **Document**: Update relevant `docs/` entries and PR descriptions summarizing impact on responsiveness and settings persistence.
+## System Interaction Guidelines
+
+### Clerk Authentication System
+Sorami uses Clerk for authentication with the following configuration:
+- **Version**: @clerk/nextjs 6.14.1 with @clerk/themes 2.4.19
+- **Environment Variables**:
+  - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`: Public key for client-side authentication
+  - `CLERK_SECRET_KEY`: Secret key for server-side operations
+- **Middleware Protection**: Routes are protected via `middleware.ts` with public routes explicitly defined
+- **Redirect URLs**:
+  - After sign-in: `/study`
+  - After sign-up: `/study`
+  - Sign-in page: `/sign-in`
+  - Sign-up page: `/sign-up`
+- **Public Routes**: `/`, `/sign-in(.*)`, `/sign-up(.*)`, `/api/v2/words/random`, `/api/v2/kanji/stats`, `/health`
+
+**Agent Guidelines for Authentication**:
+- Never bypass Clerk authentication or JWT verification
+- Always check middleware configuration before adding new routes
+- Use Clerk's `auth()` helper for server-side authentication checks
+- Respect the glass-card themed Clerk appearance configuration in `lib/clerk-appearance.ts`
+- Test authentication flows with Playwright E2E tests before deployment
+
+### Playwright E2E Testing Framework
+Sorami uses Playwright for end-to-end testing with mobile-first focus and Clerk authentication integration:
+- **Configuration**: `playwright.config.ts` with mobile viewports (Pixel 5, iPhone 12)
+- **Test Directory**: `tests/` with `.spec.ts` files
+- **Clerk Integration**: Uses `@clerk/testing` package for authentication testing
+- **Global Setup**: `tests/global.setup.ts` initializes Clerk testing tokens
+- **Environment Variables**: `.env.test` file with `CLERK_PUBLISHABLE_KEY` and `CLERK_SECRET_KEY`
+- **Available Commands**:
+  - `npm run test`: Run all tests in headless mode
+  - `npm run test:ui`: Run tests with Playwright UI mode
+  - `npm run test:headed`: Run tests in headed mode (visible browser)
+- **Base URL**: `http://localhost:3000` (auto-starts dev server)
+- **Mobile Testing**: Includes Pixel 5 and iPhone 12 viewport configurations
+
+**Agent Guidelines for Testing**:
+- Always use `setupClerkTestingToken({ page })` at the start of each test for Clerk authentication
+- Write tests for critical user journeys (authentication, study sessions, dashboard)
+- Include mobile viewport snapshots for all critical journeys
+- Test authentication flows end-to-end with Clerk integration
+- Use `page.setViewportSize()` for custom mobile testing
+- Run tests before deployment: `npm run test`
+- Debug with UI mode: `npm run test:ui` for interactive test development
+- Example test structure: `tests/auth.spec.ts` demonstrates authentication flow testing
+- **Important**: Never commit `.env.test` with real API keys - use secrets in CI/CD
+- See `tests/README.md` for comprehensive testing documentation
 
 ## Immediate Follow-Up Actions
 - Audit current app screens against this playbook; log gaps (layout, performance, auto-save) in the backlog with severity and effort.
