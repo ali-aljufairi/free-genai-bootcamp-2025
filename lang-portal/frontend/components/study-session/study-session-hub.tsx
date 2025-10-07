@@ -19,7 +19,7 @@ export function StudySessionHub() {
   // const { data: groups } = useGroups()
   const isMobile = useIsMobile()
   const { isExpanded, setIsExpanded } = useSidebar()
-  
+
   // Initialize user setup after authentication (runs in background)
   useAuthSetup()
 
