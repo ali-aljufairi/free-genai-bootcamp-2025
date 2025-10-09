@@ -3,7 +3,6 @@ package database
 import (
 	"fmt"
 	"lang-portal/internal/database/models"
-	"os"
 	"time"
 
 	"gorm.io/driver/sqlite"
@@ -142,30 +141,6 @@ func (db *DB) FullReset() error {
 func (db *DB) Migrate(migrationsPath string) error {
 	// For now, we're using GORM's auto-migration
 	// In the future, we can implement proper migrations using the migrations path
-	return nil
-}
-
-// SeedWords seeds the database with words from a JSON file
-func (db *DB) SeedWords(seedFile string, groupName string) error {
-	// Read and execute the SQL seed file
-	seedSQL, err := os.ReadFile(seedFile)
-	if err != nil {
-		return fmt.Errorf("error reading seed file: %v", err)
-	}
-
-	// Execute the SQL statements
-	return db.db.Exec(string(seedSQL)).Error
-}
-
-// SeedStudyActivities seeds the database with study activities from a JSON file
-func (db *DB) SeedStudyActivities(seedFile string) error {
-	// Implementation can be added later
-	return nil
-}
-
-// SeedStudySessions seeds the database with study sessions from a JSON file
-func (db *DB) SeedStudySessions(seedFile string) error {
-	// Implementation can be added later
 	return nil
 }
 

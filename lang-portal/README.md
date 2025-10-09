@@ -1,140 +1,220 @@
-# Language Learning Portal
+# Sorami - Japan### Prerequisites
+- Go 1.21+
+- Node.js 18+ with bun
+- Docker & Docker Compose
+- tmux (recommended for development)anguage Learning Platform
 
-A free bootcamp project focused on language learning using Generative AI technologies.
+A production-grade microservices platform for Japanese language learning, featuring a central Go backend, Next.js frontend, and multiple AI-powered services.
 
-## Project Overview
+## Architecture Overview
 
-This project aims to create an interactive platform for language learning, leveraging modern AI technologies to provide personalized learning experiences.
+Sorami consists of multiple independently deployable services:
+- **lang-portal**: Central Go+Next.js web application (current service)
+- **agent**: AI shopping/search assistant using LangGraph and Groq LLM
+- **listening-comp**: JLPT audio comprehension using RAG
+- **quiz-gen**: AI-powered quiz generation for language tests
+- **vocab-importer**: Vocabulary extraction and management
+- **writing-practice**: Handwriting OCR with AI feedback
+
+## Quick Start
+
+### Prerequisites
+- Go 1.21+
+- Node.js 22+ with bun
+- Docker & Docker Compose
+- tmux (recommended for development)
+
+### Development Setup
+
+1. **Clone and setup:**
+   ```bash
+   git clone https://github.com/Ali-Aljufairi/free-genai-bootcamp-2025.git
+   cd free-genai-bootcamp-2025/lang-portal
+   ```
+
+2. **Start PostgreSQL database:**
+   ```bash
+   make db-reset
+   ```
+
+3. **Import JLPT learning data:**
+   ```bash
+   make db-seed
+   ```
+
+4. **Start development environment:**
+   ```bash
+   make dev
+   ```
+   This starts both backend (Air) and frontend (bun) in tmux panes.
+
+### Alternative Development Commands
+
+- **Start both services in tmux:** `make dev`
+- **Backend only:** `make dev-backend` (runs Air for hot reloading)
+- **Frontend only:** `make dev-frontend` (runs bun dev server)
+- **Database management:** `make docker-up`, `make docker-down`, `make db-reset`
 
 ## Available Make Commands
 
-Run build with tests:
+### Development
 ```bash
-make all
+make dev              # Start both backend (Air) and frontend (bun) in tmux panes
+make dev-backend      # Start backend with Air hot reloading
+make dev-frontend     # Start frontend with bun dev
 ```
 
-Build the application:
+### Database
 ```bash
-make build
+make docker-up        # Start PostgreSQL database container
+make docker-down      # Stop PostgreSQL database container
+make db-reset         # Reset database (stop, remove volumes, restart)
+make db-seed          # Import JLPT data into database
 ```
 
-Run the application:
+### Building & Testing
 ```bash
-make run
+make build            # Build the Go application
+make test             # Run Go tests
+make clean            # Clean build artifacts
 ```
 
-Create DB container:
-```bash
-make docker-run
-```
+## Development Workflow
 
-Shutdown DB Container:
-```bash
-make docker-down
-```
+### System Components Always Running
+- **TypeScript/Frontend**: Always running via `make dev-frontend` or `make dev`
+- **Makefile**: Handles all system orchestration (backend, database, services)
+- **AI Agent Services**: Run independently alongside main development
 
-DB Integrations Test:
-```bash
-make itest
-```
+### Recommended Development Setup
+1. Start main development: `make dev` (backend + frontend in tmux)
+2. Start AI services in separate terminals as needed:
+   ```bash
+   # In separate terminals
+   cd ../agent && uv run fastapi dev api.py
+   cd ../quiz-gen && uv run fastapi dev api.py
+   # etc.
+   ```
 
-Live reload the application:
-```bash
-make watch
-```
-
-Run the test suite:
-```bash
-make test
-```
+### Production Deployment
+- Services deploy independently with Docker Compose
+- Kubernetes manifests available in `k8s/` directory
+- Database schema managed in `Database/` directory
 
 ## Project Structure
 
 ```
 lang-portal/
-├── .github/                   # GitHub specific configurations
-├── cmd/                       # Main application entry points
-│   └── api/                   # API server entry point
-├── internal/                  # Private application code
-│   ├── database/              # Database layer
-│   │   └── database.go        # Database operations and health checks
-│   └── server/                # Server implementation
-├── frontend/                  # React frontend application
-│   ├── public/                # Static assets
-│   ├── src/                   # Frontend source code
-│   └── package.json           # Frontend dependencies
-└── [other configuration files]
+├── .air.toml              # Air hot reload configuration
+├── cmd/api/               # API server entry point
+├── internal/              # Private application code
+│   ├── database/          # Database layer (PostgreSQL + SQLite migration)
+│   ├── handlers/          # HTTP request handlers
+│   ├── server/            # Server implementation
+│   └── services/          # Business logic services
+├── frontend/              # Next.js 15 frontend application
+│   ├── src/               # React/TypeScript source code
+│   └── package.json       # Frontend dependencies (bun)
+├── docker-compose.yml     # Local development services
+├── Makefile               # Development orchestration
+└── go.mod                 # Go dependencies
 ```
 
-### Components
-- **Backend (`cmd/`, `internal/`)**: The backend is written in Go, with an API server and database layer.
-- **Frontend (`frontend/`)**: A React-based application using TypeScript, Vite, Tailwind, and PostCSS.
-- **Configuration & Deployment**: Uses Docker for containerized deployment with live reload capabilities.
+### Technology Stack
+- **Backend**: Go with Gin framework, PostgreSQL database
+- **Frontend**: Next.js 15, React 19, TypeScript, Tailwind CSS, Radix UI
+- **Authentication**: Clerk JWT with middleware protection
+- **Development**: Air (Go hot reload), bun (frontend), tmux (multi-service dev)
+- **Database**: PostgreSQL with comprehensive JLPT schema
+- **AI Services**: Independent Python microservices (LangChain, Groq, etc.)
 
-## Getting Started
+## Getting Started (Detailed)
 
-1. Clone the repository:
-   ```sh
-   git clone https://github.com/free-genai-bootcamp-2025/lang-portal.git
-   cd lang-portal
-   ```
+### 1. Environment Setup
+```bash
+# Clone repository
+git clone https://github.com/Ali-Aljufairi/free-genai-bootcamp-2025.git
+cd free-genai-bootcamp-2025/lang-portal
 
-2. Install dependencies and run the development server:
-   - **Backend:**
-     ```sh
-     make run
-     ```
-   - **Frontend:**
-     ```sh
-     cd frontend
-     npm install
-     npm run dev
-     ```
+# Copy environment files
+cp .env.example .env
+# Edit .env with your Clerk keys and database settings
+```
+
+### 2. Database Setup
+```bash
+# Start fresh PostgreSQL database
+make db-reset
+
+# Import JLPT learning content (12K+ kanji, 20K+ words, 15K+ questions)
+make db-seed
+```
+
+### 3. Development Environment
+```bash
+# Start both backend and frontend in tmux panes
+make dev
+
+# Or run individually in separate terminals:
+make dev-backend    # Go backend with Air hot reload
+make dev-frontend   # Next.js with bun dev server
+```
+
+### 4. AI Services (Optional)
+Start individual AI services as needed:
+```bash
+# Agent service (shopping/search assistant)
+cd ../agent && uv run fastapi dev api.py
+
+# Quiz generation service
+cd ../quiz-gen && uv run fastapi dev api.py
+
+# Other services...
+```
+
+## Development Guidelines
+
+### Code Quality
+- **Production-Grade**: Follow enterprise-level patterns and security
+- **Authentication**: Never bypass Clerk JWT verification
+- **Database**: Validate against schema in `Database/` before changes
+- **UI Design**: Single glass-card layout per screen with internal sections
+- **Testing**: Playwright E2E tests with mobile-first focus
+
+### Architecture Patterns
+- **Microservices**: Each AI service is independently deployable
+- **Shared Auth**: Clerk JWT across all services
+- **Database Migration**: Ongoing SQLite → PostgreSQL transition
+- **Mobile-First**: Responsive design with touch-friendly interactions
 
 ## Contributing
 
-- Follow the guidelines mentioned in `.github/`
-- Ensure code follows best practices and is well-documented
-- Submit a pull request for any changes
+1. **Always coordinate** with maintainer before changes
+2. **Document decisions** in PR descriptions
+3. **Test thoroughly** before deployment
+4. **Follow mobile-first** design principles
+5. **Maintain compatibility** with existing microservice contracts
 
 ## Available Make Commands
 
-Run build with tests:
+### Development
 ```bash
-make all
+make dev              # Start both backend (Air) and frontend (bun) in tmux panes
+make dev-backend      # Start backend with Air hot reloading
+make dev-frontend     # Start frontend with bun dev
 ```
 
-Build the application:
+### Database
 ```bash
-make build
+make docker-up        # Start PostgreSQL database container
+make docker-down      # Stop PostgreSQL database container
+make db-reset         # Reset database (stop, remove volumes, restart)
+make db-seed          # Import JLPT data into database
 ```
 
-Run the application:
+### Building & Testing
 ```bash
-make run
-```
-
-Create DB container:
-```bash
-make docker-run
-```
-
-Shutdown DB Container:
-```bash
-make docker-down
-```
-
-DB Integrations Test:
-```bash
-make itest
-```
-
-Live reload the application:
-```bash
-make watch
-```
-
-Run the test suite:
-```bash
-make test
+make build            # Build the Go application
+make test             # Run Go tests
+make clean            # Clean build artifacts
 ```

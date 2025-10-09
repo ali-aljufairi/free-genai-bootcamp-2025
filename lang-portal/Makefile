@@ -1,101 +1,119 @@
-# Simple Makefile for a Go project
+# Sorami Language Learning Platform - Development Makefile
+
+.PHONY: help dev dev-backend dev-frontend build clean test docker-up docker-down db-reset
+
+# Default target
+help:
+	@echo "Sorami Development Commands:"
+	@echo ""
+	@echo "Development:"
+	@echo "  make dev              - Start both backend (Air) and frontend (bun) in tmux panes"
+	@echo "  make dev-backend      - Start backend with Air hot reloading"
+	@echo "  make dev-frontend     - Start frontend with bun dev"
+	@echo ""
+	@echo "Building & Testing:"
+	@echo "  make build            - Build the Go application"
+	@echo "  make test             - Run Go tests"
+	@echo "  make clean            - Clean build artifacts"
+	@echo ""
+	@echo "Database:"
+	@echo "  make docker-up        - Start PostgreSQL database container"
+	@echo "  make docker-down      - Stop PostgreSQL database container"
+	@echo "  make db-reset         - Reset database (stop, remove volumes, restart)"
+	@echo "  make db-seed          - Import JLPT data into database"
+	@echo ""
+	@echo "Usage:"
+	@echo "  1. Run 'make db-reset' to start fresh database"
+	@echo "  2. Run 'make dev' to start both backend and frontend"
+	@echo "  3. Or run 'make dev-backend' and 'make dev-frontend' in separate terminals"
+
+# Development - Start both backend and frontend
+dev:
+	@echo "Starting development environment..."
+	@if command -v tmux >/dev/null 2>&1; then \
+		tmux new-session -d -s sorami-dev 'make dev-backend'; \
+		tmux split-window -h 'make dev-frontend'; \
+		tmux select-pane -t 0; \
+		tmux attach-session -t sorami-dev; \
+	else \
+		echo "tmux not found. Please run 'make dev-backend' and 'make dev-frontend' in separate terminals."; \
+		exit 1; \
+	fi
+
+# Backend development with Air
+dev-backend:
+	@echo "Starting backend with Air..."
+	@if command -v air >/dev/null 2>&1; then \
+		air; \
+	else \
+		echo "Air not found. Installing..."; \
+		go install github.com/air-verse/air@latest; \
+		air; \
+	fi
+
+# Frontend development with bun
+dev-frontend:
+	@echo "Starting frontend with bun..."
+	@if command -v bun >/dev/null 2>&1; then \
+		cd frontend && bun run dev; \
+	else \
+		echo "bun not found. Please install bun: https://bun.sh/"; \
+		exit 1; \
+	fi
 
 # Build the application
-all: build test
-
 build:
-	@echo "Building for Mac..."
-	@CGO_ENABLED=1 GOOS=darwin go build -o main cmd/api/main.go 2>build-errors.tmp || { \
-		echo "\033[1;31mBuild failed. Error details:\033[0m" && \
-		echo "----------------------------------------" && \
-		cat build-errors.tmp && \
-		echo "\n\033[1;33mOrganizing detailed error report...\033[0m" && \
-		echo "Build Errors Log (Generated from make build)\n" > build-errors.log && \
-		echo "Compilation Errors by Package:\n" >> build-errors.log && \
-		for pkg in $$(grep -o "[^/]*/[^/]*/[^:]*" build-errors.tmp | sort -u); do \
-			echo "\nPackage: $$pkg" >> build-errors.log && \
-			grep -A 1 "$$pkg" build-errors.tmp | sed 's/^/   - /' >> build-errors.log; \
-		done && \
-		echo "\nDetailed error log has been written to: build-errors.log" && \
-		rm build-errors.tmp && \
-		exit 1; \
-	}
+	@echo "Building Go application..."
+	@CGO_ENABLED=1 go build -o main cmd/api/main.go
 
-# Run the application
-run:
-	@go run cmd/api/main.go &
-	@npm install --prefer-offline --no-fund --prefix ./frontend
-	@npm run dev --prefix ./frontend
-
-# Database setup and management
-db-setup: db-init migrate seed
-
-# Reset database (clean and reinitialize)
-db-reset:
-	@echo "Resetting database..."
-	@rm -f words.db
-	@make db-setup
-
-# Initialize SQLite database
-db-init:
-	@echo "Initializing SQLite database..."
-	@touch words.db
-
-# Create DB container
-docker-run:
-	@if docker compose up --build 2>/dev/null; then \
-		: ; \
-	else \
-		echo "Falling back to Docker Compose V1"; \
-		docker-compose up --build; \
-	fi
-
-# Shutdown DB container
-docker-down:
-	@if docker compose down 2>/dev/null; then \
-		: ; \
-	else \
-		echo "Falling back to Docker Compose V1"; \
-		docker-compose down; \
-	fi
-
-# Test the application
-# Run tests with verbose output and logging
+# Run tests
 test:
-	@echo "Running tests..."
-	@go test -v ./... 2>&1 | tee test.log
+	@echo "Running Go tests..."
+	@go test -v ./...
 
-# Clean the binary
+# Clean build artifacts
 clean:
-	@echo "Cleaning..."
+	@echo "Cleaning build artifacts..."
 	@rm -f main
-
-# Run database migrations
-migrate:
-	@echo "Running migrations..."
-	@go build -o dbtools cmd/api/main.go
-	@./dbtools migrate
+	@rm -f build-errors.log
+	@rm -f build-errors.tmp
 	@rm -f dbtools
 
-# Seed database with initial data
-seed:
-	@echo "Seeding database..."
-	@go build -o dbtools cmd/api/main.go
-	@./dbtools seed
-	@./dbtools seed-activities
-	@rm -f dbtools
-
-# Live Reload
-watch:
-	@if command -v air > /dev/null; then \
-		air; \
-		echo "Watching...";\
+# Database management
+docker-up:
+	@echo "Starting PostgreSQL database..."
+	@if command -v docker >/dev/null 2>&1; then \
+		cd ../Database && docker compose up -d; \
 	else \
-		read -p "Go's 'air' is not installed on your machine. Do you want to install it? [Y/n] " choice; \
-		if [ "$$choice" != "n" ] && [ "$$choice" != "N" ]; then \
-			go install github.com/air-verse/air@latest; \
-			air; \
-		fi \
+		echo "Docker not found."; \
+		exit 1; \
 	fi
 
-.PHONY: all build run test clean watch
+docker-down:
+	@echo "Stopping PostgreSQL database..."
+	@if command -v docker >/dev/null 2>&1; then \
+		cd ../Database && docker compose down; \
+	else \
+		echo "Docker not found."; \
+		exit 1; \
+	fi
+
+db-reset: docker-down
+	@echo "Resetting database..."
+	@if command -v docker >/dev/null 2>&1; then \
+		cd ../Database && docker compose down -v && docker compose up -d; \
+		echo "Database reset complete. Run import script if needed."; \
+	else \
+		echo "Docker not found."; \
+		exit 1; \
+	fi
+
+# Import JLPT data into database
+db-seed:
+	@echo "Importing JLPT data into database..."
+	@if command -v go >/dev/null 2>&1; then \
+		cd ../Database/import-client && go run *.go; \
+	else \
+		echo "Go not found."; \
+		exit 1; \
+	fi

@@ -62,6 +62,34 @@
 
 ## System Interaction Guidelines
 
+### Development Environment Setup
+Sorami uses a Makefile-driven development workflow where the system components are always running:
+
+**Always Running Components:**
+- **TypeScript/Frontend**: Always running via `make dev-frontend` or `make dev`
+- **Makefile System**: Handles all orchestration (backend, database, services)
+- **AI Agent Services**: Run independently alongside main development
+
+**Recommended Development Setup:**
+1. Start main development: `make dev` (backend + frontend in tmux)
+2. Start AI services in separate terminals as needed:
+   ```bash
+   # In separate terminals
+   cd ../agent && uv run fastapi dev api.py
+   cd ../quiz-gen && uv run fastapi dev api.py
+   cd ../listening-comp && uv run streamlit run main.py
+   # etc.
+   ```
+
+**Makefile Commands:**
+```bash
+make dev              # Start both backend (Air) and frontend (bun) in tmux panes
+make dev-backend      # Start backend with Air hot reloading
+make dev-frontend     # Start frontend with bun dev
+make db-reset         # Reset PostgreSQL database
+make db-seed          # Import JLPT data into database
+```
+
 ### Clerk Authentication System
 Sorami uses Clerk for authentication with the following configuration:
 - **Version**: @clerk/nextjs 6.14.1 with @clerk/themes 2.4.19
@@ -94,7 +122,7 @@ Sorami uses Playwright for end-to-end testing with mobile-first focus and Clerk 
   - `npm run test`: Run all tests in headless mode
   - `npm run test:ui`: Run tests with Playwright UI mode
   - `npm run test:headed`: Run tests in headed mode (visible browser)
-- **Base URL**: `http://localhost:3000` (auto-starts dev server)
+- **Base URL**: `http://localhost:3000` (auto-starts dev server via Makefile)
 - **Mobile Testing**: Includes Pixel 5 and iPhone 12 viewport configurations
 
 **Agent Guidelines for Testing**:
@@ -108,6 +136,26 @@ Sorami uses Playwright for end-to-end testing with mobile-first focus and Clerk 
 - Example test structure: `tests/auth.spec.ts` demonstrates authentication flow testing
 - **Important**: Never commit `.env.test` with real API keys - use secrets in CI/CD
 - See `tests/README.md` for comprehensive testing documentation
+
+## Development Workflow Guidelines
+
+### System Components Always Running
+- **TypeScript/Frontend**: Always running via `make dev-frontend` or `make dev`
+- **Makefile System**: Handles all orchestration (backend, database, services)
+- **AI Agent Services**: Run independently alongside main development
+
+### Agent Development Process
+1. **Start Core System**: Use `make dev` to start backend + frontend
+2. **Start Relevant AI Services**: Run individual microservices as needed
+3. **Test Changes**: Use Playwright for E2E testing with mobile-first focus
+4. **Database Operations**: Use `make db-seed` for data import, `make db-reset` for fresh DB
+
+### Code Quality Standards
+- **Mobile-First**: All changes must work on mobile (360px+ breakpoints)
+- **Single Glass-Card**: Maintain one card per screen with internal sections
+- **Authentication**: Never bypass Clerk JWT verification
+- **Database**: Validate against `Database/` schema before changes
+- **Testing**: Include mobile viewport tests for critical journeys
 
 ## Immediate Follow-Up Actions
 - Audit current app screens against this playbook; log gaps (layout, performance, auto-save) in the backlog with severity and effort.
