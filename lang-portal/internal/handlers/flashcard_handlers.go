@@ -34,18 +34,16 @@ const (
 
 // WordPracticeOptions represents what the user wants to practice for words
 type WordPracticeOptions struct {
-	ShowKana         bool `json:"show_kana"`           // Show hiragana/katakana reading
-	ShowKanji        bool `json:"show_kanji"`          // Show kanji writing
-	ShowRomaji       bool `json:"show_romaji"`         // Show romanized reading
-	ShowEnglish      bool `json:"show_english"`        // Show English meaning
-	ShowPartOfSpeech bool `json:"show_part_of_speech"` // Show part of speech
+	ShowKana    bool `json:"show_kana"`    // Show hiragana/katakana reading
+	ShowKanji   bool `json:"show_kanji"`   // Show kanji writing
+	ShowRomaji  bool `json:"show_romaji"`  // Show romanized reading
+	ShowEnglish bool `json:"show_english"` // Show English meaning
 
 	// What to ask for (one must be true)
-	AskForKana         bool `json:"ask_for_kana"`           // Ask for hiragana/katakana
-	AskForKanji        bool `json:"ask_for_kanji"`          // Ask for kanji writing
-	AskForRomaji       bool `json:"ask_for_romaji"`         // Ask for romaji
-	AskForEnglish      bool `json:"ask_for_english"`        // Ask for English meaning
-	AskForPartOfSpeech bool `json:"ask_for_part_of_speech"` // Ask for part of speech
+	AskForKana    bool `json:"ask_for_kana"`    // Ask for hiragana/katakana
+	AskForKanji   bool `json:"ask_for_kanji"`   // Ask for kanji writing
+	AskForRomaji  bool `json:"ask_for_romaji"`  // Ask for romaji
+	AskForEnglish bool `json:"ask_for_english"` // Ask for English meaning
 }
 
 // KanjiPracticeOptions represents what the user wants to practice for kanji
@@ -535,13 +533,13 @@ func (h *FlashcardHandler) validateFlashcardConfig(config *FlashcardConfig) erro
 func (h *FlashcardHandler) validateWordOptions(options *WordPracticeOptions) error {
 	// At least one "ask for" option must be true
 	if !options.AskForKana && !options.AskForKanji && !options.AskForRomaji &&
-		!options.AskForEnglish && !options.AskForPartOfSpeech {
+		!options.AskForEnglish {
 		return errors.New("at least one 'ask_for' option must be true for word practice")
 	}
 
 	// At least one "show" option must be true
 	if !options.ShowKana && !options.ShowKanji && !options.ShowRomaji &&
-		!options.ShowEnglish && !options.ShowPartOfSpeech {
+		!options.ShowEnglish {
 		return errors.New("at least one 'show' option must be true for word practice")
 	}
 
@@ -811,6 +809,26 @@ func (h *FlashcardHandler) generateWordFlashcard(wordID int64, config *Flashcard
 
 	options := config.WordOptions
 
+	// Validate that the word has at least one of the selected Ask For fields
+	hasValidAnswer := false
+	if options.AskForKana && word.Kana != "" {
+		hasValidAnswer = true
+	}
+	if options.AskForKanji && word.Kanji != nil && *word.Kanji != "" {
+		hasValidAnswer = true
+	}
+	if options.AskForRomaji && word.Romaji != "" {
+		hasValidAnswer = true
+	}
+	if options.AskForEnglish && word.English != "" {
+		hasValidAnswer = true
+	}
+
+	// Skip words that don't have any of the requested answer fields
+	if !hasValidAnswer {
+		return Flashcard{}, errors.New("word missing all required answer fields")
+	}
+
 	// Build question content (what user sees)
 	question := FlashcardContent{}
 	if options.ShowKana {
@@ -825,9 +843,6 @@ func (h *FlashcardHandler) generateWordFlashcard(wordID int64, config *Flashcard
 	if options.ShowEnglish {
 		firstMeaning := getFirstMeaning(word.English)
 		question.English = &firstMeaning
-	}
-	if options.ShowPartOfSpeech {
-		question.PartOfSpeech = &word.PartOfSpeech
 	}
 
 	// Build answer content (what user should answer for)
@@ -844,9 +859,6 @@ func (h *FlashcardHandler) generateWordFlashcard(wordID int64, config *Flashcard
 	if options.AskForEnglish {
 		firstMeaning := getFirstMeaning(word.English)
 		answer.English = &firstMeaning
-	}
-	if options.AskForPartOfSpeech {
-		answer.PartOfSpeech = &word.PartOfSpeech
 	}
 
 	// Generate wrong options
@@ -922,9 +934,6 @@ func (h *FlashcardHandler) generateWordWrongOptions(wordID int64, word models.Wo
 			firstMeaning := getFirstMeaning(wrongWord.English)
 			wrongOption.English = &firstMeaning
 		}
-		if options.AskForPartOfSpeech {
-			wrongOption.PartOfSpeech = &wrongWord.PartOfSpeech
-		}
 
 		wrongOptions = append(wrongOptions, wrongOption)
 	}
@@ -963,6 +972,26 @@ func (h *FlashcardHandler) generateKanjiFlashcard(kanjiID int64, config *Flashca
 	var englishMeaning string
 	if len(meanings) > 0 {
 		englishMeaning = meanings[0]
+	}
+
+	// Validate that the kanji has at least one of the selected Ask For fields
+	hasValidAnswer := false
+	if options.AskForCharacter && kanji.Character != "" {
+		hasValidAnswer = true
+	}
+	if options.AskForOnyomi && kanji.Onyomi != "" {
+		hasValidAnswer = true
+	}
+	if options.AskForKunyomi && kanji.Kunyomi != "" {
+		hasValidAnswer = true
+	}
+	if options.AskForEnglish && englishMeaning != "" {
+		hasValidAnswer = true
+	}
+
+	// Skip kanji that don't have any of the requested answer fields
+	if !hasValidAnswer {
+		return Flashcard{}, errors.New("kanji missing all required answer fields")
 	}
 
 	// Build question content (what user sees)
@@ -1245,11 +1274,11 @@ func (h *FlashcardHandler) updateSRSProgress(userID int64, result *FlashcardResu
 
 		// Update correct_count in words table if it's a word
 		if cardResult.ItemType == "word" {
-			err = h.db.Exec(
-				"UPDATE words SET correct_count = correct_count + ? WHERE id = ?",
-				cardResult.IsCorrect,
-				cardResult.ItemID,
-			).Error
+			correctIncrement := 0
+			if cardResult.IsCorrect {
+				correctIncrement = 1
+			}
+			err = h.db.Model(&models.Word{}).Where("id = ?", cardResult.ItemID).Update("correct_count", gorm.Expr("correct_count + ?", correctIncrement)).Error
 
 			if err != nil {
 				return err
@@ -1403,7 +1432,35 @@ func (h *FlashcardHandler) ensureDevUserExists(userID int64) error {
 
 // ensureStudyActivitiesExist creates required study activities if they don't exist
 func (h *FlashcardHandler) ensureStudyActivitiesExist() error {
-	// For now, skip study activities setup since we're focusing on getting the flashcards working
-	// This can be re-enabled once the database schema is properly aligned
+	activities := []struct {
+		name         string
+		activityType string
+		description  string
+	}{
+		{"Word Flashcards", "flashcard", "Practice vocabulary with flashcards"},
+		{"Kanji Flashcards", "flashcard", "Practice kanji with flashcards"},
+	}
+
+	for _, activity := range activities {
+		var count int64
+		err := h.db.Raw("SELECT COUNT(*) FROM study_activities WHERE name = ? AND activity_type = ?",
+			activity.name, activity.activityType).Scan(&count).Error
+		if err != nil {
+			return fmt.Errorf("failed to check study activity existence: %w", err)
+		}
+
+		if count == 0 {
+			err = h.db.Exec(`
+				INSERT INTO study_activities (name, activity_type, description) 
+				VALUES (?, ?, ?)
+				ON CONFLICT (name, activity_type) DO NOTHING
+			`, activity.name, activity.activityType, activity.description).Error
+
+			if err != nil {
+				return fmt.Errorf("failed to create study activity '%s': %w", activity.name, err)
+			}
+		}
+	}
+
 	return nil
 }

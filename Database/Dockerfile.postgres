@@ -1,4 +1,4 @@
-FROM postgres:16
+FROM postgres:17
 
 # Metadata for the image
 LABEL org.opencontainers.image.title="Sorami PostgreSQL"
@@ -6,9 +6,16 @@ LABEL org.opencontainers.image.description="PostgreSQL database with pgvector ex
 LABEL org.opencontainers.image.source="https://github.com/your-username/sorami"
 LABEL org.opencontainers.image.licenses="MIT"
 
-# Install pgvector extension using the official package
+# Install pgvector extension - try to install from source if package not available
 RUN apt-get update && \
-    apt-get install -y postgresql-16-pgvector && \
+    (apt-get install -y postgresql-17-pgvector || \
+    (apt-get install -y build-essential git postgresql-server-dev-17 && \
+    git clone https://github.com/pgvector/pgvector.git && \
+    cd pgvector && \
+    make && \
+    make install && \
+    cd .. && \
+    rm -rf pgvector)) && \
     rm -rf /var/lib/apt/lists/*
 
 # Copy initialization scripts
@@ -17,6 +24,7 @@ COPY hiragana_to_romaji.sql /docker-entrypoint-initdb.d/02-hiragana-to-romaji.sq
 COPY import_functions.sql /docker-entrypoint-initdb.d/03-import-functions.sql
 COPY user_tracking_functions.sql /docker-entrypoint-initdb.d/04-user-tracking-functions.sql
 COPY user_management_indexes.sql /docker-entrypoint-initdb.d/05-user-management-indexes.sql
+COPY srs.sql /docker-entrypoint-initdb.d/06-srs.sql
 
 
 # Set proper permissions

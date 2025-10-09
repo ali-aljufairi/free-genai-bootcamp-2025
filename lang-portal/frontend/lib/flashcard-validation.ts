@@ -12,25 +12,23 @@ export const FlashcardConfigSchema = z.object({
   showKanji: z.boolean(),
   showRomaji: z.boolean(),
   showEnglish: z.boolean(),
-  showPartOfSpeech: z.boolean(),
   
   // Ask options  
   askForKana: z.boolean(),
   askForKanji: z.boolean(),
   askForRomaji: z.boolean(),
   askForEnglish: z.boolean(),
-  askForPartOfSpeech: z.boolean(),
 }).refine((data) => {
   // Must have at least one ask option
   return data.askForKana || data.askForKanji || data.askForRomaji || 
-         data.askForEnglish || data.askForPartOfSpeech
+         data.askForEnglish
 }, {
   message: "At least one 'ask for' option must be selected",
   path: ['askOptions']
 }).refine((data) => {
   // Must have at least one show option
   return data.showKana || data.showKanji || data.showRomaji || 
-         data.showEnglish || data.showPartOfSpeech
+         data.showEnglish
 }, {
   message: "At least one 'show' option must be selected",
   path: ['showOptions']
@@ -40,8 +38,7 @@ export const FlashcardConfigSchema = z.object({
     data.askForKana && data.showKana,
     data.askForKanji && data.showKanji,
     data.askForRomaji && data.showRomaji,
-    data.askForEnglish && data.showEnglish,
-    data.askForPartOfSpeech && data.showPartOfSpeech
+    data.askForEnglish && data.showEnglish
   ]
   
   return !conflicts.some(Boolean)

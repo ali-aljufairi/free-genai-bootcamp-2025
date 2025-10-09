@@ -225,17 +225,6 @@ export const flashcardsV2Api = {
     // Handle wrapped response from api-proxy
     return result.data || result;
   },
-
-  partsOfSpeech: async (): Promise<string[]> => {
-    const response = await fetch('/api/flashcards/parts-of-speech');
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
-      throw new Error(errorData.message || `Failed to fetch parts of speech: ${response.status}`);
-    }
-
-    return response.json();
-  },
 };
 
 export const api = {

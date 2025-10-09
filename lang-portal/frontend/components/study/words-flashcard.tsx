@@ -29,9 +29,9 @@ import type {
     ContentSource
 } from "@/types/api"
 import { useFlashcardStore } from "@/stores/flashcard-store"
-import { PartOfSpeech } from "@/types/pos-enum"
+import { PartOfSpeech, PARTS_OF_SPEECH } from "@/types/pos-enum"
 import { PartOfSpeechSelector } from "@/components/ui/part-of-speech-selector"
-import { MobileStudySession } from "@/components/study/mobile-study-session"
+import { MobileStudySession } from "@/components/study/mobile/mobile-words-flashcard"
 
 export function WordsFlashcard() {
     const isMobile = useIsMobile()
@@ -51,16 +51,26 @@ export function WordsFlashcard() {
     const store = useFlashcardStore()
     const {
         level, selectedCourse, selectedUnit, count, selectedPartsOfSpeech,
-        showKana, showKanji, showRomaji, showEnglish, showPartOfSpeech,
-        askForKana, askForKanji, askForRomaji, askForEnglish, askForPartOfSpeech,
+        showKana, showKanji, showRomaji, showEnglish,
+        askForKana, askForKanji, askForRomaji, askForEnglish,
         setLevel, setCourse, setUnit, setCount, setPartsOfSpeech,
         setShowOptions, setAskOptions, validateAndFixOptions
     } = store
 
+    // Helper function to format option text based on Ask For settings
+    const formatOptionText = (option: any) => {
+        const parts = []
+        if (askForEnglish && option.english) parts.push(option.english)
+        if (askForKana && option.kana) parts.push(option.kana)
+        if (askForKanji && option.kanji) parts.push(option.kanji)
+        if (askForRomaji && option.romaji) parts.push(option.romaji)
+        return parts.join(' • ') || 'No answer available'
+    }
+
     // Auto-start session if preferences exist and haven't auto-started yet
     useEffect(() => {
         // Check if at least one "ask" option is enabled (valid configuration)
-        const hasValidConfig = askForKana || askForKanji || askForRomaji || askForEnglish || askForPartOfSpeech
+        const hasValidConfig = askForKana || askForKanji || askForRomaji || askForEnglish
 
         if (hasValidConfig && !hasAutoStarted && !session && !showResults) {
             setHasAutoStarted(true)
@@ -75,8 +85,8 @@ export function WordsFlashcard() {
     // Validate options on mount and when they change
     useEffect(() => {
         validateAndFixOptions()
-    }, [showKana, showKanji, showRomaji, showEnglish, showPartOfSpeech,
-        askForKana, askForKanji, askForRomaji, askForEnglish, askForPartOfSpeech])
+    }, [showKana, showKanji, showRomaji, showEnglish,
+        askForKana, askForKanji, askForRomaji, askForEnglish])
 
     // React Query for courses and units based on JLPT level
     const { data: allCourses = [] } = useQuery({
@@ -94,15 +104,6 @@ export function WordsFlashcard() {
         queryFn: () => flashcardsV2Api.units(selectedCourse!),
         enabled: selectedCourse !== null
     })
-
-    // Query for available parts of speech
-    const { data: availablePartsOfSpeech = [], isLoading: isLoadingParts, error: partsError } = useQuery({
-        queryKey: ['parts-of-speech'],
-        queryFn: flashcardsV2Api.partsOfSpeech
-    })
-
-    // Debug log to see what we're getting
-    console.log('Parts of speech query result:', { availablePartsOfSpeech, isLoadingParts, partsError })
 
     // React Query mutations
     const startSessionMutation = useMutation({
@@ -138,7 +139,7 @@ export function WordsFlashcard() {
 
     const startSession = async () => {
         // Validate that at least one ask option is selected
-        if (!askForKana && !askForKanji && !askForRomaji && !askForEnglish && !askForPartOfSpeech) {
+        if (!askForKana && !askForKanji && !askForRomaji && !askForEnglish) {
             alert("Please select at least one option to ask for")
             return
         }
@@ -172,12 +173,12 @@ export function WordsFlashcard() {
                 show_kanji: showKanji,
                 show_romaji: showRomaji,
                 show_english: showEnglish,
-                show_part_of_speech: showPartOfSpeech,
+                show_part_of_speech: false,
                 ask_for_kana: askForKana,
                 ask_for_kanji: askForKanji,
                 ask_for_romaji: askForRomaji,
                 ask_for_english: askForEnglish,
-                ask_for_part_of_speech: askForPartOfSpeech,
+                ask_for_part_of_speech: false,
             },
             card_count: count,
             shuffle_options: true
@@ -401,7 +402,7 @@ export function WordsFlashcard() {
                                     <p className="text-xs text-muted-foreground">Choose at least one</p>
                                 </div>
                                 <span className="text-xs font-medium text-primary">
-                                    {[askForKana, askForKanji, askForRomaji, askForEnglish, askForPartOfSpeech].filter(Boolean).length} selected
+                                    {[askForKana, askForKanji, askForRomaji, askForEnglish].filter(Boolean).length} selected
                                 </span>
                             </div>
 
@@ -428,17 +429,10 @@ export function WordsFlashcard() {
                                     />
                                 </div>
                                 <div className="flex items-center justify-between py-2 px-3 rounded-md hover:bg-accent/50 transition-colors">
-                                    <Label className="text-sm">Ask for Romaji</Label>
+                                    <Label className="text-sm">Ask for English</Label>
                                     <Switch
-                                        checked={askForRomaji}
-                                        onCheckedChange={(value) => setAskOptions({ askForRomaji: value })}
-                                    />
-                                </div>
-                                <div className="flex items-center justify-between py-2 px-3 rounded-md hover:bg-accent/50 transition-colors">
-                                    <Label className="text-sm">Ask for Part of Speech</Label>
-                                    <Switch
-                                        checked={askForPartOfSpeech}
-                                        onCheckedChange={(value) => setAskOptions({ askForPartOfSpeech: value })}
+                                        checked={askForEnglish}
+                                        onCheckedChange={(value) => setAskOptions({ askForEnglish: value })}
                                     />
                                 </div>
                             </div>
@@ -453,8 +447,7 @@ export function WordsFlashcard() {
                                             askForKana: true,
                                             askForKanji: true,
                                             askForRomaji: true,
-                                            askForEnglish: true,
-                                            askForPartOfSpeech: true
+                                            askForEnglish: true
                                         })
                                     }}
                                 >
@@ -469,8 +462,7 @@ export function WordsFlashcard() {
                                             askForKana: false,
                                             askForKanji: false,
                                             askForRomaji: false,
-                                            askForEnglish: false,
-                                            askForPartOfSpeech: false
+                                            askForEnglish: false
                                         })
                                     }}
                                 >
@@ -490,7 +482,7 @@ export function WordsFlashcard() {
                                     <p className="text-xs text-muted-foreground">Display on cards</p>
                                 </div>
                                 <span className="text-xs font-medium text-primary">
-                                    {[showKana, showKanji, showRomaji, showEnglish, showPartOfSpeech].filter(Boolean).length} selected
+                                    {[showKana, showKanji, showRomaji, showEnglish].filter(Boolean).length} selected
                                 </span>
                             </div>
 
@@ -523,13 +515,6 @@ export function WordsFlashcard() {
                                         onCheckedChange={(value) => setShowOptions({ showEnglish: value })}
                                     />
                                 </div>
-                                <div className="flex items-center justify-between py-2 px-3 rounded-md hover:bg-accent/50 transition-colors">
-                                    <Label className="text-sm">Show Part of Speech</Label>
-                                    <Switch
-                                        checked={showPartOfSpeech}
-                                        onCheckedChange={(value) => setShowOptions({ showPartOfSpeech: value })}
-                                    />
-                                </div>
                             </div>
                         </CardContent>
                     </Card>
@@ -547,7 +532,7 @@ export function WordsFlashcard() {
 
                             <PartOfSpeechSelector
                                 selectedParts={selectedPartsOfSpeech}
-                                availableParts={Array.isArray(availablePartsOfSpeech) ? availablePartsOfSpeech : []}
+                                availableParts={PARTS_OF_SPEECH}
                                 onSelectionChange={setPartsOfSpeech}
                             />
                         </CardContent>
@@ -670,7 +655,7 @@ export function WordsFlashcard() {
 
                             <PartOfSpeechSelector
                                 selectedParts={selectedPartsOfSpeech}
-                                availableParts={Array.isArray(availablePartsOfSpeech) ? availablePartsOfSpeech : []}
+                                availableParts={PARTS_OF_SPEECH}
                                 onSelectionChange={setPartsOfSpeech}
                             />
                         </div>
@@ -716,15 +701,8 @@ export function WordsFlashcard() {
                                             onCheckedChange={(value) => setShowOptions({ showEnglish: value })}
                                         />
                                     </div>
-                                    <div className="flex items-center justify-between">
-                                        <Label>Show Part of Speech</Label>
-                                        <Switch
-                                            checked={showPartOfSpeech}
-                                            onCheckedChange={(value) => setShowOptions({ showPartOfSpeech: value })}
-                                        />
-                                    </div>
                                 </div>
-                                <p className="text-xs text-muted-foreground">{[showKanji, showRomaji, showEnglish, showPartOfSpeech].filter(Boolean).length + 1} selected</p>
+                                <p className="text-xs text-muted-foreground">{[showKanji, showRomaji, showEnglish].filter(Boolean).length + 1} selected</p>
                             </div>
 
                             {/* Quiz Settings */}
@@ -766,13 +744,6 @@ export function WordsFlashcard() {
                                             onCheckedChange={(value) => setAskOptions({ askForEnglish: value })}
                                         />
                                     </div>
-                                    <div className="flex items-center justify-between">
-                                        <Label>Ask for Part of Speech</Label>
-                                        <Switch
-                                            checked={askForPartOfSpeech}
-                                            onCheckedChange={(value) => setAskOptions({ askForPartOfSpeech: value })}
-                                        />
-                                    </div>
                                 </div>
 
                                 <div className="flex gap-2">
@@ -784,8 +755,7 @@ export function WordsFlashcard() {
                                                 askForKana: true,
                                                 askForKanji: true,
                                                 askForRomaji: true,
-                                                askForEnglish: true,
-                                                askForPartOfSpeech: true
+                                                askForEnglish: true
                                             })
                                         }}
                                     >
@@ -799,15 +769,14 @@ export function WordsFlashcard() {
                                                 askForKana: false,
                                                 askForKanji: false,
                                                 askForRomaji: false,
-                                                askForEnglish: false,
-                                                askForPartOfSpeech: false
+                                                askForEnglish: false
                                             })
                                         }}
                                     >
                                         Clear
                                     </Button>
                                     <p className="text-xs text-muted-foreground self-center ml-2">
-                                        {[askForKana, askForKanji, askForRomaji, askForEnglish, askForPartOfSpeech].filter(Boolean).length} selected
+                                        {[askForKana, askForKanji, askForRomaji, askForEnglish].filter(Boolean).length} selected
                                     </p>
                                 </div>
                             </div>
@@ -851,8 +820,13 @@ export function WordsFlashcard() {
                 selectedOption={selectedOption}
                 isCorrect={isCorrect}
                 score={score}
+                showKana={showKana}
                 showKanji={showKanji}
                 showRomaji={showRomaji}
+                askForKana={askForKana}
+                askForKanji={askForKanji}
+                askForRomaji={askForRomaji}
+                askForEnglish={askForEnglish}
                 onOptionSelect={handleOptionSelect}
                 onExit={resetSession}
                 onShowSettings={() => setShowConfig(true)}
@@ -902,7 +876,7 @@ export function WordsFlashcard() {
                             {currentCard.question.kanji && showKanji && (
                                 <h2 className="text-8xl font-bold">{currentCard.question.kanji}</h2>
                             )}
-                            {currentCard.question.kana && (
+                            {currentCard.question.kana && showKana && (
                                 <p className="text-5xl text-primary">{currentCard.question.kana}</p>
                             )}
                             {currentCard.question.romaji && showRomaji && (
@@ -936,7 +910,7 @@ export function WordsFlashcard() {
                                             onClick={() => handleOptionSelect(index)}
                                             disabled={selectedOption !== null}
                                         >
-                                            {option.english || option.kana || option.romaji || option.kanji}
+                                            {formatOptionText(option)}
                                         </Button>
                                     </motion.div>
                                 )

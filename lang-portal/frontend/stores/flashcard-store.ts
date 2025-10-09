@@ -17,14 +17,12 @@ export interface FlashcardPreferences {
   showKanji: boolean
   showRomaji: boolean
   showEnglish: boolean
-  showPartOfSpeech: boolean
   
   // Ask Options
   askForKana: boolean
   askForKanji: boolean
   askForRomaji: boolean
   askForEnglish: boolean
-  askForPartOfSpeech: boolean
 }
 
 interface FlashcardStore extends FlashcardPreferences {
@@ -35,8 +33,8 @@ interface FlashcardStore extends FlashcardPreferences {
   setCount: (count: number) => void
   setPartsOfSpeech: (parts: PartOfSpeech[]) => void
   
-  setShowOptions: (options: Partial<Pick<FlashcardPreferences, 'showKana' | 'showKanji' | 'showRomaji' | 'showEnglish' | 'showPartOfSpeech'>>) => void
-  setAskOptions: (options: Partial<Pick<FlashcardPreferences, 'askForKana' | 'askForKanji' | 'askForRomaji' | 'askForEnglish' | 'askForPartOfSpeech'>>) => void
+  setShowOptions: (options: Partial<Pick<FlashcardPreferences, 'showKana' | 'showKanji' | 'showRomaji' | 'showEnglish'>>) => void
+  setAskOptions: (options: Partial<Pick<FlashcardPreferences, 'askForKana' | 'askForKanji' | 'askForRomaji' | 'askForEnglish'>>) => void
   
   // Smart validation
   validateAndFixOptions: () => void
@@ -57,13 +55,11 @@ const defaultPreferences: FlashcardPreferences = {
   showKanji: false,
   showRomaji: false,
   showEnglish: false,
-  showPartOfSpeech: false,
   
   askForKana: false,
   askForKanji: false,
   askForRomaji: false,
   askForEnglish: true,
-  askForPartOfSpeech: false,
 }
 
 export const useFlashcardStore = create<FlashcardStore>()(
@@ -111,14 +107,10 @@ export const useFlashcardStore = create<FlashcardStore>()(
           if (newState.askForEnglish && newState.showEnglish) {
             newState.showEnglish = false
           }
-          if (newState.askForPartOfSpeech && newState.showPartOfSpeech) {
-            newState.showPartOfSpeech = false
-          }
           
           // Rule 2: Must have at least one ask option
           const hasAnyAsk = newState.askForKana || newState.askForKanji || 
-                           newState.askForRomaji || newState.askForEnglish || 
-                           newState.askForPartOfSpeech
+                           newState.askForRomaji || newState.askForEnglish
           
           if (!hasAnyAsk) {
             newState.askForEnglish = true // Default fallback
@@ -127,8 +119,7 @@ export const useFlashcardStore = create<FlashcardStore>()(
           
           // Rule 3: Must have at least one show option (except what we're asking for)
           const hasAnyShow = newState.showKana || newState.showKanji || 
-                            newState.showRomaji || newState.showEnglish || 
-                            newState.showPartOfSpeech
+                            newState.showRomaji || newState.showEnglish
           
           if (!hasAnyShow) {
             // Show kana by default (it's always available)

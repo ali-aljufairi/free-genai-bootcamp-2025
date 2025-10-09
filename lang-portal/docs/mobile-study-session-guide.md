@@ -45,7 +45,8 @@ frontend/
 │           └── page.tsx                      # Page wrapper
 ├── components/
 │   ├── study/
-│   │   ├── mobile-study-session.tsx          # Mobile-specific UI ⭐
+│   │   ├── mobile/
+│   │   │   └── mobile-words-flashcard.tsx    # Mobile-specific UI ⭐
 │   │   └── words-flashcard.tsx               # Main logic component ⭐
 │   └── sidebar.tsx                           # Navigation (hides on active sessions) ⭐
 └── stores/
@@ -162,7 +163,7 @@ const isStudySessionActive = pathname?.startsWith("/study/") && pathname !== "/s
 
 ### Mobile Study Session Component
 
-**File:** `/components/study/mobile-study-session.tsx`
+**File:** `/components/study/mobile/mobile-words-flashcard.tsx`
 
 #### Props Interface
 
