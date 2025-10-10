@@ -14,7 +14,47 @@ The database is built on **PostgreSQL** with the following key architectural pri
 - **Real-time Analytics**: Comprehensive tracking and reporting capabilities
 - **Extensible Schema**: Easy to extend with new content types and features
 
-## 📚 Feature Modules
+## � Directory Structure
+
+```
+Database/
+├── README.md                    # This overview document
+├── docker-compose.yml          # PostgreSQL container setup
+├── .env.example               # Environment variables template
+├── config/                    # Database configuration files
+│   ├── postgresql.conf        # PostgreSQL server config
+│   ├── pg_hba.conf           # Client authentication config
+│   ├── Dockerfile.postgres    # Custom PostgreSQL Docker image
+│   └── README.md             # Configuration documentation
+├── schema/                    # Core database schema
+│   ├── pg.sql                # Main database schema
+│   ├── import_functions.sql   # Data import functions
+│   └── README.md             # Schema documentation
+├── functions/                 # PostgreSQL functions
+│   ├── user_tracking_functions.sql  # Progress tracking
+│   ├── hiragana_to_romaji.sql      # Text conversion
+│   ├── srs.sql                     # Spaced repetition
+│   └── README.md                   # Functions documentation
+├── indexes/                   # Database performance indexes
+│   ├── user_management_indexes.sql # User query optimization
+│   └── README.md                   # Indexes documentation
+├── tools/                     # Utility scripts
+│   ├── export_chunks.go           # Data export utility
+│   ├── update_json_from_csv.go    # CSV processing utility
+│   └── README.md                  # Tools documentation
+├── import-client/             # Go data import application
+│   ├── main.go               # Import client entry point
+│   ├── go.mod                # Go dependencies
+│   └── *.go                  # Import logic and utilities
+├── cleaned_json/             # Processed JLPT question data
+│   └── jlpt_organized/       # Organized by question type
+└── database_features/        # Detailed feature documentation
+    ├── 01_user_management.md
+    ├── 02_content_management.md
+    └── ... (additional features)
+```
+
+## �📚 Feature Modules
 
 ### 1. [User Management](01_user_management.md)
 Complete user account system with authentication, roles, settings, and subscription management.
@@ -152,10 +192,17 @@ Complete data management and integration capabilities.
 
 ### Prerequisites
 - PostgreSQL 13+
-- Docker (for containerized setup)
+- Docker & Docker Compose (for containerized setup)
 - Go 1.19+ (for import client)
 
-### Quick Setup
+### Quick Setup with Makefile
+```bash
+# From the lang-portal directory
+make db-reset  # Start fresh PostgreSQL database
+make db-seed   # Import all JLPT learning content
+```
+
+### Manual Setup (Alternative)
 ```bash
 # Start the database
 docker-compose up -d
@@ -168,11 +215,19 @@ go run main.go
 ### Database Connection
 ```bash
 # Connect to database
-psql -h localhost -U postgres -d japanese_learning
+psql -h localhost -U sorami -d postgres
 
 # Check system status
 SELECT * FROM get_system_status();
 ```
+
+### File Organization
+- **Schema**: `schema/pg.sql` + `schema/import_functions.sql`
+- **Functions**: `functions/` directory (tracking, conversion, SRS)
+- **Indexes**: `indexes/user_management_indexes.sql`
+- **Config**: `config/` directory (PostgreSQL configuration)
+- **Tools**: `tools/` directory (utility scripts)
+- **Import Client**: `import-client/` directory (Go application)
 
 ## 📊 Key Metrics
 
@@ -185,11 +240,21 @@ SELECT * FROM get_system_status();
 
 ## 🔧 Development
 
+### Directory Structure
+- **`schema/`**: Core database schema and import functions
+- **`functions/`**: PostgreSQL functions (tracking, conversion, SRS)
+- **`indexes/`**: Performance optimization indexes
+- **`config/`**: PostgreSQL configuration files
+- **`tools/`**: Utility scripts for maintenance
+- **`import-client/`**: Go application for data import
+- **`database_features/`**: Detailed feature documentation
+
 ### Adding New Features
-1. Create new tables in `pg.sql`
-2. Add import functions in `import_functions.sql`
-3. Update Go import client if needed
-4. Add feature documentation
+1. **Schema Changes**: Add to `schema/pg.sql`
+2. **Functions**: Add to appropriate `functions/*.sql` file
+3. **Indexes**: Add to `indexes/` if needed
+4. **Import Logic**: Update `import-client/` if needed
+5. **Documentation**: Add to `database_features/`
 
 ### Testing
 ```sql
