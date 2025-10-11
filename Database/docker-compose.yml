@@ -2,7 +2,7 @@ services:
   postgres:
     build:
       context: .
-      dockerfile: Dockerfile.postgres
+      dockerfile: config/Dockerfile.postgres
     container_name: sorami-postgres
     restart: unless-stopped
     environment:
@@ -18,12 +18,14 @@ services:
       - ./pg_hba.conf:/usr/lib/postgresql/17/main/pg_hba.conf
 
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sorami_user} -d ${POSTGRES_DB:-sorami}"]
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-sorami_user} -d ${POSTGRES_DB:-sorami}",
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
-
-
 
 volumes:
   postgres_data:

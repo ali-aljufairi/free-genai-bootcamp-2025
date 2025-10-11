@@ -100,7 +100,55 @@ uv run streamlit run main.py  # Streamlit interface
 - Shared data through SQLite (`words.db`) and PostgreSQL databases
 - Integration points documented in individual service READMs
 
-## Project-Specific Conventions
+## AI Agent Tools & Capabilities 🤖
+
+Sorami development leverages advanced AI agent tools for database management, web automation, and intelligent code assistance. These tools enable sophisticated analysis, testing, and development workflows.
+
+### PostgreSQL Database Tools 🗄️
+
+The following PostgreSQL analysis and management tools are available for database operations:
+
+- **analyze_db_health**: Analyzes database health including indexes, connections, vacuum status, sequences, and replication
+- **analyze_query_indexes**: Analyzes SQL queries and recommends optimal indexes for performance
+- **analyze_workload_indexes**: Analyzes frequently executed queries across the database and suggests indexes
+- **execute_sql**: Execute any SQL query for database operations and data retrieval
+- **explain_query**: Explains query execution plans with cost estimates and optimization analysis
+- **get_object_details**: Shows detailed information about database objects (tables, views, sequences, extensions)
+- **get_top_queries**: Reports slowest or most resource-intensive queries using pg_stat_statements
+- **list_objects**: List objects in database schemas (tables, views, sequences, extensions)
+- **list_schemas**: List all schemas in the database
+
+### Playwright Web Automation Tools 🌐
+
+Comprehensive browser automation capabilities for testing, scraping, and web interaction:
+
+- **Browser Navigation**: `navigate`, `navigate_back`, `tabs` management
+- **User Interactions**: `click`, `type`, `fill_form`, `select_option`, `hover`, `press_key`
+- **Visual Analysis**: `take_screenshot`, `snapshot` (accessibility), `detect` objects
+- **Content Analysis**: `ocr` text recognition, `find` objects by description
+- **Advanced Interactions**: `drag`, `file_upload`, `handle_dialog`, `evaluate` JavaScript
+- **Network Monitoring**: `network_requests`, `console_messages`, `wait_for` conditions
+- **Browser Management**: `resize`, `install`, `close`
+
+
+### Git & Repository Tools 📚
+
+Version control and repository management:
+
+- **Git Operations**: `add_or_commit`, `push`, `stash`, `checkout`, `branch` management
+- **Code Analysis**: `blame`, `log_or_diff`, `worktree` management
+- **Issue Management**: Create/review comments, get issue details, search assigned issues
+- **Pull Request Tools**: Create reviews, get comments, manage PR workflows
+
+### Additional Development Tools 🛠️
+
+- **Code Search**: `grep_search`, `semantic_search`, `list_code_usages`
+- **File Management**: Create, read, edit files with intelligent context awareness
+- **Terminal Operations**: Execute commands with background process support
+- **Testing**: Run unit tests with coverage analysis
+- **Documentation**: Access comprehensive VS Code API documentation and library docs
+
+These tools enable AI agents to perform sophisticated development tasks including database optimization, automated testing, web scraping, image processing, and comprehensive code analysis while maintaining production-grade standards.
 
 ### Code Quality Standards
 

@@ -65,16 +65,6 @@ func main() {
 
 	log.Println("Connected to PostgreSQL database")
 
-	// Load database schema first (including enum types)
-	if err := loadDatabaseSchema(db); err != nil {
-		log.Fatal("Failed to load database schema:", err)
-	}
-
-	// Load import functions
-	if err := loadImportFunctions(db); err != nil {
-		log.Fatal("Failed to load import functions:", err)
-	}
-
 	// Handle other commands
 	if len(os.Args) > 1 {
 		switch os.Args[1] {
@@ -175,36 +165,12 @@ func connectDB(config Config) (*sql.DB, error) {
 	return db, nil
 }
 
-func loadDatabaseSchema(db *sql.DB) error {
-	log.Println("Loading database schema...")
-
-	content, err := os.ReadFile("../pg.sql")
-	if err != nil {
-		return fmt.Errorf("failed to read pg.sql: %w", err)
-	}
-
-	// Execute the entire schema as one statement to avoid breaking dollar-quoted strings
-	if _, err := db.Exec(string(content)); err != nil {
-		// Log the error but continue if it's just "already exists" or constraint violations
-		if strings.Contains(err.Error(), "already exists") ||
-			strings.Contains(err.Error(), "duplicate key") ||
-			strings.Contains(err.Error(), "violates unique constraint") {
-			log.Printf("Warning: Schema already exists, continuing...")
-		} else {
-			return fmt.Errorf("failed to execute database schema: %w", err)
-		}
-	}
-
-	log.Println("Database schema loaded successfully")
-	return nil
-}
-
 func loadImportFunctions(db *sql.DB) error {
 	log.Println("Loading import functions...")
 
-	content, err := os.ReadFile("../import_functions.sql")
+	content, err := os.ReadFile("../schema/import_functions.sql")
 	if err != nil {
-		return fmt.Errorf("failed to read import_functions.sql: %w", err)
+		return fmt.Errorf("failed to read schema/import_functions.sql: %w", err)
 	}
 
 	if _, err := db.Exec(string(content)); err != nil {

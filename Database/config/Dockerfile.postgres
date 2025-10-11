@@ -19,12 +19,13 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 # Copy initialization scripts
-COPY pg.sql /docker-entrypoint-initdb.d/01-schema.sql
-COPY hiragana_to_romaji.sql /docker-entrypoint-initdb.d/02-hiragana-to-romaji.sql
-COPY import_functions.sql /docker-entrypoint-initdb.d/03-import-functions.sql
-COPY user_tracking_functions.sql /docker-entrypoint-initdb.d/04-user-tracking-functions.sql
-COPY user_management_indexes.sql /docker-entrypoint-initdb.d/05-user-management-indexes.sql
-COPY srs.sql /docker-entrypoint-initdb.d/06-srs.sql
+COPY ../schema/pg.sql /docker-entrypoint-initdb.d/01-schema.sql
+COPY ../schema/migration_learning_activities.sql /docker-entrypoint-initdb.d/02-migration-learning-activities.sql
+COPY ../functions/hiragana_to_romaji.sql /docker-entrypoint-initdb.d/03-hiragana-to-romaji.sql
+COPY ../schema/import_functions.sql /docker-entrypoint-initdb.d/04-import-functions.sql
+COPY ../functions/user_tracking_functions.sql /docker-entrypoint-initdb.d/05-user-tracking-functions.sql
+COPY ../indexes/user_management_indexes.sql /docker-entrypoint-initdb.d/06-user-management-indexes.sql
+COPY ../functions/srs.sql /docker-entrypoint-initdb.d/07-srs.sql
 
 
 # Set proper permissions
