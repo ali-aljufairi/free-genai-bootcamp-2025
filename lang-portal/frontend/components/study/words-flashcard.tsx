@@ -899,12 +899,12 @@ export function WordsFlashcard() {
                                     >
                                         <Button
                                             className={`w-full p-10 h-auto text-3xl justify-center transition-all duration-200 border-2 ${selectedOption !== null
-                                                    ? isCorrectAnswer
-                                                        ? "!bg-green-500 hover:!bg-green-600 !text-white !border-green-600 shadow-xl shadow-green-500/30"
-                                                        : isSelectedWrong
-                                                            ? "!bg-red-500 hover:!bg-red-500 !text-white !border-red-600 shadow-xl shadow-red-500/30"
-                                                            : "opacity-50 bg-muted/20"
-                                                    : "hover:bg-accent hover:scale-[1.02] active:scale-[0.98]"
+                                                ? isCorrectAnswer
+                                                    ? "!bg-green-500 hover:!bg-green-600 !text-white !border-green-600 shadow-xl shadow-green-500/30"
+                                                    : isSelectedWrong
+                                                        ? "!bg-red-500 hover:!bg-red-500 !text-white !border-red-600 shadow-xl shadow-red-500/30"
+                                                        : "opacity-50 bg-muted/20"
+                                                : "hover:bg-accent hover:scale-[1.02] active:scale-[0.98]"
                                                 }`}
                                             variant="outline"
                                             onClick={() => handleOptionSelect(index)}

@@ -26,6 +26,7 @@ COPY ../schema/import_functions.sql /docker-entrypoint-initdb.d/04-import-functi
 COPY ../functions/user_tracking_functions.sql /docker-entrypoint-initdb.d/05-user-tracking-functions.sql
 COPY ../indexes/user_management_indexes.sql /docker-entrypoint-initdb.d/06-user-management-indexes.sql
 COPY ../functions/srs.sql /docker-entrypoint-initdb.d/07-srs.sql
+COPY ../schema/study_activities_init.sql /docker-entrypoint-initdb.d/08-study-activities-init.sql
 
 
 # Set proper permissions

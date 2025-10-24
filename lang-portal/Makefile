@@ -16,7 +16,7 @@ help:
 	@echo "  make test             - Run Go tests"
 	@echo "  make clean            - Clean build artifacts"
 	@echo ""
-	@echo "Database:"
+	@echo "Database:" \
 	@echo "  make docker-up        - Start PostgreSQL database container"
 	@echo "  make docker-down      - Stop PostgreSQL database container"
 	@echo "  make db-reset         - Reset database (stop, remove volumes, restart)"

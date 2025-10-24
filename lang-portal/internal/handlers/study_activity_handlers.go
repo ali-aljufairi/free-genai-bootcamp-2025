@@ -91,9 +91,10 @@ func (h *StudyActivityHandler) GetStudyActivitySessions(c *fiber.Ctx) error {
 // CreateStudyActivity creates a new study activity
 func (h *StudyActivityHandler) CreateStudyActivity(c *fiber.Ctx) error {
 	var input struct {
-		GroupID     int64  `json:"group_id"`
-		Name        string `json:"name"`
-		Description string `json:"description"`
+		Name         string              `json:"name"`
+		ActivityType models.ActivityType `json:"activity_type"`
+		Description  string              `json:"description"`
+		IsActive     *bool               `json:"is_active,omitempty"`
 	}
 
 	if err := c.BodyParser(&input); err != nil {
@@ -101,18 +102,20 @@ func (h *StudyActivityHandler) CreateStudyActivity(c *fiber.Ctx) error {
 	}
 
 	// Validate the input
-	if input.GroupID <= 0 {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid group_id"})
-	}
 	if input.Name == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Name is required"})
 	}
+	if input.ActivityType == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Activity type is required"})
+	}
 
+	description := input.Description
 	activity := models.StudyActivity{
-		GroupID:     input.GroupID,
-		Name:        input.Name,
-		Description: input.Description,
-		CreatedAt:   time.Now(),
+		Name:         input.Name,
+		ActivityType: input.ActivityType,
+		Description:  &description,
+		IsActive:     input.IsActive,
+		CreatedAt:    time.Now(),
 	}
 
 	result := h.db.GetDB().Create(&activity)
@@ -153,7 +156,7 @@ func (h *StudyActivityHandler) GetStudyActivities(c *fiber.Ctx) error {
 		Offset(offset).
 		Limit(itemsPerPage).
 		Find(&activities)
-	
+
 	if result.Error != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to get study activities",
@@ -163,6 +166,6 @@ func (h *StudyActivityHandler) GetStudyActivities(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"items": activities,
 		"total": total,
-		"page": page,
+		"page":  page,
 	})
 }

@@ -29,28 +29,50 @@ func NewStudySessionHandler(db *database.DB) *StudySessionHandler {
 // CreateStudySession creates a new study session
 func (h *StudySessionHandler) CreateStudySession(c *fiber.Ctx) error {
 	var input struct {
-		GroupID     int64  `json:"group_id"`
-		Type        string `json:"type"`
-		Name        string `json:"name"`
-		Description string `json:"description"`
+		GroupID      int64  `json:"group_id"`
+		ActivityType string `json:"activity_type"`
+		Name         string `json:"name"`
+		Description  string `json:"description"`
 	}
 
 	if err := c.BodyParser(&input); err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "Invalid request body"})
 	}
 
-	// Create the activity first
-	activity := models.StudyActivity{
-		Type:        models.ActivityType(input.Type),
-		Name:        input.Name,
-		Description: input.Description,
-		GroupID:     input.GroupID,
-		CreatedAt:   time.Now(),
+	// Validate input
+	if input.GroupID <= 0 {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid group_id"})
+	}
+	if input.ActivityType == "" {
+		return c.Status(400).JSON(fiber.Map{"error": "Activity type is required"})
 	}
 
-	result := h.db.GetDB().Create(&activity)
+	// Find or create the study activity
+	var activity models.StudyActivity
+	activityType := models.ActivityType(input.ActivityType)
+
+	result := h.db.GetDB().Where(models.StudyActivity{ActivityType: activityType}).First(&activity)
 	if result.Error != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Failed to create study activity"})
+		// Create new activity if it doesn't exist
+		description := input.Description
+		if input.Description == "" {
+			description = "Study session activity"
+		}
+		name := input.Name
+		if input.Name == "" {
+			name = string(activityType)
+		}
+
+		activity = models.StudyActivity{
+			Name:         name,
+			ActivityType: activityType,
+			Description:  &description,
+			CreatedAt:    time.Now(),
+		}
+
+		if err := h.db.GetDB().Create(&activity).Error; err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": "Failed to create study activity"})
+		}
 	}
 
 	// Create the study session linked to the activity
@@ -60,27 +82,19 @@ func (h *StudySessionHandler) CreateStudySession(c *fiber.Ctx) error {
 		CreatedAt:       time.Now(),
 	}
 
-	result = h.db.GetDB().Create(&session)
-	if result.Error != nil {
+	if err := h.db.GetDB().Create(&session).Error; err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to create study session"})
-	}
-
-	// Update the activity with the session ID
-	activity.StudySessionID = session.ID
-	result = h.db.GetDB().Save(&activity)
-	if result.Error != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Failed to update study activity with session ID"})
 	}
 
 	// Return both the session and activity information
 	return c.JSON(fiber.Map{
-		"id":          session.ID,
-		"group_id":    session.GroupID,
-		"created_at":  session.CreatedAt,
-		"activity_id": activity.ID,
-		"type":        activity.Type,
-		"name":        activity.Name,
-		"description": activity.Description,
+		"id":            session.ID,
+		"group_id":      session.GroupID,
+		"created_at":    session.CreatedAt,
+		"activity_id":   activity.ID,
+		"activity_type": activity.ActivityType,
+		"name":          activity.Name,
+		"description":   activity.Description,
 	})
 }
 

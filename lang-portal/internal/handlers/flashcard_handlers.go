@@ -1434,31 +1434,27 @@ func (h *FlashcardHandler) ensureDevUserExists(userID int64) error {
 func (h *FlashcardHandler) ensureStudyActivitiesExist() error {
 	activities := []struct {
 		name         string
-		activityType string
+		activityType models.ActivityType
 		description  string
 	}{
-		{"Word Flashcards", "flashcard", "Practice vocabulary with flashcards"},
-		{"Kanji Flashcards", "flashcard", "Practice kanji with flashcards"},
+		{"SRS Flashcards", "flashcard", "Practice vocabulary with spaced repetition"},
 	}
 
 	for _, activity := range activities {
-		var count int64
-		err := h.db.Raw("SELECT COUNT(*) FROM study_activities WHERE name = ? AND activity_type = ?",
-			activity.name, activity.activityType).Scan(&count).Error
-		if err != nil {
-			return fmt.Errorf("failed to check study activity existence: %w", err)
+		studyActivity := models.StudyActivity{
+			ActivityType: activity.activityType,
 		}
 
-		if count == 0 {
-			err = h.db.Exec(`
-				INSERT INTO study_activities (name, activity_type, description) 
-				VALUES (?, ?, ?)
-				ON CONFLICT (name, activity_type) DO NOTHING
-			`, activity.name, activity.activityType, activity.description).Error
+		// FirstOrCreate will find existing or create new based on ActivityType (unique constraint)
+		result := h.db.Where(models.StudyActivity{ActivityType: activity.activityType}).
+			Assign(models.StudyActivity{
+				Name:        activity.name,
+				Description: &activity.description,
+			}).
+			FirstOrCreate(&studyActivity)
 
-			if err != nil {
-				return fmt.Errorf("failed to create study activity '%s': %w", activity.name, err)
-			}
+		if result.Error != nil {
+			return fmt.Errorf("failed to ensure study activity '%s' exists: %w", activity.name, result.Error)
 		}
 	}
 

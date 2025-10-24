@@ -97,13 +97,17 @@ type StudySession struct {
 
 // StudyActivity represents a specific learning activity
 type StudyActivity struct {
-	ID             int64        `json:"id"`
-	Type           ActivityType `json:"type"`
-	Name           string       `json:"name"`
-	Description    string       `json:"description"`
-	StudySessionID int64        `json:"study_session_id"`
-	GroupID        int64        `json:"group_id"`
-	CreatedAt      time.Time    `json:"created_at"`
+	ID           int64        `json:"id" gorm:"primaryKey"`
+	Name         string       `json:"name" gorm:"not null"`
+	ActivityType ActivityType `json:"activity_type" gorm:"column:activity_type;type:activity_type_enum;not null;uniqueIndex"`
+	Description  *string      `json:"description"`
+	IsActive     *bool        `json:"is_active" gorm:"default:true"`
+	CreatedAt    time.Time    `json:"created_at" gorm:"default:now()"`
+}
+
+// TableName specifies the table name for StudyActivity
+func (StudyActivity) TableName() string {
+	return "study_activities"
 }
 
 // WordReviewItem represents a practice record for a word
