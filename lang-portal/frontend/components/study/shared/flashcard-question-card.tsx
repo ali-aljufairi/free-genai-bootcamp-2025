@@ -1,0 +1,73 @@
+"use client"
+
+import { Card, CardContent } from "@/components/ui/card"
+import { motion } from "framer-motion"
+import { FlashcardOptionList } from "./flashcard-option-list"
+import type { Flashcard, FlashcardContent } from "@/types/api"
+
+interface FlashcardQuestionCardProps {
+    card: Flashcard
+    selectedOption: number | null
+    renderQuestion: (card: Flashcard) => React.ReactNode
+    renderOption: (option: FlashcardContent) => React.ReactNode
+    onOptionSelect: (index: number) => void
+    isMobile?: boolean
+}
+
+export function FlashcardQuestionCard({
+    card,
+    selectedOption,
+    renderQuestion,
+    renderOption,
+    onOptionSelect,
+    isMobile = false
+}: FlashcardQuestionCardProps) {
+    if (isMobile) {
+        return (
+            <div className="flex-1 flex items-center justify-center px-4 py-4">
+                <Card className="glass-card w-full max-w-md">
+                    <CardContent className="p-6">
+                        <motion.div
+                            key={card.id}
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            transition={{ duration: 0.3 }}
+                            className="text-center space-y-2 min-h-[120px] flex flex-col items-center justify-center"
+                        >
+                            {renderQuestion(card)}
+                        </motion.div>
+                    </CardContent>
+                </Card>
+            </div>
+        )
+    }
+
+    // Desktop layout - include options inside the card
+    return (
+        <Card className="glass-card min-h-[70vh]">
+            <CardContent className="p-12 h-full flex flex-col justify-center">
+                <div className="max-w-4xl mx-auto w-full">
+                    <motion.div
+                        key={card.id}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -20 }}
+                        transition={{ duration: 0.3 }}
+                        className="text-center mb-16 space-y-6"
+                    >
+                        {renderQuestion(card)}
+                    </motion.div>
+
+                    {/* Answer Options inside the same card */}
+                    <FlashcardOptionList
+                        card={card}
+                        selectedOption={selectedOption}
+                        renderOption={renderOption}
+                        onOptionSelect={onOptionSelect}
+                        isMobile={false}
+                    />
+                </div>
+            </CardContent>
+        </Card>
+    )
+}

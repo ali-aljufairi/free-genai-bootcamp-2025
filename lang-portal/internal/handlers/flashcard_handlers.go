@@ -86,9 +86,10 @@ type FlashcardConfig struct {
 	Filters ContentFilters `json:"filters"`
 
 	// Session settings
-	CardCount      int  `json:"card_count"`      // Number of cards (1-100)
-	TimeLimit      *int `json:"time_limit"`      // seconds per card, nil for no limit
-	ShuffleOptions bool `json:"shuffle_options"` // Whether to shuffle multiple choice options
+	CardCount            int  `json:"card_count"`             // Number of cards (1-100)
+	TimeLimit            *int `json:"time_limit"`             // seconds per card, nil for no limit
+	ShuffleOptions       bool `json:"shuffle_options"`        // Whether to shuffle multiple choice options
+	RequiredCorrectCount *int `json:"required_correct_count"` // How many correct answers needed for SRS progression (default: 3)
 }
 
 // FlashcardContent represents the content shown on a flashcard
@@ -323,7 +324,11 @@ func (h *FlashcardHandler) SubmitFlashcardSession(c *fiber.Ctx) error {
 
 	// Update unit completion if applicable
 	if session.Config.ContentSource == ContentSourceUnit && session.Config.UnitID != nil {
-		err = h.checkUnitCompletion(userID, *session.Config.UnitID)
+		requiredCorrectCount := 3 // Default
+		if session.Config.RequiredCorrectCount != nil {
+			requiredCorrectCount = *session.Config.RequiredCorrectCount
+		}
+		err = h.checkUnitCompletion(userID, *session.Config.UnitID, requiredCorrectCount)
 		if err != nil {
 			// Log error but don't fail the flashcard submission
 			// TODO: Add proper logging
@@ -1290,15 +1295,15 @@ func (h *FlashcardHandler) updateSRSProgress(userID int64, result *FlashcardResu
 }
 
 // checkUnitCompletion checks if a unit is completed
-func (h *FlashcardHandler) checkUnitCompletion(userID int64, unitID int) error {
-	// Check if all words in unit have been correctly answered 3 times
+func (h *FlashcardHandler) checkUnitCompletion(userID int64, unitID int, requiredCorrectCount int) error {
+	// Check if all words in unit have been correctly answered the required number of times
 	var incompleteWords int64
 	err := h.db.Raw(`
 		SELECT COUNT(*) FROM unit_items ui
 		LEFT JOIN progress p ON ui.item_type = p.item_type AND ui.item_id = p.item_id AND p.user_id = ?
 		WHERE ui.unit_id = ? AND ui.item_type = 'word'
-		AND (p.correct_cnt IS NULL OR p.correct_cnt < 3)
-	`, userID, unitID).Scan(&incompleteWords).Error
+		AND (p.correct_cnt IS NULL OR p.correct_cnt < ?)
+	`, userID, unitID, requiredCorrectCount).Scan(&incompleteWords).Error
 
 	if err != nil {
 		return err

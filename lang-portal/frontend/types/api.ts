@@ -120,6 +120,7 @@ export interface FlashcardConfig {
   card_count: number
   time_limit?: number
   shuffle_options: boolean
+  required_correct_count?: number
 }
 
 export interface FlashcardContent {

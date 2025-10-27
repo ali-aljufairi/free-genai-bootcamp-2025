@@ -23,6 +23,9 @@ export interface FlashcardPreferences {
   askForKanji: boolean
   askForRomaji: boolean
   askForEnglish: boolean
+  
+  // SRS Control
+  requiredCorrectCount: number
 }
 
 interface FlashcardStore extends FlashcardPreferences {
@@ -32,6 +35,7 @@ interface FlashcardStore extends FlashcardPreferences {
   setUnit: (unitId: number | null) => void
   setCount: (count: number) => void
   setPartsOfSpeech: (parts: PartOfSpeech[]) => void
+  setRequiredCorrectCount: (count: number) => void
   
   setShowOptions: (options: Partial<Pick<FlashcardPreferences, 'showKana' | 'showKanji' | 'showRomaji' | 'showEnglish'>>) => void
   setAskOptions: (options: Partial<Pick<FlashcardPreferences, 'askForKana' | 'askForKanji' | 'askForRomaji' | 'askForEnglish'>>) => void
@@ -60,6 +64,8 @@ const defaultPreferences: FlashcardPreferences = {
   askForKanji: false,
   askForRomaji: false,
   askForEnglish: true,
+  
+  requiredCorrectCount: 3,
 }
 
 export const useFlashcardStore = create<FlashcardStore>()(
@@ -72,6 +78,7 @@ export const useFlashcardStore = create<FlashcardStore>()(
       setUnit: (selectedUnit) => set({ selectedUnit }),
       setCount: (count) => set({ count }),
       setPartsOfSpeech: (selectedPartsOfSpeech) => set({ selectedPartsOfSpeech }),
+      setRequiredCorrectCount: (requiredCorrectCount) => set({ requiredCorrectCount }),
       
       setShowOptions: (options) => {
         set((state) => {

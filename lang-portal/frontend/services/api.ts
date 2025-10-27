@@ -186,7 +186,16 @@ export const flashcardsV2Api = {
       throw new Error(errorData.message || `Failed to submit flashcard session: ${response.status}`);
     }
 
-    return response.json();
+    const result = await response.json();
+    console.log("Raw submit API response:", result); // Debug log
+    
+    // Handle wrapped response from Next.js API route
+    if (result.success && result.data) {
+      return result.data;
+    }
+    
+    // Handle direct response (fallback)
+    return result;
   },
 
   history: async (page: number = 1, pageSize: number = 10) => {
