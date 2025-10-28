@@ -133,19 +133,19 @@ export function MobileWordsFlashcard({
                                 transition={{ duration: 0.2, delay: index * 0.05 }}
                             >
                                 <Button
-                                    className={`w-full min-h-[60px] text-base font-medium transition-all duration-200 backdrop-blur-md border ${selectedOption !== null
+                                    className={`w-full min-h-[65px] text-base font-medium transition-all duration-200 ${selectedOption !== null
                                         ? isCorrectAnswer
                                             ? "!bg-green-500/90 hover:!bg-green-500/95 !text-white !border-green-400/50 shadow-lg shadow-green-500/30 backdrop-blur-sm"
                                             : isSelectedWrong
                                                 ? "!bg-red-500/90 hover:!bg-red-500/95 !text-white !border-red-400/50 shadow-lg shadow-red-500/30 backdrop-blur-sm"
                                                 : "opacity-40 bg-muted/10 border-muted/30 backdrop-blur-sm"
-                                        : "bg-white/5 dark:bg-white/5 hover:bg-white/10 dark:hover:bg-white/10 border-white/10 dark:border-white/10 hover:border-primary/30 hover:shadow-md hover:shadow-primary/10 hover:scale-[1.01] active:scale-[0.99]"
+                                        : "glass-card-option hover:scale-[1.01] active:scale-[0.99]"
                                         }`}
                                     variant="outline"
                                     onClick={() => onOptionSelect(index)}
                                     disabled={selectedOption !== null}
                                 >
-                                    <span className="line-clamp-2 px-2">
+                                    <span className="line-clamp-2 px-3 text-center break-words hyphens-auto">
                                         {renderOption(option)}
                                     </span>
                                 </Button>

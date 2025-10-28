@@ -324,17 +324,19 @@ export function KanjiFlashcard() {
                                     <Button
                                         className={`w-full p-8 h-auto text-2xl text-center justify-center transition-all duration-200 ${selectedOption !== null
                                                 ? index === currentCard.correct_index
-                                                    ? "bg-green-500 hover:bg-green-600 text-white"
+                                                    ? "!bg-green-500/90 hover:!bg-green-500/95 !text-white !border-green-400/50 shadow-lg shadow-green-500/30 backdrop-blur-sm"
                                                     : selectedOption === index
-                                                        ? "bg-red-400 hover:bg-red-400 text-white"
-                                                        : "opacity-70"
-                                                : "hover:bg-accent hover:scale-102"
+                                                        ? "!bg-red-500/90 hover:!bg-red-500/95 !text-white !border-red-400/50 shadow-lg shadow-red-500/30 backdrop-blur-sm"
+                                                        : "opacity-40 bg-muted/10 border-muted/30 backdrop-blur-sm"
+                                                : "glass-card-option hover:scale-[1.01] active:scale-[0.99]"
                                             }`}
                                         variant="outline"
                                         onClick={() => handleOptionSelect(index)}
                                         disabled={selectedOption !== null}
                                     >
-                                        {option.meanings || option.onyomi || option.kunyomi}
+                                        <span className="text-center break-words hyphens-auto leading-tight">
+                                            {option.meanings || option.onyomi || option.kunyomi}
+                                        </span>
                                     </Button>
                                 </motion.div>
                             ))}

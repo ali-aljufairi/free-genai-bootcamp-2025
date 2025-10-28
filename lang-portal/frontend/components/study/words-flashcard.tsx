@@ -218,7 +218,7 @@ export function WordsFlashcard() {
                 contentSource = 'unit'
                 courseId = selectedCourse
                 unitId = selectedUnit || undefined
-  dfasdf         } else {
+            } else {
                 contentSource = 'jlpt'
             }
 

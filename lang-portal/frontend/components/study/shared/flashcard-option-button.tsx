@@ -30,14 +30,14 @@ export function FlashcardOptionButton({
   const getButtonClasses = () => {
     if (selectedOption !== null) {
       if (isCorrectAnswer) {
-        return "!bg-green-500 hover:!bg-green-600 !text-white !border-green-600 shadow-xl shadow-green-500/30"
+        return "!bg-green-500/90 hover:!bg-green-500/95 !text-white !border-green-400/50 shadow-lg shadow-green-500/30 backdrop-blur-sm"
       }
       if (isSelectedWrong) {
-        return "!bg-red-500 hover:!bg-red-500 !text-white !border-red-600 shadow-xl shadow-red-500/30"
+        return "!bg-red-500/90 hover:!bg-red-500/95 !text-white !border-red-400/50 shadow-lg shadow-red-500/30 backdrop-blur-sm"
       }
-      return "opacity-50 bg-muted/20"
+      return "opacity-40 bg-muted/10 border-muted/30 backdrop-blur-sm"
     }
-    return "hover:bg-accent hover:scale-[1.02] active:scale-[0.98]"
+    return "glass-card-option hover:scale-[1.01] active:scale-[0.99]"
   }
 
   if (isMobile) {
@@ -49,12 +49,12 @@ export function FlashcardOptionButton({
         transition={{ duration: 0.2, delay: index * 0.05 }}
       >
         <Button
-          className={`w-full min-h-[60px] text-base font-medium transition-all duration-200 backdrop-blur-md border ${getButtonClasses()}`}
+          className={`w-full min-h-[65px] text-base font-medium transition-all duration-200 ${getButtonClasses()}`}
           variant="outline"
           onClick={() => onSelect(index)}
           disabled={selectedOption !== null}
         >
-          <span className="line-clamp-2 px-2">
+          <span className="line-clamp-2 px-3 text-center break-words hyphens-auto">
             {renderOption(option)}
           </span>
         </Button>
@@ -71,12 +71,14 @@ export function FlashcardOptionButton({
       transition={{ duration: 0.3, delay: index * 0.1 }}
     >
       <Button
-        className={`w-full p-10 h-auto text-3xl justify-center transition-all duration-200 border-2 ${getButtonClasses()}`}
+        className={`w-full p-8 h-auto text-2xl justify-center transition-all duration-200 ${getButtonClasses()}`}
         variant="outline"
         onClick={() => onSelect(index)}
         disabled={selectedOption !== null}
       >
-        {renderOption(option)}
+        <span className="text-center break-words hyphens-auto leading-tight">
+          {renderOption(option)}
+        </span>
       </Button>
     </motion.div>
   )

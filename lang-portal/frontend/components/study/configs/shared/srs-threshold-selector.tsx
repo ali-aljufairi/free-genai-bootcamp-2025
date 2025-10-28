@@ -11,10 +11,10 @@ interface SRSThresholdSelectorProps {
   isMobile?: boolean
 }
 
-export function SRSThresholdSelector({ 
-  requiredCorrectCount, 
-  onThresholdChange, 
-  isMobile = false 
+export function SRSThresholdSelector({
+  requiredCorrectCount,
+  onThresholdChange,
+  isMobile = false
 }: SRSThresholdSelectorProps) {
   return (
     <div className="space-y-2">
@@ -31,8 +31,8 @@ export function SRSThresholdSelector({
           </Tooltip>
         </TooltipProvider>
       </div>
-      <Select 
-        value={requiredCorrectCount.toString()} 
+      <Select
+        value={requiredCorrectCount.toString()}
         onValueChange={(value) => onThresholdChange(parseInt(value))}
       >
         <SelectTrigger className={isMobile ? "h-12" : ""}>

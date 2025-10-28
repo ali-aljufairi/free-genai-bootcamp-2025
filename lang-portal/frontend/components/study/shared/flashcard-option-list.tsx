@@ -20,7 +20,7 @@ export function FlashcardOptionList({
 }: FlashcardOptionListProps) {
   if (isMobile) {
     return (
-      <div className="px-4 pb-safe pb-4 space-y-2.5">
+      <div className="px-6 pb-safe pb-6 space-y-3">
         {card.options.map((option, index) => {
           const isCorrectAnswer = index === card.correct_index
           const isSelectedWrong = selectedOption === index && !isCorrectAnswer
