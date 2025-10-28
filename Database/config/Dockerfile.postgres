@@ -21,12 +21,13 @@ RUN apt-get update && \
 # Copy initialization scripts
 COPY ../schema/pg.sql /docker-entrypoint-initdb.d/01-schema.sql
 COPY ../schema/migration_learning_activities.sql /docker-entrypoint-initdb.d/02-migration-learning-activities.sql
-COPY ../functions/hiragana_to_romaji.sql /docker-entrypoint-initdb.d/03-hiragana-to-romaji.sql
-COPY ../schema/import_functions.sql /docker-entrypoint-initdb.d/04-import-functions.sql
-COPY ../functions/user_tracking_functions.sql /docker-entrypoint-initdb.d/05-user-tracking-functions.sql
-COPY ../indexes/user_management_indexes.sql /docker-entrypoint-initdb.d/06-user-management-indexes.sql
-COPY ../functions/srs.sql /docker-entrypoint-initdb.d/07-srs.sql
-COPY ../schema/study_activities_init.sql /docker-entrypoint-initdb.d/08-study-activities-init.sql
+COPY ../schema/migration_groups_user_ownership.sql /docker-entrypoint-initdb.d/03-migration-groups-user-ownership.sql
+COPY ../functions/hiragana_to_romaji.sql /docker-entrypoint-initdb.d/04-hiragana-to-romaji.sql
+COPY ../schema/import_functions.sql /docker-entrypoint-initdb.d/05-import-functions.sql
+COPY ../functions/user_tracking_functions.sql /docker-entrypoint-initdb.d/06-user-tracking-functions.sql
+COPY ../indexes/user_management_indexes.sql /docker-entrypoint-initdb.d/07-user-management-indexes.sql
+COPY ../functions/srs.sql /docker-entrypoint-initdb.d/08-srs.sql
+COPY ../schema/study_activities_init.sql /docker-entrypoint-initdb.d/09-study-activities-init.sql
 
 
 # Set proper permissions
