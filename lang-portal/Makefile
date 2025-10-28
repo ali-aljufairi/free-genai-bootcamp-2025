@@ -31,10 +31,14 @@ help:
 dev:
 	@echo "Starting development environment..."
 	@if command -v tmux >/dev/null 2>&1; then \
-		tmux new-session -d -s sorami-dev 'make dev-backend'; \
-		tmux split-window -h 'make dev-frontend'; \
-		tmux select-pane -t 0; \
-		tmux attach-session -t sorami-dev; \
+		if [ -n "$$TMUX" ]; then \
+			echo "Creating new split pane for backend..."; \
+			tmux split-window -h 'make dev-backend'; \
+			tmux split-window -v 'make dev-frontend'; \
+		else \
+			echo "tmux not found in current session. Please run in a tmux session or run 'make dev-backend' and 'make dev-frontend' separately."; \
+			exit 1; \
+		fi; \
 	else \
 		echo "tmux not found. Please run 'make dev-backend' and 'make dev-frontend' in separate terminals."; \
 		exit 1; \

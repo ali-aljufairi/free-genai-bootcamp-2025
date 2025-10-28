@@ -10,6 +10,7 @@ import { AgentStudy } from "@/components/study/agent-study"
 import { Chat } from "@/components/study/chat-study"
 import { SpeechStudy } from "@/components/study/speech-study"
 import React from "react"
+import { navigateWithTransition } from "@/lib/view-transitions"
 
 export default function StudySessionPage({
     params
@@ -21,8 +22,10 @@ export default function StudySessionPage({
 
     const router = useRouter()
 
-    const handleComplete = () => {
-        router.push("/dashboard")
+    const handleComplete = async () => {
+        await navigateWithTransition(router, "/dashboard", {
+            transitionName: 'page',
+        })
     }
 
     return (

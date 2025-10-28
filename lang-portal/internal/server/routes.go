@@ -3,6 +3,7 @@ package server
 import (
 	"lang-portal/internal/database"
 	"lang-portal/internal/handlers"
+	"lang-portal/internal/handlers/flashcard"
 	"log"
 	"os"
 	"strings"
@@ -109,7 +110,7 @@ func (s *FiberServer) RegisterFiberRoutes() {
 
 	// Flashcard routes (prefer PostgreSQL; return 503 if unavailable)
 	if s.postgresDB != nil {
-		flashcardHandler := handlers.NewFlashcardHandler(s.postgresDB)
+		flashcardHandler := flashcard.NewFlashcardHandler(s.postgresDB)
 		s.App.Post("/api/langportal/flashcards/start", flashcardHandler.StartFlashcardSession)
 		s.App.Post("/api/langportal/flashcards/submit", flashcardHandler.SubmitFlashcardSession)
 		s.App.Get("/api/langportal/flashcards/history", flashcardHandler.GetFlashcardHistory)
@@ -259,7 +260,7 @@ func setupV2Routes(app *fiber.App, db *database.DB, postgresDB *gorm.DB) {
 
 	// Flashcard routes
 	if postgresDB != nil {
-		flashcardHandler := handlers.NewFlashcardHandler(postgresDB)
+		flashcardHandler := flashcard.NewFlashcardHandler(postgresDB)
 		// Flashcard management
 		app.Post("/api/v2/flashcards/start", flashcardHandler.StartFlashcardSession)
 		app.Post("/api/v2/flashcards/submit", flashcardHandler.SubmitFlashcardSession)

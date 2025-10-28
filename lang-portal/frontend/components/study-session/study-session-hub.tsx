@@ -7,18 +7,42 @@ import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import Image from "next/image"
 import { useIsMobile } from "@/hooks/use-mobile"
-import { useMemo, useCallback, useEffect } from 'react'
+import { useMemo, useCallback, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from "framer-motion"
 import { useSidebar } from "@/hooks/use-sidebar"
 import { useAuthSetup } from "@/hooks/use-auth-setup"
 import { CARD_IMAGE_DIMENSIONS, studyImages, studyOptions, ENABLED_FEATURES } from "./constants"
+import { createSwapy } from 'swapy'
+import { useSortedStudyOptions, useStudyCardOrderStore } from '@/stores/study-card-order-store'
+import { navigateWithTransition } from '@/lib/view-transitions'
+import type { Swapy, SwapEvent, SwapStartEvent, SwapEndEvent } from '@/types/swapy'
 
+/**
+ * Study Session Hub Component
+ * 
+ * Main component for the study session selection interface.
+ * Features:
+ * - Drag-and-drop card reordering with Swapy library
+ * - Smooth view transitions for navigation
+ * - Persistent card order across sessions
+ * - Responsive design with mobile optimizations
+ * 
+ * @returns JSX element containing the study session hub
+ */
 export function StudySessionHub() {
   const router = useRouter()
   // const { createSession, isLoading } = useCreateStudySession()
   // const { data: groups } = useGroups()
   const isMobile = useIsMobile()
   const { isExpanded, setIsExpanded } = useSidebar()
+
+  // Swapy refs and state for drag-and-drop functionality
+  const containerRef = useRef<HTMLDivElement>(null)
+  const swapyInstance = useRef<Swapy | null>(null)
+
+  // Get sorted study options based on user's preferred order
+  // This ensures cards appear in the order the user has arranged them
+  const sortedStudyOptions = useSortedStudyOptions()
 
   // Initialize user setup after authentication (runs in background)
   useAuthSetup()
@@ -40,10 +64,66 @@ export function StudySessionHub() {
     }
   }, []);
 
-  // Memoize the startSession callback
+  // Initialize Swapy for drag-and-drop functionality
+  useEffect(() => {
+    if (containerRef.current && sortedStudyOptions.length > 0) {
+      // Add a small delay to ensure DOM is ready
+      const timer = setTimeout(() => {
+        if (containerRef.current) {
+          // Create Swapy instance with smooth animations
+          swapyInstance.current = createSwapy(containerRef.current, {
+            animation: 'dynamic',  // Smooth dynamic animations
+            swapMode: 'drop',      // Trigger swap on drop
+            dragAxis: 'both',      // Allow dragging in both directions
+          });
+
+          // Handle swap events to persist new order
+          swapyInstance.current.onSwap((event: SwapEvent) => {
+            const newOrder = event.newSlotItemMap.asArray.map((item) => item.item);
+
+            // Convert item IDs back to type names (remove 'item-' prefix)
+            const typeOrder = newOrder.map(itemId => itemId.replace('item-', ''));
+
+            // Update the store with new order to persist across sessions
+            const { setCardOrder } = useStudyCardOrderStore.getState();
+            setCardOrder(typeOrder);
+          });
+
+          // Handle drag start for visual feedback
+          swapyInstance.current.onSwapStart((event: SwapStartEvent) => {
+            // Optional: Add visual feedback during drag
+            // Could add haptic feedback or visual indicators here
+          });
+
+          // Handle drag end for cleanup and feedback
+          swapyInstance.current.onSwapEnd((event: SwapEndEvent) => {
+            if (event.hasChanged) {
+              // Optional: Show success feedback or trigger animations
+              toast.success("Cards reordered successfully!");
+            }
+          });
+        }
+      }, 100);
+
+      return () => {
+        clearTimeout(timer);
+        // Cleanup Swapy instance on unmount to prevent memory leaks
+        if (swapyInstance.current) {
+          swapyInstance.current.destroy();
+        }
+      };
+    }
+  }, [sortedStudyOptions]); // Re-run when sortedStudyOptions changes
+
+  /**
+   * Start a study session with smooth view transitions
+   * 
+   * @param type - The type of study session to start
+   * @param disabled - Whether the session is disabled
+   */
   const startSession = useCallback(async (type: string, disabled?: boolean) => {
     try {
-      // Always minimize sidebar when clicking a card
+      // Always minimize sidebar when clicking a card for better UX
       setIsExpanded(false)
 
       if (disabled || !ENABLED_FEATURES.has(type)) {
@@ -51,9 +131,11 @@ export function StudySessionHub() {
         return
       }
 
-      // For word and kanji flashcards, route directly without creating backend session
+      // For word and kanji flashcards, route directly with view transition
       if (type === "words" || type === "kanji") {
-        router.push(`/study/${type}`)
+        await navigateWithTransition(router, `/study/${type}`, {
+          transitionName: 'page',  // Use page transition for smooth navigation
+        })
         return
       }
 
@@ -61,6 +143,7 @@ export function StudySessionHub() {
       // For other features, show disabled message
       toast.error("This feature is temporarily disabled due to database migration")
 
+      // Future implementation for other study types:
       // const session = await createSession({
       //   type,
       //   groupId: groups?.[0]?.id,
@@ -70,9 +153,9 @@ export function StudySessionHub() {
 
       // Special route for companion-study
       // if (type === "companion-study") {
-      //   router.push(`/study/companion-study/${session.id}`)
+      //   await navigateWithTransition(router, `/study/companion-study/${session.id}`)
       // } else {
-      //   router.push(`/study/${type}/${session.id}`)
+      //   await navigateWithTransition(router, `/study/${type}/${session.id}`)
       // }
     } catch (error) {
       console.error('Failed to create session:', error)
@@ -80,7 +163,15 @@ export function StudySessionHub() {
     }
   }, [router, setIsExpanded])
 
-  // Memoize StudyCard component
+  /**
+   * Memoized StudyCard component for optimal performance
+   * 
+   * Each card represents a study option with:
+   * - Interactive hover and tap animations
+   * - Disabled state handling
+   * - Responsive design for mobile/desktop
+   * - Integration with Swapy for drag-and-drop
+   */
   const StudyCard = useMemo(() => ({
     title,
     description,
@@ -97,8 +188,8 @@ export function StudySessionHub() {
     reason?: string;
   }) => (
     <motion.div
-      whileHover={{ scale: 1.02 }}
-      whileTap={{ scale: 0.95 }}
+      whileHover={{ scale: 1.02 }}  // Subtle hover effect
+      whileTap={{ scale: 0.95 }}    // Tap feedback
       transition={{ duration: 0.2 }}
     >
       <Card
@@ -170,28 +261,41 @@ export function StudySessionHub() {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
     >
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+      {/* 
+        Grid container with Swapy integration:
+        - ref={containerRef} connects to Swapy instance
+        - data-swapy-slot attributes identify draggable slots
+        - data-swapy-item attributes identify draggable items
+        - Responsive grid layout for different screen sizes
+      */}
+      <div
+        ref={containerRef}
+        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4"
+      >
         <AnimatePresence>
-          {studyOptions.map((option, index) => (
+          {sortedStudyOptions.map((option, index) => (
             <motion.div
-              key={index}
+              key={option.type}
+              data-swapy-slot={`slot-${option.type}`}  // Swapy slot identifier
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
               transition={{
                 duration: 0.3,
-                delay: index * 0.05
+                delay: index * 0.05  // Staggered animation for visual appeal
               }}
             >
-              <StudyCard
-                title={option.title}
-                description={option.description}
-                icon={option.icon}
-                image={option.image}
-                type={option.type}
-                disabled={option.disabled}
-                reason={option.reason}
-              />
+              <div data-swapy-item={`item-${option.type}`}>  {/* Swapy item identifier */}
+                <StudyCard
+                  title={option.title}
+                  description={option.description}
+                  icon={option.icon}
+                  image={option.image}
+                  type={option.type}
+                  disabled={option.disabled}
+                  reason={option.reason}
+                />
+              </div>
             </motion.div>
           ))}
         </AnimatePresence>

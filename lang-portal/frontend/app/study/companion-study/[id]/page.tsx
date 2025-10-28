@@ -3,6 +3,7 @@
 import React from "react"
 import { CompanionStudy } from "@/components/study/companion-study"
 import { useRouter } from "next/navigation"
+import { navigateWithTransition } from "@/lib/view-transitions"
 
 interface PageParams {
     id: string;
@@ -16,8 +17,10 @@ export default function CompanionStudySessionPage({
     const { id } = React.use(params)
     const router = useRouter()
 
-    const handleComplete = () => {
-        router.push("/dashboard")
+    const handleComplete = async () => {
+        await navigateWithTransition(router, "/dashboard", {
+            transitionName: 'page',
+        })
     }
 
     return (

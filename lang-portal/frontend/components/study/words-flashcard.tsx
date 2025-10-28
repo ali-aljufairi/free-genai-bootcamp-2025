@@ -258,7 +258,8 @@ export function WordsFlashcard() {
         )
     }
 
-    if (showConfig || !session) {
+    // Only show config if explicitly requested or if we have no valid preferences
+    if (showConfig || (!session && !hasAutoStarted && !startSessionMutation.isPending)) {
         return (
             <WordFlashcardConfig
                 preferences={{
