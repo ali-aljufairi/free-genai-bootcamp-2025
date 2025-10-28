@@ -91,8 +91,6 @@ export function StudySessionHub() {
 
           // Handle drag start for visual feedback
           swapyInstance.current.onSwapStart((event: SwapStartEvent) => {
-            // Optional: Add visual feedback during drag
-            // Could add haptic feedback or visual indicators here
           });
 
           // Handle drag end for cleanup and feedback

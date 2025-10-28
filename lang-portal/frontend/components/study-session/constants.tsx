@@ -49,15 +49,6 @@ export const studyOptions: StudyOption[] = [
     },
     // Disabled legacy + other features
     {
-        title: "Legacy Flashcards",
-        description: "Original flashcard system (deprecated)",
-        icon: <ScrollText className="h-4 w-4 sm:h-5 sm:w-5 text-gray-500" />,
-        image: studyImages.flashcards,
-        type: "flashcards",
-        disabled: true,
-        reason: "Disabled during migration"
-    },
-    {
         title: "Grammar Quiz",
         description: "Test your knowledge (coming back soon)",
         icon: <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-green-500" />,
