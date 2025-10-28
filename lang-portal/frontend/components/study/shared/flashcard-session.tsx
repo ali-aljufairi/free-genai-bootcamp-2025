@@ -15,6 +15,8 @@ interface FlashcardSessionProps {
   selectedOption: number | null
   isCorrect: boolean | null
   score: number
+  timeRemaining?: number
+  timerDuration?: number
   onOptionSelect: (index: number) => void
   onExit: () => void
   onShowSettings?: () => void
@@ -32,6 +34,8 @@ export function FlashcardSession({
   selectedOption,
   isCorrect,
   score,
+  timeRemaining,
+  timerDuration,
   onOptionSelect,
   onExit,
   onShowSettings,
@@ -82,6 +86,8 @@ export function FlashcardSession({
           currentIndex={currentIndex}
           totalCards={cards.length}
           score={score}
+          timeRemaining={timeRemaining}
+          timerDuration={timerDuration}
           onShowSettings={onShowSettings || (() => {})}
           isMobile={true}
         />
@@ -116,6 +122,8 @@ export function FlashcardSession({
         currentIndex={currentIndex}
         totalCards={cards.length}
         score={score}
+        timeRemaining={timeRemaining}
+        timerDuration={timerDuration}
         onShowSettings={onShowSettings || (() => {})}
         isMobile={false}
       />

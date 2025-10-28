@@ -2,11 +2,13 @@
 
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Settings, Play } from "lucide-react"
+import { Settings, Play, HelpCircle } from "lucide-react"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { JLPTLevelSelector } from "./shared/jlpt-level-selector"
 import { CardCountSelector } from "./shared/card-count-selector"
 import { CourseUnitSelector } from "./shared/course-unit-selector"
 import { SRSThresholdSelector } from "./shared/srs-threshold-selector"
+import { TimerSelector } from "./shared/timer-selector"
 import { DisplayOptions } from "./shared/display-options"
 import { PartOfSpeechSelector } from "@/components/ui/part-of-speech-selector"
 import { PartOfSpeech, PARTS_OF_SPEECH } from "@/types/pos-enum"
@@ -27,6 +29,7 @@ interface FlashcardPreferences {
     askForRomaji: boolean
     askForEnglish: boolean
     requiredCorrectCount: number
+    timerDuration: number
 }
 
 interface WordFlashcardConfigProps {
@@ -41,6 +44,7 @@ interface WordFlashcardConfigProps {
     onShowOptionsChange: (options: Partial<Pick<FlashcardPreferences, 'showKana' | 'showKanji' | 'showRomaji' | 'showEnglish'>>) => void
     onAskOptionsChange: (options: Partial<Pick<FlashcardPreferences, 'askForKana' | 'askForKanji' | 'askForRomaji' | 'askForEnglish'>>) => void
     onThresholdChange: (count: number) => void
+    onTimerChange: (duration: number) => void
     onStart: () => void
     isLoading: boolean
     isMobile: boolean
@@ -58,6 +62,7 @@ export function WordFlashcardConfig({
     onShowOptionsChange,
     onAskOptionsChange,
     onThresholdChange,
+    onTimerChange,
     onStart,
     isLoading,
     isMobile
@@ -137,22 +142,37 @@ export function WordFlashcardConfig({
                     </CardContent>
                 </Card>
 
-                {/* Part of Speech Filter */}
+                {/* Part of Speech Filter and Timer */}
                 <Card className="glass-card mb-4">
                     <CardContent className="p-4 space-y-4">
-                        <div className="flex items-center gap-2 pb-2 border-b">
-                            <Settings className="w-5 h-5 text-green-500" />
-                            <div className="flex-1">
-                                <h3 className="font-semibold">Part of Speech</h3>
-                                <p className="text-xs text-muted-foreground">Filter by category</p>
+                        <div className="space-y-4">
+                            <div className="space-y-2">
+                                <div className="flex items-center gap-1">
+                                    <h3 className="font-semibold">Part of Speech Filter</h3>
+                                    <TooltipProvider>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <HelpCircle className="w-3 h-3 text-muted-foreground cursor-help" />
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>Filter words by grammatical category (noun, verb, adjective, etc.)</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+                                </div>
+                                <PartOfSpeechSelector
+                                    selectedParts={preferences.selectedPartsOfSpeech}
+                                    availableParts={PARTS_OF_SPEECH}
+                                    onSelectionChange={onPartsOfSpeechChange}
+                                />
                             </div>
+                            
+                            <TimerSelector
+                                timerDuration={preferences.timerDuration}
+                                onTimerChange={onTimerChange}
+                                isMobile={true}
+                            />
                         </div>
-
-                        <PartOfSpeechSelector
-                            selectedParts={preferences.selectedPartsOfSpeech}
-                            availableParts={PARTS_OF_SPEECH}
-                            onSelectionChange={onPartsOfSpeechChange}
-                        />
                     </CardContent>
                 </Card>
 
@@ -184,7 +204,7 @@ export function WordFlashcardConfig({
                             <p className="text-sm text-muted-foreground">Choose your level and session size.</p>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <JLPTLevelSelector
                                 level={preferences.level}
                                 onLevelChange={onLevelChange}
@@ -195,6 +215,14 @@ export function WordFlashcardConfig({
                                 onCountChange={onCountChange}
                                 isMobile={false}
                             />
+                            <SRSThresholdSelector
+                                requiredCorrectCount={preferences.requiredCorrectCount}
+                                onThresholdChange={onThresholdChange}
+                                isMobile={false}
+                            />
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <CourseUnitSelector
                                 selectedCourse={preferences.selectedCourse}
                                 selectedUnit={preferences.selectedUnit}
@@ -204,28 +232,36 @@ export function WordFlashcardConfig({
                                 onUnitChange={onUnitChange}
                                 isMobile={false}
                             />
-                            <SRSThresholdSelector
-                                requiredCorrectCount={preferences.requiredCorrectCount}
-                                onThresholdChange={onThresholdChange}
-                                isMobile={false}
-                            />
                         </div>
                     </div>
 
-                    {/* Part of Speech Filter */}
-                    <div className="space-y-4">
-                        <div className="flex items-center gap-3 pb-2">
-                            <Settings className="w-6 h-6 text-green-500" />
-                            <div>
-                                <h3 className="text-lg font-medium">Part of Speech Filter</h3>
-                                <p className="text-sm text-muted-foreground">Filter words by grammatical category.</p>
+                    {/* Part of Speech Filter and Timer */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <div className="flex items-center gap-1">
+                                <h3 className="text-sm font-medium">Part of Speech Filter</h3>
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <HelpCircle className="w-3 h-3 text-muted-foreground cursor-help" />
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>Filter words by grammatical category (noun, verb, adjective, etc.)</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
                             </div>
+                            <PartOfSpeechSelector
+                                selectedParts={preferences.selectedPartsOfSpeech}
+                                availableParts={PARTS_OF_SPEECH}
+                                onSelectionChange={onPartsOfSpeechChange}
+                            />
                         </div>
-
-                        <PartOfSpeechSelector
-                            selectedParts={preferences.selectedPartsOfSpeech}
-                            availableParts={PARTS_OF_SPEECH}
-                            onSelectionChange={onPartsOfSpeechChange}
+                        
+                        <TimerSelector
+                            timerDuration={preferences.timerDuration}
+                            onTimerChange={onTimerChange}
+                            isMobile={false}
                         />
                     </div>
 

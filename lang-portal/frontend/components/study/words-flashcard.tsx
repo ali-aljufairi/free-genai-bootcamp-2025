@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useMutation, useQuery } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { flashcardsV2Api } from "@/services/api"
 import type {
     Flashcard,
@@ -20,6 +20,8 @@ import { WordFlashcardConfig } from "./configs/word-flashcard-config"
 import { FlashcardSession as FlashcardSessionComponent } from "./shared/flashcard-session"
 import { FlashcardResults } from "./shared/flashcard-results"
 import { MobileWordsFlashcard } from "./mobile/mobile-words-flashcard"
+import { FlashcardSkeleton } from "./shared/flashcard-skeleton"
+import { ConfigSkeleton } from "./configs/config-skeleton"
 
 export function WordsFlashcard() {
     const isMobile = useIsMobile()
@@ -37,14 +39,22 @@ export function WordsFlashcard() {
     const [score, setScore] = useState(0)
     const [hasAutoStarted, setHasAutoStarted] = useState(false)
 
+    // Timer state
+    const [timeRemaining, setTimeRemaining] = useState(0)
+    const [isTimerActive, setIsTimerActive] = useState(false)
+
+    // Background submission state
+    const [isSubmitting, setIsSubmitting] = useState(false)
+
     // Zustand store
     const store = useFlashcardStore()
+    const queryClient = useQueryClient()
     const {
         level, selectedCourse, selectedUnit, count, selectedPartsOfSpeech,
         showKana, showKanji, showRomaji, showEnglish,
         askForKana, askForKanji, askForRomaji, askForEnglish,
-        requiredCorrectCount,
-        setLevel, setCourse, setUnit, setCount, setPartsOfSpeech, setRequiredCorrectCount,
+        requiredCorrectCount, timerDuration,
+        setLevel, setCourse, setUnit, setCount, setPartsOfSpeech, setRequiredCorrectCount, setTimerDuration,
         setShowOptions, setAskOptions, validateAndFixOptions
     } = store
 
@@ -67,10 +77,12 @@ export function WordsFlashcard() {
     }, [showKana, showKanji, showRomaji, showEnglish,
         askForKana, askForKanji, askForRomaji, askForEnglish])
 
-    // React Query for courses and units
+    // React Query for courses and units with caching
     const { data: allCourses = [] } = useQuery({
         queryKey: ['courses'],
-        queryFn: flashcardsV2Api.courses
+        queryFn: flashcardsV2Api.courses,
+        staleTime: 5 * 60 * 1000, // 5 minutes
+        gcTime: 30 * 60 * 1000, // 30 minutes
     })
 
     const availableCourses = Array.isArray(allCourses)
@@ -80,8 +92,51 @@ export function WordsFlashcard() {
     const { data: units = [] } = useQuery({
         queryKey: ['units', selectedCourse],
         queryFn: () => flashcardsV2Api.units(selectedCourse!),
-        enabled: selectedCourse !== null
+        enabled: selectedCourse !== null,
+        staleTime: 5 * 60 * 1000, // 5 minutes
+        gcTime: 30 * 60 * 1000, // 30 minutes
     })
+
+    // Auto-select first unit when course is selected and units are loaded
+    useEffect(() => {
+        if (selectedCourse && Array.isArray(units) && units.length > 0 && selectedUnit === null) {
+            setUnit(units[0].id)
+        }
+    }, [selectedCourse, units, selectedUnit, setUnit])
+
+    // Timer countdown effect
+    useEffect(() => {
+        if (!isTimerActive || timeRemaining <= 0) return
+
+        const timer = setInterval(() => {
+            setTimeRemaining(prev => {
+                if (prev <= 1) {
+                    // Timer expired - auto-select wrong answer
+                    const wrongOptions = cards[currentIndex]?.options
+                        .map((_, index) => index)
+                        .filter(index => index !== cards[currentIndex]?.correct_index) || []
+
+                    if (wrongOptions.length > 0) {
+                        const randomWrongIndex = wrongOptions[Math.floor(Math.random() * wrongOptions.length)]
+                        handleOptionSelect(randomWrongIndex)
+                    }
+                    setIsTimerActive(false)
+                    return 0
+                }
+                return prev - 1
+            })
+        }, 1000)
+
+        return () => clearInterval(timer)
+    }, [isTimerActive, timeRemaining, currentIndex, cards])
+
+    // Start timer when new card is shown
+    useEffect(() => {
+        if (session && cards.length > 0 && timerDuration > 0) {
+            setTimeRemaining(timerDuration)
+            setIsTimerActive(true)
+        }
+    }, [currentIndex, session, cards.length, timerDuration])
 
     // Mutations
     const startSessionMutation = useMutation({
@@ -103,17 +158,111 @@ export function WordsFlashcard() {
         }
     })
 
+    // Calculate results locally without waiting for backend
+    const calculateLocalResults = (finalAnswers: FlashcardAnswer[]): FlashcardResult => {
+        const correctCount = finalAnswers.filter(answer => {
+            const card = cards.find(c => c.id === answer.card_id)
+            return card && answer.answer === card.correct_index
+        }).length
+
+        const total = finalAnswers.length
+        const percentage = total > 0 ? (correctCount / total) * 100 : 0
+
+        return {
+            session_id: session?.id || 0,
+            score: correctCount,
+            total: total,
+            percentage: percentage,
+            correct_count: correctCount,
+            wrong_count: total - correctCount,
+            duration: 0, // We don't track duration locally yet
+            results: finalAnswers.map(answer => {
+                const card = cards.find(c => c.id === answer.card_id)
+                return {
+                    card_id: answer.card_id,
+                    item_id: card?.item_id || 0,
+                    item_type: card?.item_type || '',
+                    user_answer: answer.answer,
+                    correct_index: card?.correct_index || 0,
+                    is_correct: card ? answer.answer === card.correct_index : false
+                }
+            })
+        }
+    }
+
     const submitSessionMutation = useMutation({
         mutationFn: (submission: FlashcardSubmission) => flashcardsV2Api.submit(submission),
         onSuccess: (data) => {
-            setResults(data)
-            setShowResults(true)
+            // Background submission completed - no need to update UI
+            setIsSubmitting(false)
+            console.log("Background submission completed successfully")
+
+            // Prefetch next session in background
+            prefetchNextSession()
         },
         onError: (error) => {
-            console.error("Failed to submit session:", error)
-            alert("Failed to submit session. Results may not be saved.")
+            console.error("Background submission failed:", error)
+            setIsSubmitting(false)
+            // Don't show alert for background submission failures
         }
     })
+
+    // Prefetch next session function
+    const prefetchNextSession = async () => {
+        try {
+            let contentSource: ContentSource
+            let courseId: number | undefined
+            let unitId: number | undefined
+
+            if (selectedCourse !== null) {
+                contentSource = 'unit'
+                courseId = selectedCourse
+                unitId = selectedUnit || undefined
+  dfasdf         } else {
+                contentSource = 'jlpt'
+            }
+
+            const config: FlashcardConfig = {
+                flashcard_type: 'word',
+                content_source: contentSource,
+                course_id: courseId,
+                unit_id: unitId,
+                filters: {
+                    jlpt_levels: [level],
+                    parts_of_speech: selectedPartsOfSpeech,
+                    difficulty_levels: [],
+                    has_kanji: undefined
+                },
+                word_options: {
+                    show_kana: showKana,
+                    show_kanji: showKanji,
+                    show_romaji: showRomaji,
+                    show_english: showEnglish,
+                    show_part_of_speech: false,
+                    ask_for_kana: askForKana,
+                    ask_for_kanji: askForKanji,
+                    ask_for_romaji: askForRomaji,
+                    ask_for_english: askForEnglish,
+                    ask_for_part_of_speech: false,
+                },
+                card_count: count,
+                shuffle_options: true,
+                required_correct_count: requiredCorrectCount
+            }
+
+            // Create cache key based on config
+            const cacheKey = ['flashcard-session', JSON.stringify(config)]
+
+            // Prefetch the session
+            await queryClient.prefetchQuery({
+                queryKey: cacheKey,
+                queryFn: () => flashcardsV2Api.start(config),
+                staleTime: 2 * 60 * 1000, // 2 minutes
+            })
+        } catch (error) {
+            console.log("Prefetch failed (non-critical):", error)
+        }
+    }
 
     const startSession = async () => {
         if (!askForKana && !askForKanji && !askForRomaji && !askForEnglish) {
@@ -161,11 +310,33 @@ export function WordsFlashcard() {
             required_correct_count: requiredCorrectCount
         }
 
+        // Check for cached session first
+        const cacheKey = ['flashcard-session', JSON.stringify(config)]
+        const cachedData = queryClient.getQueryData(cacheKey)
+
+        if (cachedData) {
+            // Use cached session
+            const data = cachedData as FlashcardSession
+            setSession(data)
+            setCards(data.cards)
+            setCurrentIndex(0)
+            setSelectedOption(null)
+            setIsCorrect(null)
+            setAnswers([])
+            setScore(0)
+            setShowConfig(false)
+            setShowResults(false)
+            return
+        }
+
         startSessionMutation.mutate(config)
     }
 
     const handleOptionSelect = (optionIndex: number) => {
         if (selectedOption !== null || !session) return
+
+        // Pause timer when answer is selected
+        setIsTimerActive(false)
 
         setSelectedOption(optionIndex)
         const correct = optionIndex === cards[currentIndex].correct_index
@@ -194,6 +365,13 @@ export function WordsFlashcard() {
     const submitSession = async (finalAnswers: FlashcardAnswer[]) => {
         if (!session) return
 
+        // Calculate and show results instantly
+        const localResults = calculateLocalResults(finalAnswers)
+        setResults(localResults)
+        setShowResults(true)
+
+        // Submit to backend in background
+        setIsSubmitting(true)
         const submission: FlashcardSubmission = {
             session_id: session.id,
             answers: finalAnswers,
@@ -252,10 +430,16 @@ export function WordsFlashcard() {
                 results={results}
                 onStudyAgain={startSession}
                 onNewConfiguration={resetSession}
-                isLoading={startSessionMutation.isPending}
+                isLoading={startSessionMutation.isPending || isSubmitting}
                 isMobile={isMobile}
+                isSubmitting={isSubmitting}
             />
         )
+    }
+
+    // Show config skeleton when loading courses/units
+    if (showConfig && startSessionMutation.isPending) {
+        return <ConfigSkeleton isMobile={isMobile} />
     }
 
     // Only show config if explicitly requested or if we have no valid preferences
@@ -276,10 +460,11 @@ export function WordsFlashcard() {
                     askForKanji,
                     askForRomaji,
                     askForEnglish,
-                    requiredCorrectCount
+                    requiredCorrectCount,
+                    timerDuration
                 }}
                 courses={availableCourses}
-                units={units}
+                units={Array.isArray(units) ? units : []}
                 onLevelChange={setLevel}
                 onCourseChange={setCourse}
                 onUnitChange={setUnit}
@@ -288,6 +473,7 @@ export function WordsFlashcard() {
                 onShowOptionsChange={setShowOptions}
                 onAskOptionsChange={setAskOptions}
                 onThresholdChange={setRequiredCorrectCount}
+                onTimerChange={setTimerDuration}
                 onStart={startSession}
                 isLoading={startSessionMutation.isPending}
                 isMobile={isMobile}
@@ -295,8 +481,9 @@ export function WordsFlashcard() {
         )
     }
 
-    if (startSessionMutation.isPending || submitSessionMutation.isPending) {
-        return <div className="flex items-center justify-center min-h-[calc(100vh-8rem)]">Loading...</div>
+    // Show flashcard skeleton when starting session
+    if (startSessionMutation.isPending) {
+        return <FlashcardSkeleton isMobile={isMobile} />
     }
 
     if (!session || cards.length === 0) {
@@ -312,6 +499,8 @@ export function WordsFlashcard() {
                 selectedOption={selectedOption}
                 isCorrect={isCorrect}
                 score={score}
+                timeRemaining={timeRemaining}
+                timerDuration={timerDuration}
                 showKana={showKana}
                 showKanji={showKanji}
                 showRomaji={showRomaji}
@@ -336,6 +525,8 @@ export function WordsFlashcard() {
             selectedOption={selectedOption}
             isCorrect={isCorrect}
             score={score}
+            timeRemaining={timeRemaining}
+            timerDuration={timerDuration}
             onOptionSelect={handleOptionSelect}
             onExit={() => setShowConfig(true)}
             onShowSettings={() => setShowConfig(true)}

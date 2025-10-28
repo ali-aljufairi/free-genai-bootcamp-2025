@@ -1,6 +1,7 @@
 package flashcard
 
 import (
+	"fmt"
 	"math/rand"
 	"strconv"
 	"time"
@@ -130,17 +131,20 @@ func (h *FlashcardHandler) SubmitFlashcardSession(c *fiber.Ctx) error {
 		})
 	}
 
-	// Update unit completion if applicable
+	// Update unit completion if applicable (run in background)
 	if session.Config.ContentSource == ContentSourceUnit && session.Config.UnitID != nil {
 		requiredCorrectCount := 3 // Default
 		if session.Config.RequiredCorrectCount != nil {
 			requiredCorrectCount = *session.Config.RequiredCorrectCount
 		}
-		err = h.checkUnitCompletion(userID, *session.Config.UnitID, requiredCorrectCount)
-		if err != nil {
-			// Log error but don't fail the flashcard submission
-			// TODO: Add proper logging
-		}
+		// Run unit completion check in background goroutine
+		go func() {
+			if err := h.checkUnitCompletion(userID, *session.Config.UnitID, requiredCorrectCount); err != nil {
+				// Log error but don't fail the flashcard submission
+				// TODO: Add proper logging
+				fmt.Printf("Background unit completion check failed: %v\n", err)
+			}
+		}()
 	}
 
 	// End flashcard session

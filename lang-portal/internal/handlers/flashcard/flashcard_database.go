@@ -13,11 +13,12 @@ import (
 
 // createFlashcardSession creates a flashcard session in the database
 func (h *FlashcardHandler) createFlashcardSession(session *FlashcardSession, seed int64) (int64, error) {
-	// Create payload with config and seed for deterministic regeneration
+	// Create payload with config, seed, and cards for caching
 	payload := map[string]interface{}{
 		"flashcard_config": session.Config,
 		"seed":             seed,
 		"card_count":       len(session.Cards),
+		"cards":            session.Cards, // NEW: Cache cards to avoid regeneration
 	}
 
 	payloadJSON, err := json.Marshal(payload)
@@ -68,6 +69,8 @@ func (h *FlashcardHandler) getFlashcardSession(sessionID int64, userID int64) (*
 
 	var cfg FlashcardConfig
 	var seed int64
+	var cards []Flashcard
+	
 	if row.Notes != nil && *row.Notes != "" {
 		var payload map[string]json.RawMessage
 		if err := json.Unmarshal([]byte(*row.Notes), &payload); err == nil {
@@ -77,17 +80,26 @@ func (h *FlashcardHandler) getFlashcardSession(sessionID int64, userID int64) (*
 			if b, ok := payload["seed"]; ok {
 				_ = json.Unmarshal(b, &seed)
 			}
+			// NEW: Try to read cached cards first
+			if b, ok := payload["cards"]; ok {
+				_ = json.Unmarshal(b, &cards)
+			}
 		}
 	}
 
-	// Regenerate cards deterministically using the same config and seed
-	if seed != 0 {
-		rand.Seed(seed)
+	// If cards not cached, regenerate them (backwards compatibility)
+	if len(cards) == 0 {
+		if seed != 0 {
+			rand.Seed(seed)
+		}
+		var err error
+		cards, err = h.generateFlashcards(userID, &cfg)
+		if err != nil {
+			return nil, err
+		}
 	}
-	cards, err := h.generateFlashcards(userID, &cfg)
-	if err != nil {
-		return nil, err
-	}
+	
+	// Assign ephemeral IDs to cards using index
 	for i := range cards {
 		cards[i].ID = int64(i + 1)
 	}

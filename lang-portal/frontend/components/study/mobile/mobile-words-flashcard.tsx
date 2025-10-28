@@ -15,6 +15,8 @@ interface MobileWordsFlashcardProps {
     selectedOption: number | null
     isCorrect: boolean | null
     score: number
+    timeRemaining?: number
+    timerDuration?: number
     showKana: boolean
     showKanji: boolean
     showRomaji: boolean
@@ -35,6 +37,8 @@ export function MobileWordsFlashcard({
     selectedOption,
     isCorrect,
     score,
+    timeRemaining,
+    timerDuration,
     showKana,
     showKanji,
     showRomaji,
@@ -90,6 +94,8 @@ export function MobileWordsFlashcard({
                 currentIndex={currentIndex}
                 totalCards={cards.length}
                 score={score}
+                timeRemaining={timeRemaining}
+                timerDuration={timerDuration}
                 onShowSettings={onShowSettings || (() => { })}
                 isMobile={true}
             />

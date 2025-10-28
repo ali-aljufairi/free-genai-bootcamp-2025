@@ -4,6 +4,7 @@ import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { Eye, HelpCircle } from "lucide-react"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 interface ShowOptions {
   showKana: boolean
@@ -44,9 +45,18 @@ export function DisplayOptions({
         <div className="space-y-4">
           <div className="flex items-center gap-2 pb-2 border-b">
             <HelpCircle className="w-5 h-5 text-red-500" />
-            <div className="flex-1">
+            <div className="flex-1 flex items-center gap-1">
               <h3 className="font-semibold">What to Ask</h3>
-              <p className="text-xs text-muted-foreground">Choose at least one</p>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <HelpCircle className="w-3 h-3 text-muted-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Choose what the quiz will ask you to recall (select at least one)</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
             <span className="text-xs font-medium text-primary">
               {askCount} selected
@@ -122,9 +132,18 @@ export function DisplayOptions({
         <div className="space-y-4">
           <div className="flex items-center gap-2 pb-2 border-b">
             <Eye className="w-5 h-5 text-blue-500" />
-            <div className="flex-1">
+            <div className="flex-1 flex items-center gap-1">
               <h3 className="font-semibold">What to Show</h3>
-              <p className="text-xs text-muted-foreground">Display on cards</p>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <HelpCircle className="w-3 h-3 text-muted-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Choose what information to display on each flashcard</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
             <span className="text-xs font-medium text-primary">
               {showCount} selected
@@ -173,9 +192,18 @@ export function DisplayOptions({
       <div className="space-y-4">
         <div className="flex items-center gap-3 pb-2">
           <Eye className="w-6 h-6 text-blue-500" />
-          <div>
+          <div className="flex items-center gap-1">
             <h3 className="text-lg font-medium">Card Display Options</h3>
-            <p className="text-sm text-muted-foreground">What appears on each card.</p>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <HelpCircle className="w-4 h-4 text-muted-foreground cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Choose what information to display on each flashcard</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
         </div>
 
@@ -216,9 +244,18 @@ export function DisplayOptions({
       <div className="space-y-4">
         <div className="flex items-center gap-3 pb-2">
           <HelpCircle className="w-6 h-6 text-red-500" />
-          <div>
+          <div className="flex items-center gap-1">
             <h3 className="text-lg font-medium">Quiz Settings</h3>
-            <p className="text-sm text-muted-foreground">What the question asks you to recall (choose at least one).</p>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <HelpCircle className="w-4 h-4 text-muted-foreground cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Choose what the quiz will ask you to recall (select at least one)</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
         </div>
 

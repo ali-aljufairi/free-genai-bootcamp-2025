@@ -26,6 +26,9 @@ export interface FlashcardPreferences {
   
   // SRS Control
   requiredCorrectCount: number
+  
+  // Timer Settings
+  timerDuration: number
 }
 
 interface FlashcardStore extends FlashcardPreferences {
@@ -36,6 +39,7 @@ interface FlashcardStore extends FlashcardPreferences {
   setCount: (count: number) => void
   setPartsOfSpeech: (parts: PartOfSpeech[]) => void
   setRequiredCorrectCount: (count: number) => void
+  setTimerDuration: (duration: number) => void
   
   setShowOptions: (options: Partial<Pick<FlashcardPreferences, 'showKana' | 'showKanji' | 'showRomaji' | 'showEnglish'>>) => void
   setAskOptions: (options: Partial<Pick<FlashcardPreferences, 'askForKana' | 'askForKanji' | 'askForRomaji' | 'askForEnglish'>>) => void
@@ -66,6 +70,8 @@ const defaultPreferences: FlashcardPreferences = {
   askForEnglish: true,
   
   requiredCorrectCount: 3,
+  
+  timerDuration: 0, // 0 = off, 10/15/20/30 = seconds
 }
 
 export const useFlashcardStore = create<FlashcardStore>()(
@@ -79,6 +85,7 @@ export const useFlashcardStore = create<FlashcardStore>()(
       setCount: (count) => set({ count }),
       setPartsOfSpeech: (selectedPartsOfSpeech) => set({ selectedPartsOfSpeech }),
       setRequiredCorrectCount: (requiredCorrectCount) => set({ requiredCorrectCount }),
+      setTimerDuration: (timerDuration) => set({ timerDuration }),
       
       setShowOptions: (options) => {
         set((state) => {

@@ -1,12 +1,14 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { Settings } from "lucide-react"
+import { Settings, Clock } from "lucide-react"
 
 interface FlashcardProgressProps {
     currentIndex: number
     totalCards: number
     score: number
+    timeRemaining?: number
+    timerDuration?: number
     onShowSettings: () => void
     isMobile?: boolean
 }
@@ -15,11 +17,16 @@ export function FlashcardProgress({
     currentIndex,
     totalCards,
     score,
+    timeRemaining,
+    timerDuration,
     onShowSettings,
     isMobile = false
 }: FlashcardProgressProps) {
     const progressText = `Word ${currentIndex + 1} of ${totalCards}`
     const progressPercentage = ((currentIndex + 1) / totalCards) * 100
+    const timerProgress = timerDuration && timeRemaining !== undefined
+        ? ((timerDuration - timeRemaining) / timerDuration) * 100
+        : 0
 
     if (isMobile) {
         return (
@@ -28,7 +35,15 @@ export function FlashcardProgress({
                     <span className="text-xs font-medium text-muted-foreground">
                         {progressText}
                     </span>
-                    <span className="text-xs font-bold text-primary">{score} / {totalCards}</span>
+                    <div className="flex items-center gap-2">
+                        {timerDuration && timeRemaining !== undefined && (
+                            <div className="flex items-center gap-1">
+                                <Clock className="h-3 w-3 text-muted-foreground" />
+                                <span className="text-xs text-muted-foreground">{timeRemaining}s</span>
+                            </div>
+                        )}
+                        <span className="text-xs font-bold text-primary">{score} / {totalCards}</span>
+                    </div>
                 </div>
                 <div className="w-full bg-muted rounded-full h-1.5">
                     <div
@@ -46,6 +61,12 @@ export function FlashcardProgress({
             <div className="flex justify-between text-lg text-muted-foreground items-center">
                 <span>{progressText}</span>
                 <div className="flex items-center gap-4">
+                    {timerDuration && timeRemaining !== undefined && (
+                        <div className="flex items-center gap-1">
+                            <Clock className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-sm">{timeRemaining}s</span>
+                        </div>
+                    )}
                     <span>Score: {score}/{totalCards}</span>
                     <Button
                         variant="ghost"

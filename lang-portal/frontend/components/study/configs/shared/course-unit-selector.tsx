@@ -2,6 +2,8 @@
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
+import { HelpCircle } from "lucide-react"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import type { Course, Unit } from "@/types/api"
 
 interface CourseUnitSelectorProps {
@@ -26,7 +28,19 @@ export function CourseUnitSelector({
     return (
         <>
             <div className="space-y-2">
-                <Label className="text-sm font-medium">Course (Optional)</Label>
+                <div className="flex items-center gap-1">
+                    <Label className="text-sm font-medium">Course (Optional)</Label>
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <HelpCircle className="w-3 h-3 text-muted-foreground cursor-help" />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>Choose a specific course or use all courses for mixed practice</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+                </div>
                 <Select
                     value={selectedCourse?.toString() || "all"}
                     onValueChange={(value) => onCourseChange(value === "all" ? null : parseInt(value))}
@@ -47,7 +61,19 @@ export function CourseUnitSelector({
 
             {selectedCourse && (
                 <div className="space-y-2">
-                    <Label className="text-sm font-medium">Unit (Optional)</Label>
+                    <div className="flex items-center gap-1">
+                        <Label className="text-sm font-medium">Unit (Optional)</Label>
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <HelpCircle className="w-3 h-3 text-muted-foreground cursor-help" />
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p>Choose a specific unit within the course or use all units</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+                    </div>
                     <Select
                         value={selectedUnit?.toString() || "all"}
                         onValueChange={(value) => onUnitChange(value === "all" ? null : parseInt(value))}

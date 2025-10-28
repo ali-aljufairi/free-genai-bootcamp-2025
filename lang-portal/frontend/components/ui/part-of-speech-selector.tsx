@@ -83,7 +83,7 @@ export function PartOfSpeechSelector({
           <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-56">
+      <DropdownMenuContent className="w-96 max-h-[400px] overflow-y-auto">
         <DropdownMenuLabel>Filter by Part of Speech</DropdownMenuLabel>
         <DropdownMenuSeparator />
 
@@ -119,16 +119,19 @@ export function PartOfSpeechSelector({
 
         <DropdownMenuSeparator />
 
-        {/* Part of speech options */}
-        {validParts.map((part) => (
-          <DropdownMenuCheckboxItem
-            key={part}
-            checked={selectedParts.includes(part)}
-            onCheckedChange={() => handleTogglePart(part)}
-          >
-            {getPartOfSpeechLabel(part)}
-          </DropdownMenuCheckboxItem>
-        ))}
+        {/* Part of speech options in 2-column grid */}
+        <div className="grid grid-cols-2 gap-1 p-1">
+          {validParts.map((part) => (
+            <DropdownMenuCheckboxItem
+              key={part}
+              checked={selectedParts.includes(part)}
+              onCheckedChange={() => handleTogglePart(part)}
+              className="text-sm"
+            >
+              {getPartOfSpeechLabel(part)}
+            </DropdownMenuCheckboxItem>
+          ))}
+        </div>
 
         {validParts.length === 0 && (
           <div className="px-2 py-4 text-sm text-muted-foreground text-center">
