@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 // import { useGroups } from "@/hooks/api/useGroup"
 import { useWords } from "@/hooks/api/useWord"
+import { useKanji } from "@/hooks/api/useKanji"
 import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
@@ -13,6 +14,9 @@ import { Plus, X } from "lucide-react"
 import { Label } from "@/components/ui/label"
 // import { useVocabularyImport } from "@/hooks/api/useVocabularyImport"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Separator } from "@/components/ui/separator"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 const JLPT_LEVELS = {
@@ -54,31 +58,52 @@ export function VocabularyBrowser() {
   const [topic, setTopic] = useState("")
   const [selectedLevel, setSelectedLevel] = useState<keyof typeof JLPT_LEVELS>("N5")
   const [importType, setImportType] = useState<"topic" | "jlpt">("topic")
+  const [isFilterOpen, setIsFilterOpen] = useState(false)
+  const [contentType, setContentType] = useState<"words" | "kanji" | "both">("words")
+  const [hasKanjiOnly, setHasKanjiOnly] = useState<boolean | undefined>(undefined)
   // const { importVocabularyByTopic, isLoading: importLoading } = useVocabularyImport()
   // const { data: groups, isLoading: groupsLoading } = useGroups()
+  const wordParams = {
+    q: searchTerm || undefined,
+    has_kanji: hasKanjiOnly,
+  }
   const {
-    data,
+    data: wordsData,
     isLoading: wordsLoading,
-    loadMore,
-    hasMore
-  } = useWords()
+    loadMore: loadMoreWords,
+    hasMore: hasMoreWords
+  } = useWords(wordParams)
 
-  const words = data?.items || []
+  const kanjiParams = {
+    q: contentType !== 'words' && searchTerm ? searchTerm : undefined,
+  }
+  const {
+    data: kanjiData,
+    isLoading: kanjiLoading,
+    loadMore: loadMoreKanji,
+    hasMore: hasMoreKanji
+  } = useKanji(kanjiParams)
+
+  const words = wordsData?.items || []
+  const kanji = kanjiData?.items || []
   const loader = useRef(null)
 
-  const filteredWords = words.filter(word =>
-    word.japanese.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    word.romaji.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    word.english.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  type UnifiedItem = { kind: 'word'; item: any } | { kind: 'kanji'; item: any }
+  const wordItems: UnifiedItem[] = contentType === 'kanji' ? [] : words.map(w => ({ kind: 'word' as const, item: w }))
+  const kanjiItems: UnifiedItem[] = contentType === 'words' ? [] : kanji.map(k => ({ kind: 'kanji' as const, item: k }))
+  const unifiedItems: UnifiedItem[] = wordItems.concat(kanjiItems)
 
   // Implement infinite scroll using Intersection Observer
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
         const first = entries[0]
-        if (first.isIntersecting && hasMore && !wordsLoading) {
-          loadMore()
+        if (!first.isIntersecting) return
+        if (contentType !== 'kanji' && hasMoreWords && !wordsLoading) {
+          loadMoreWords()
+        }
+        if (contentType !== 'words' && hasMoreKanji && !kanjiLoading) {
+          loadMoreKanji()
         }
       },
       { threshold: 1.0 }
@@ -94,7 +119,7 @@ export function VocabularyBrowser() {
         observer.unobserve(currentLoader)
       }
     }
-  }, [loadMore, hasMore, data?.page, wordsLoading])
+  }, [loadMoreWords, hasMoreWords, wordsData?.page, wordsLoading, loadMoreKanji, hasMoreKanji, kanjiData?.page, kanjiLoading, contentType])
 
   const handleStudyWord = async (wordId: number) => {
     try {
@@ -147,7 +172,7 @@ export function VocabularyBrowser() {
     }
   };
 
-  if (wordsLoading && !words.length) {
+  if ((wordsLoading && contentType !== 'kanji' && !words.length) || (kanjiLoading && contentType !== 'words' && !kanji.length)) {
     return (
       <div className="space-y-4">
         <Input
@@ -179,13 +204,64 @@ export function VocabularyBrowser() {
     <div className="space-y-6 ">
 
       <div className="flex flex-col sm:flex-row justify-between gap-4 items-start sm:items-center">
-        <Input
-          type="search"
-          placeholder="Search vocabulary..."
-          className="max-w-sm"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <Sheet open={isFilterOpen} onOpenChange={setIsFilterOpen}>
+            <SheetTrigger asChild>
+              <Button variant="outline" size="sm">
+                Filters
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="right" className="w-full sm:max-w-md">
+              <SheetHeader>
+                <SheetTitle>Filters</SheetTitle>
+              </SheetHeader>
+              <div className="mt-4 space-y-4">
+                <div className="space-y-2">
+                  <Label>Content Type</Label>
+                  <div className="flex gap-2">
+                    <Button variant={contentType === 'words' ? 'default' : 'outline'} size="sm" onClick={() => setContentType('words')}>Words</Button>
+                    <Button variant={contentType === 'kanji' ? 'default' : 'outline'} size="sm" onClick={() => setContentType('kanji')}>Kanji</Button>
+                    <Button variant={contentType === 'both' ? 'default' : 'outline'} size="sm" onClick={() => setContentType('both')}>Both</Button>
+                  </div>
+                </div>
+                <Separator />
+                <div className="space-y-2">
+                  <Label>Words</Label>
+                  <div className="flex items-center gap-2">
+                    <Checkbox id="has-kanji" checked={hasKanjiOnly === true} onCheckedChange={(v) => setHasKanjiOnly(v ? true : undefined)} />
+                    <Label htmlFor="has-kanji" className="text-sm">Has Kanji</Label>
+                  </div>
+                </div>
+                <Separator />
+                <div className="space-y-2">
+                  <Label>JLPT</Label>
+                  <Select value={selectedLevel} onValueChange={(value: string) => setSelectedLevel(value as keyof typeof JLPT_LEVELS)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select level" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.keys(JLPT_LEVELS).map((level) => (
+                        <SelectItem key={level} value={level}>
+                          JLPT {level}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="pt-2">
+                  <Button className="w-full" onClick={() => setIsFilterOpen(false)}>Apply</Button>
+                </div>
+              </div>
+            </SheetContent>
+          </Sheet>
+          <Input
+            type="search"
+            placeholder="Search vocabulary..."
+            className="max-w-sm"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
         <Button
           variant="outline"
           size="sm"
@@ -295,62 +371,73 @@ export function VocabularyBrowser() {
         </Card>
       )}
 
-      {filteredWords.length === 0 ? (
+      {unifiedItems.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-8 space-y-4">
           <div className="text-center space-y-2">
-            <p className="text-lg font-medium">No vocabulary words found</p>
+            <p className="text-lg font-medium">No results found</p>
             <p className="text-sm text-muted-foreground">
-              {searchTerm ? "Try adjusting your search terms." : "Import some words to get started."}
+              {searchTerm ? "Try adjusting your search terms." : "Try changing filters to see content."}
             </p>
           </div>
         </div>
       ) : (
         <>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {filteredWords.map((word) => (
-              <Card key={word.id} className="glass-card">
-                <CardHeader>
-                  <CardTitle className="text-lg font-medium flex flex-col gap-1">
-                    <span className="text-xl">{word.japanese}</span>
-                    <span className="text-sm text-muted-foreground font-normal">{word.romaji}</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-base mb-2">{word.english}</p>
-                  <div className="flex gap-2 mt-2">
-                    <Badge variant="secondary">{word.parts.type}</Badge>
-                    {word.parts.category && (
-                      <Badge variant="outline">{word.parts.category}</Badge>
-                    )}
-                    {word.parts.formality && (
-                      <Badge>{word.parts.formality}</Badge>
-                    )}
-                  </div>
-                </CardContent>
-                <CardFooter className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    className="flex-1"
-                    onClick={() => handleStudyWord(word.id)}
-                  >
-                    Study
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    className="flex-1"
-                    onClick={() => window.open(`https://jisho.org/search/${encodeURIComponent(word.japanese)}`, '_blank')}
-                  >
-                    Look up
-                  </Button>
-                </CardFooter>
-              </Card>
-            ))}
+            {unifiedItems.map((entry, idx) => {
+              if (entry.kind === 'word') {
+                const word = entry.item
+                return (
+                  <Card key={`w-${word.id}-${idx}`} className="glass-card">
+                    <CardHeader>
+                      <CardTitle className="text-lg font-medium flex flex-col gap-1">
+                        <span className="text-xl">{word.japanese ?? word.kanji ?? word.kana}</span>
+                        {word.romaji && (
+                          <span className="text-sm text-muted-foreground font-normal">{word.romaji}</span>
+                        )}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      {word.english && <p className="text-base mb-2">{word.english}</p>}
+                      <div className="flex gap-2 mt-2">
+                        {word.parts?.type && <Badge variant="secondary">{word.parts.type}</Badge>}
+                      </div>
+                    </CardContent>
+                    <CardFooter className="flex gap-2">
+                      <Button variant="outline" className="flex-1" onClick={() => handleStudyWord(word.id)}>Study</Button>
+                      <Button variant="secondary" className="flex-1" onClick={() => window.open(`https://jisho.org/search/${encodeURIComponent(word.japanese ?? word.kanji ?? word.kana)}`, '_blank')}>Look up</Button>
+                    </CardFooter>
+                  </Card>
+                )
+              }
+              const k = entry.item
+              const meanings = Array.isArray(k.meanings) ? k.meanings.join(', ') : (k.meanings || '')
+              return (
+                <Card key={`k-${k.id}-${idx}`} className="glass-card">
+                  <CardHeader>
+                    <CardTitle className="text-lg font-medium flex items-center gap-2">
+                      <span className="text-2xl">{k.character}</span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {meanings && <p className="text-base mb-2">{meanings}</p>}
+                    <div className="flex gap-2 mt-2 flex-wrap">
+                      {k.onyomi && <Badge variant="secondary">Onyomi: {k.onyomi}</Badge>}
+                      {k.kunyomi && <Badge variant="outline">Kunyomi: {k.kunyomi}</Badge>}
+                      {k.jlpt != null && <Badge>JLPT {k.jlpt}</Badge>}
+                    </div>
+                  </CardContent>
+                  <CardFooter className="flex gap-2">
+                    <Button variant="secondary" className="flex-1" onClick={() => window.open(`https://jisho.org/search/${encodeURIComponent(k.character)}`, '_blank')}>Look up</Button>
+                  </CardFooter>
+                </Card>
+              )
+            })}
           </div>
-          {hasMore && (
+          {(contentType !== 'kanji' ? hasMoreWords : false) || (contentType !== 'words' ? hasMoreKanji : false) ? (
             <div ref={loader} className="flex justify-center py-4">
               <Skeleton className="h-8 w-8 rounded-full" />
             </div>
-          )}
+          ) : null}
         </>
       )}
     </div>

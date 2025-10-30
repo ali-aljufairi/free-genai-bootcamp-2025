@@ -11,6 +11,7 @@ type User struct {
 	Email            string    `json:"email" gorm:"not null"`
 	DisplayName      *string   `json:"display_name"`
 	StripeCustomerID *string   `json:"stripe_customer_id" gorm:"uniqueIndex"`
+	FavoriteGroupID  *int64    `json:"favorite_group_id" gorm:"column:favorite_group_id"`
 	CreatedAt        time.Time `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt        time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 }

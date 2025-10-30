@@ -2,5 +2,5 @@ import { NextRequest } from 'next/server';
 import { proxyGet } from '@/lib/api-proxy';
 
 export async function GET(request: NextRequest) {
-  return proxyGet(request, '/api/v2/users/me');
+  return proxyGet(request, '/api/langportal/users/me');
 }

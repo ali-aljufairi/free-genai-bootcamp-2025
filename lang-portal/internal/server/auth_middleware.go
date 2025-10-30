@@ -137,8 +137,11 @@ func (caa *clerkAuth) Middleware() fiber.Handler {
 				c.Locals("clerk_user_id", "dev_user_123")
 				return c.Next()
 			}
-			// No token; continue without user context.
-			return c.Next()
+			// In production, require authentication - reject requests without token
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"error": "authentication required",
+				"code":  "AUTHENTICATION_REQUIRED",
+			})
 		}
 
 		parts := strings.SplitN(authz, " ", 2)

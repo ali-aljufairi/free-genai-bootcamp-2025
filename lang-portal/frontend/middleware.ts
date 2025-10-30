@@ -5,7 +5,9 @@ const isPublicRoute = createRouteMatcher([
   '/',
   '/sign-in(.*)',
   '/sign-up(.*)',
-  '/health'
+  '/health',
+  // Allow API proxy routes to be accessed without cookie auth; they use Bearer via proxy
+  '/api/langportal(.*)'
 ]);
 
 export default clerkMiddleware(async (auth, req) => {

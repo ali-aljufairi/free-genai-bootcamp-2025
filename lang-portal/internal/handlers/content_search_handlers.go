@@ -1,15 +1,16 @@
 package handlers
 
 import (
-	"lang-portal/internal/database"
 	"lang-portal/internal/database/models"
+	"lang-portal/internal/handlers/kanji"
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
+	"gorm.io/gorm"
 )
 
 type ContentSearchHandler struct {
-	DB *database.DB
+	DB *gorm.DB
 }
 
 // ContentSearchRequest represents unified content search parameters
@@ -41,7 +42,7 @@ type UnifiedSearchResponse struct {
 	ContentType string                `json:"content_type"`
 }
 
-func NewContentSearchHandler(db *database.DB) *ContentSearchHandler {
+func NewContentSearchHandler(db *gorm.DB) *ContentSearchHandler {
 	return &ContentSearchHandler{DB: db}
 }
 
@@ -103,7 +104,7 @@ func (h *ContentSearchHandler) SearchContent(c *fiber.Ctx) error {
 // searchKanji searches for kanji content
 func (h *ContentSearchHandler) searchKanji(query string, jlptLevel *int, limit, offset int) ([]ContentSearchResult, int64) {
 	var results []ContentSearchResult
-	dbQuery := h.DB.GetDB().Model(&Kanji{})
+	dbQuery := h.DB.Model(&kanji.KanjiModel{})
 
 	// Apply search filters
 	dbQuery = dbQuery.Where("character = ? OR ? = ANY(meanings) OR heisig_en ILIKE ?",
@@ -113,22 +114,22 @@ func (h *ContentSearchHandler) searchKanji(query string, jlptLevel *int, limit, 
 		dbQuery = dbQuery.Where("jlpt = ?", *jlptLevel)
 	}
 
-	var kanji []Kanji
+	var kanjiModels []kanji.KanjiModel
 	var total int64
 	dbQuery.Count(&total)
-	dbQuery.Limit(limit).Offset(offset).Order("frequency ASC NULLS LAST").Find(&kanji)
+	dbQuery.Limit(limit).Offset(offset).Order("frequency ASC NULLS LAST").Find(&kanjiModels)
 
-	for _, k := range kanji {
+	for _, k := range kanjiModels {
 		relevance := 1.0
 		matchedField := "character"
 
 		if k.Character == query {
 			relevance = 1.0
 			matchedField = "character"
-		} else if contains(k.Meanings, query) {
+		} else if containsString(k.Meanings, query) {
 			relevance = 0.8
 			matchedField = "meaning"
-		} else if k.HeisigEn != nil && contains([]string{*k.HeisigEn}, query) {
+		} else if k.HeisigEn != nil && containsString([]string{*k.HeisigEn}, query) {
 			relevance = 0.6
 			matchedField = "heisig"
 		}
@@ -148,10 +149,10 @@ func (h *ContentSearchHandler) searchKanji(query string, jlptLevel *int, limit, 
 // searchWords searches for word content
 func (h *ContentSearchHandler) searchWords(query string, jlptLevel *int, limit, offset int) ([]ContentSearchResult, int64) {
 	var results []ContentSearchResult
-	dbQuery := h.DB.GetDB().Model(&models.Word{})
+	dbQuery := h.DB.Model(&models.Word{})
 
 	// Apply search filters
-	dbQuery = dbQuery.Where("japanese ILIKE ? OR romaji ILIKE ? OR english ILIKE ?",
+	dbQuery = dbQuery.Where("kana ILIKE ? OR romaji ILIKE ? OR english ILIKE ?",
 		"%"+query+"%", "%"+query+"%", "%"+query+"%")
 
 	if jlptLevel != nil {
@@ -161,7 +162,7 @@ func (h *ContentSearchHandler) searchWords(query string, jlptLevel *int, limit, 
 	var words []models.Word
 	var total int64
 	dbQuery.Count(&total)
-	dbQuery.Limit(limit).Offset(offset).Order("level ASC, japanese ASC").Find(&words)
+	dbQuery.Limit(limit).Offset(offset).Order("level ASC, kana ASC").Find(&words)
 
 	for _, w := range words {
 		relevance := 0.5
@@ -190,45 +191,10 @@ func (h *ContentSearchHandler) searchWords(query string, jlptLevel *int, limit, 
 	return results, total
 }
 
-// searchGrammar searches for grammar content
+// searchGrammar searches for grammar content (placeholder - grammar model may not exist)
 func (h *ContentSearchHandler) searchGrammar(query string, limit, offset int) ([]ContentSearchResult, int64) {
-	var results []ContentSearchResult
-	dbQuery := h.DB.GetDB().Model(&GrammarPoint{})
-
-	// Apply search filters
-	dbQuery = dbQuery.Where("key ILIKE ? OR base_form ILIKE ? OR structure ILIKE ?",
-		"%"+query+"%", "%"+query+"%", "%"+query+"%")
-
-	var grammar []GrammarPoint
-	var total int64
-	dbQuery.Count(&total)
-	dbQuery.Limit(limit).Offset(offset).Order("level ASC, key ASC").Find(&grammar)
-
-	for _, g := range grammar {
-		relevance := 0.5
-		matchedField := "key"
-
-		if g.Key == query {
-			relevance = 1.0
-			matchedField = "key"
-		} else if g.BaseForm == query {
-			relevance = 0.9
-			matchedField = "base_form"
-		} else if g.Structure != nil && *g.Structure == query {
-			relevance = 0.8
-			matchedField = "structure"
-		}
-
-		results = append(results, ContentSearchResult{
-			Type:         "grammar",
-			ID:           g.ID,
-			Content:      g,
-			Relevance:    relevance,
-			MatchedField: matchedField,
-		})
-	}
-
-	return results, total
+	// Placeholder implementation - grammar model may need to be created
+	return []ContentSearchResult{}, 0
 }
 
 // searchAll searches across all content types
@@ -244,10 +210,6 @@ func (h *ContentSearchHandler) searchAll(query string, jlptLevel *int, limit, of
 	allResults = append(allResults, kanjiResults...)
 	allResults = append(allResults, wordResults...)
 	allResults = append(allResults, grammarResults...)
-
-	// Sort by relevance
-	// Note: In a production system, you'd want to implement proper ranking
-	// For now, we'll just return the combined results
 
 	total := kanjiTotal + wordTotal + grammarTotal
 
@@ -284,7 +246,7 @@ func (h *ContentSearchHandler) GetContentRecommendations(c *fiber.Ctx) error {
 
 	// Get user's JLPT level
 	var userLevel int
-	if err := h.DB.GetDB().Raw("SELECT current_jlpt_level FROM user_settings WHERE user_id = ?", userIDInt).Scan(&userLevel).Error; err != nil {
+	if err := h.DB.Raw("SELECT current_jlpt_level FROM user_settings WHERE user_id = ?", userIDInt).Scan(&userLevel).Error; err != nil {
 		userLevel = 5 // Default to N5 if not found
 	}
 
@@ -296,19 +258,15 @@ func (h *ContentSearchHandler) GetContentRecommendations(c *fiber.Ctx) error {
 	}
 
 	var recommendations struct {
-		Kanji   []Kanji        `json:"kanji"`
-		Words   []models.Word  `json:"words"`
-		Grammar []GrammarPoint `json:"grammar"`
+		Kanji []kanji.KanjiModel `json:"kanji"`
+		Words []models.Word      `json:"words"`
 	}
 
 	// Get recommended kanji for user's level
-	h.DB.GetDB().Where("jlpt = ?", userLevel).Order("RANDOM()").Limit(limit / 3).Find(&recommendations.Kanji)
+	h.DB.Where("jlpt = ?", userLevel).Order("RANDOM()").Limit(limit / 2).Find(&recommendations.Kanji)
 
 	// Get recommended words for user's level
-	h.DB.GetDB().Where("level = ?", userLevel).Order("RANDOM()").Limit(limit / 3).Find(&recommendations.Words)
-
-	// Get recommended grammar for user's level
-	h.DB.GetDB().Where("level = ?", "N"+strconv.Itoa(userLevel)).Order("RANDOM()").Limit(limit / 3).Find(&recommendations.Grammar)
+	h.DB.Where("level = ?", userLevel).Order("RANDOM()").Limit(limit / 2).Find(&recommendations.Words)
 
 	return c.JSON(recommendations)
 }
@@ -316,38 +274,31 @@ func (h *ContentSearchHandler) GetContentRecommendations(c *fiber.Ctx) error {
 // GetContentStats returns statistics about all content
 func (h *ContentSearchHandler) GetContentStats(c *fiber.Ctx) error {
 	var stats struct {
-		Kanji   map[string]int64 `json:"kanji"`
-		Words   map[string]int64 `json:"words"`
-		Grammar map[string]int64 `json:"grammar"`
+		Kanji map[string]int64 `json:"kanji"`
+		Words map[string]int64 `json:"words"`
 	}
 
 	// Kanji stats
 	stats.Kanji = make(map[string]int64)
 	var totalKanji int64
-	h.DB.GetDB().Model(&Kanji{}).Count(&totalKanji)
+	h.DB.Model(&kanji.KanjiModel{}).Count(&totalKanji)
 	stats.Kanji["total"] = totalKanji
 
 	var kanjiWithSVG int64
-	h.DB.GetDB().Model(&Kanji{}).Where("strokes_svg IS NOT NULL AND strokes_svg != ''").Count(&kanjiWithSVG)
+	h.DB.Model(&kanji.KanjiModel{}).Where("strokes_svg IS NOT NULL AND strokes_svg != ''").Count(&kanjiWithSVG)
 	stats.Kanji["with_svg"] = kanjiWithSVG
 
 	// Words stats
 	stats.Words = make(map[string]int64)
 	var totalWords int64
-	h.DB.GetDB().Model(&models.Word{}).Count(&totalWords)
+	h.DB.Model(&models.Word{}).Count(&totalWords)
 	stats.Words["total"] = totalWords
-
-	// Grammar stats
-	stats.Grammar = make(map[string]int64)
-	var totalGrammar int64
-	h.DB.GetDB().Model(&GrammarPoint{}).Count(&totalGrammar)
-	stats.Grammar["total"] = totalGrammar
 
 	return c.JSON(stats)
 }
 
 // Helper function to check if a slice contains a string
-func contains(slice []string, item string) bool {
+func containsString(slice []string, item string) bool {
 	for _, s := range slice {
 		if s == item {
 			return true

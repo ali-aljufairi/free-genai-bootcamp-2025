@@ -1,6 +1,8 @@
 # Dashboard API Endpoints
 
-## GET /api/v1/dashboard/last_study_session
+**Base URL**: `/api/langportal/dashboard`
+
+## GET /api/langportal/dashboard/last_study_session
 Returns information about the most recent study session.
 
 ### Response
@@ -14,7 +16,7 @@ Returns information about the most recent study session.
 }
 ```
 
-## GET /api/v1/dashboard/study_progress
+## GET /api/langportal/dashboard/study_progress
 Returns study progress statistics.
 Please note that the frontend will determine progress bar based on total words studied and total available words.
 
@@ -26,7 +28,7 @@ Please note that the frontend will determine progress bar based on total words s
 }
 ```
 
-## GET /api/v1/dashboard/quick-stats
+## GET /api/langportal/dashboard/quick-stats
 Returns quick overview statistics.
 
 ### Response

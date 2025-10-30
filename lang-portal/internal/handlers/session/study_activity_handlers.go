@@ -1,8 +1,7 @@
-package handlers
+package session
 
 import (
 	"errors"
-	"lang-portal/internal/database"
 	"lang-portal/internal/database/models"
 	"strconv"
 	"time"
@@ -12,10 +11,10 @@ import (
 )
 
 type StudyActivityHandler struct {
-	db *database.DB
+	db *gorm.DB
 }
 
-func NewStudyActivityHandler(db *database.DB) *StudyActivityHandler {
+func NewStudyActivityHandler(db *gorm.DB) *StudyActivityHandler {
 	return &StudyActivityHandler{db: db}
 }
 
@@ -28,7 +27,7 @@ func (h *StudyActivityHandler) GetStudyActivity(c *fiber.Ctx) error {
 	}
 
 	var activity models.StudyActivity
-	result := h.db.GetDB().First(&activity, activityID)
+	result := h.db.First(&activity, activityID)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Study activity not found"})
@@ -62,7 +61,7 @@ func (h *StudyActivityHandler) GetStudyActivitySessions(c *fiber.Ctx) error {
 	var total int64
 
 	// Count the total sessions for this activity
-	countResult := h.db.GetDB().
+	countResult := h.db.
 		Model(&models.StudySession{}).
 		Where("study_activity_id = ?", activityID).
 		Count(&total)
@@ -71,7 +70,7 @@ func (h *StudyActivityHandler) GetStudyActivitySessions(c *fiber.Ctx) error {
 	}
 
 	// Retrieve the paginated sessions
-	result := h.db.GetDB().
+	result := h.db.
 		Model(&models.StudySession{}).
 		Where("study_activity_id = ?", activityID).
 		Offset(offset).
@@ -118,7 +117,7 @@ func (h *StudyActivityHandler) CreateStudyActivity(c *fiber.Ctx) error {
 		CreatedAt:    time.Now(),
 	}
 
-	result := h.db.GetDB().Create(&activity)
+	result := h.db.Create(&activity)
 	if result.Error != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to create study activity"})
 	}
@@ -143,7 +142,7 @@ func (h *StudyActivityHandler) GetStudyActivities(c *fiber.Ctx) error {
 	var total int64
 
 	// Count total activities
-	countResult := h.db.GetDB().Model(&models.StudyActivity{}).Count(&total)
+	countResult := h.db.Model(&models.StudyActivity{}).Count(&total)
 	if countResult.Error != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to count study activities",
@@ -151,7 +150,7 @@ func (h *StudyActivityHandler) GetStudyActivities(c *fiber.Ctx) error {
 	}
 
 	// Get activities with pagination
-	result := h.db.GetDB().
+	result := h.db.
 		Order("created_at DESC").
 		Offset(offset).
 		Limit(itemsPerPage).

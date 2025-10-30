@@ -108,24 +108,33 @@ lang-portal/
 ├── .air.toml              # Air hot reload configuration
 ├── cmd/api/               # API server entry point
 ├── internal/              # Private application code
-│   ├── database/          # Database layer (PostgreSQL + SQLite migration)
+│   ├── database/          # Database layer (PostgreSQL)
 │   ├── handlers/          # HTTP request handlers
 │   ├── server/            # Server implementation
 │   └── services/          # Business logic services
 ├── frontend/              # Next.js 15 frontend application
-│   ├── src/               # React/TypeScript source code
-│   └── package.json       # Frontend dependencies (bun)
+│   ├── app/               # Next.js App Router
+│   ├── components/        # React components
+│   ├── lib/               # Utility libraries (api-proxy, etc.)
+│   └── services/          # API service clients
+├── docs/                  # Documentation
+│   ├── auth/             # Authentication documentation
+│   ├── api/              # API documentation
+│   ├── architecture/     # Architecture docs
+│   ├── development/      # Development guides
+│   └── guides/           # Feature guides
 ├── docker-compose.yml     # Local development services
 ├── Makefile               # Development orchestration
 └── go.mod                 # Go dependencies
 ```
 
 ### Technology Stack
-- **Backend**: Go with Gin framework, PostgreSQL database
+- **Backend**: Go with Fiber framework, PostgreSQL database
 - **Frontend**: Next.js 15, React 19, TypeScript, Tailwind CSS, Radix UI
-- **Authentication**: Clerk JWT with middleware protection
+- **Authentication**: Clerk JWT with Bearer token flow (prevents 431 errors)
+- **API Proxy**: Next.js API routes that strip cookies and forward compact tokens
 - **Development**: Air (Go hot reload), bun (frontend), tmux (multi-service dev)
-- **Database**: PostgreSQL with comprehensive JLPT schema
+- **Database**: PostgreSQL with comprehensive JLPT schema (kanji, words, groups)
 - **AI Services**: Independent Python microservices (LangChain, Groq, etc.)
 
 ## Getting Started (Detailed)

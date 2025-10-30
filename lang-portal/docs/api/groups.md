@@ -1,6 +1,8 @@
 # Groups API Endpoints
 
-## GET /api/v1/groups
+**Base URL**: `/api/langportal/groups`
+
+## GET /api/langportal/groups
 Returns a paginated list of word groups.
 
 ### Response
@@ -22,7 +24,7 @@ Returns a paginated list of word groups.
 }
 ```
 
-## GET /api/v1/groups/:id
+## GET /api/langportal/groups/:id
 Returns detailed information about a specific group.
 
 ### Response
@@ -36,7 +38,7 @@ Returns detailed information about a specific group.
 }
 ```
 
-## GET /api/v1/groups/:id/words
+## GET /api/langportal/groups/:id/words
 Returns a paginated list of words in a specific group.
 
 ### Response
@@ -60,7 +62,7 @@ Returns a paginated list of words in a specific group.
 }
 ```
 
-## GET /api/v1/groups/:id/study_sessions
+## GET /api/langportal/groups/:id/study_sessions
 Returns a paginated list of study sessions for a specific group.
 
 ### Response

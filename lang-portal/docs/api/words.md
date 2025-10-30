@@ -1,6 +1,8 @@
 # Words API Endpoints
 
-## GET /api/v1/words
+**Base URL**: `/api/langportal/words`
+
+## GET /api/langportal/words
 Returns a paginated list of words.
 
 ### Response
@@ -24,7 +26,7 @@ Returns a paginated list of words.
 }
 ```
 
-## GET /api/v1/words/:id
+## GET /api/langportal/words/:id
 Returns detailed information about a specific word.
 
 ### Response

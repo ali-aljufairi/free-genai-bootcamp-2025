@@ -1,19 +1,19 @@
-package handlers
+package user
 
 import (
-	"lang-portal/internal/database"
 	"lang-portal/internal/database/models"
 	"strconv"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"gorm.io/gorm"
 )
 
 type UserHandler struct {
-	DB *database.DB
+	DB *gorm.DB
 }
 
-func NewUserHandler(db *database.DB) *UserHandler {
+func NewUserHandler(db *gorm.DB) *UserHandler {
 	return &UserHandler{DB: db}
 }
 
@@ -36,12 +36,12 @@ func (h *UserHandler) GetMe(c *fiber.Ctx) error {
 	var profile models.UserProfile
 
 	// Get user information - use PostgreSQL for user data
-	if err := h.DB.GetPostgresDB().First(&profile.User, userID).Error; err != nil {
+	if err := h.DB.First(&profile.User, userID).Error; err != nil {
 		return c.Status(404).JSON(fiber.Map{"error": "User not found"})
 	}
 
 	// Get user settings - use PostgreSQL for user settings
-	if err := h.DB.GetPostgresDB().Where("user_id = ?", userID).First(&profile.Settings).Error; err != nil {
+	if err := h.DB.Where("user_id = ?", userID).First(&profile.Settings).Error; err != nil {
 		// Create default settings if not found
 		profile.Settings = models.UserSettings{
 			UserID:            userID,
@@ -52,11 +52,11 @@ func (h *UserHandler) GetMe(c *fiber.Ctx) error {
 			CurrentJLPTLevel:  5,
 		}
 		// Save the default settings
-		h.DB.GetPostgresDB().Create(&profile.Settings)
+		h.DB.Create(&profile.Settings)
 	}
 
 	// Get user roles - use PostgreSQL for user data
-	if err := h.DB.GetPostgresDB().Table("user_roles").
+	if err := h.DB.Table("user_roles").
 		Select("user_roles.user_id, user_roles.role_id, roles.role_name").
 		Joins("JOIN roles ON user_roles.role_id = roles.id").
 		Where("user_roles.user_id = ?", userID).
@@ -65,7 +65,7 @@ func (h *UserHandler) GetMe(c *fiber.Ctx) error {
 	}
 
 	// Get active subscription - use PostgreSQL for user data
-	if err := h.DB.GetPostgresDB().Where("user_id = ? AND status = 'active'", userID).
+	if err := h.DB.Where("user_id = ? AND status = 'active'", userID).
 		First(&profile.Subscription).Error; err != nil {
 		profile.Subscription = nil
 	}
@@ -87,12 +87,12 @@ func (h *UserHandler) GetUserProfile(c *fiber.Ctx) error {
 	var profile models.UserProfile
 
 	// Get user information
-	if err := h.DB.GetPostgresDB().First(&profile.User, userIDInt).Error; err != nil {
+	if err := h.DB.First(&profile.User, userIDInt).Error; err != nil {
 		return c.Status(404).JSON(fiber.Map{"error": "User not found"})
 	}
 
 	// Get user settings
-	if err := h.DB.GetPostgresDB().Where("user_id = ?", userIDInt).First(&profile.Settings).Error; err != nil {
+	if err := h.DB.Where("user_id = ?", userIDInt).First(&profile.Settings).Error; err != nil {
 		// Create default settings if not found
 		profile.Settings = models.UserSettings{
 			UserID:            userIDInt,
@@ -105,7 +105,7 @@ func (h *UserHandler) GetUserProfile(c *fiber.Ctx) error {
 	}
 
 	// Get user roles with role names
-	if err := h.DB.GetPostgresDB().Raw(`
+	if err := h.DB.Raw(`
 		SELECT ur.user_id, ur.role_id, r.role_name
 		FROM user_roles ur
 		JOIN roles r ON ur.role_id = r.id
@@ -115,7 +115,7 @@ func (h *UserHandler) GetUserProfile(c *fiber.Ctx) error {
 	}
 
 	// Get active subscription
-	if err := h.DB.GetPostgresDB().Where("user_id = ? AND status = 'active'", userIDInt).First(&profile.Subscription).Error; err != nil {
+	if err := h.DB.Where("user_id = ? AND status = 'active'", userIDInt).First(&profile.Subscription).Error; err != nil {
 		profile.Subscription = nil
 	}
 
@@ -135,7 +135,7 @@ func (h *UserHandler) CreateUser(c *fiber.Ctx) error {
 		DisplayName: req.DisplayName,
 	}
 
-	if err := h.DB.GetPostgresDB().Create(&user).Error; err != nil {
+	if err := h.DB.Create(&user).Error; err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to create user"})
 	}
 
@@ -149,13 +149,13 @@ func (h *UserHandler) CreateUser(c *fiber.Ctx) error {
 		CurrentJLPTLevel:  5,
 	}
 
-	if err := h.DB.GetPostgresDB().Create(&settings).Error; err != nil {
+	if err := h.DB.Create(&settings).Error; err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to create user settings"})
 	}
 
 	// Assign default student role
 	var role models.Role
-	if err := h.DB.GetPostgresDB().Where("role_name = 'student'").First(&role).Error; err != nil {
+	if err := h.DB.Where("role_name = 'student'").First(&role).Error; err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "Default role not found"})
 	}
 
@@ -164,7 +164,7 @@ func (h *UserHandler) CreateUser(c *fiber.Ctx) error {
 		RoleID: role.ID,
 	}
 
-	if err := h.DB.GetPostgresDB().Create(&userRole).Error; err != nil {
+	if err := h.DB.Create(&userRole).Error; err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to assign default role"})
 	}
 
@@ -199,7 +199,7 @@ func (h *UserHandler) UpdateUser(c *fiber.Ctx) error {
 		updates["stripe_customer_id"] = *req.StripeCustomerID
 	}
 
-	if err := h.DB.GetPostgresDB().Model(&models.User{}).Where("id = ?", userIDInt).Updates(updates).Error; err != nil {
+	if err := h.DB.Model(&models.User{}).Where("id = ?", userIDInt).Updates(updates).Error; err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to update user"})
 	}
 
@@ -218,7 +218,7 @@ func (h *UserHandler) GetUserSettings(c *fiber.Ctx) error {
 	}
 
 	var settings models.UserSettings
-	if err := h.DB.GetPostgresDB().Where("user_id = ?", userIDInt).First(&settings).Error; err != nil {
+	if err := h.DB.Where("user_id = ?", userIDInt).First(&settings).Error; err != nil {
 		return c.Status(404).JSON(fiber.Map{"error": "User settings not found"})
 	}
 
@@ -270,7 +270,7 @@ func (h *UserHandler) UpdateUserSettings(c *fiber.Ctx) error {
 
 	// Update or create settings
 	var settings models.UserSettings
-	if err := h.DB.GetPostgresDB().Where("user_id = ?", userIDInt).First(&settings).Error; err != nil {
+	if err := h.DB.Where("user_id = ?", userIDInt).First(&settings).Error; err != nil {
 		// Create new settings
 		settings = models.UserSettings{
 			UserID:            userIDInt,
@@ -283,7 +283,7 @@ func (h *UserHandler) UpdateUserSettings(c *fiber.Ctx) error {
 	}
 
 	// Apply updates
-	if err := h.DB.GetPostgresDB().Model(&settings).Updates(updates).Error; err != nil {
+	if err := h.DB.Model(&settings).Updates(updates).Error; err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to update user settings"})
 	}
 
@@ -302,7 +302,7 @@ func (h *UserHandler) GetUserRoles(c *fiber.Ctx) error {
 	}
 
 	var roles []models.UserRole
-	if err := h.DB.GetPostgresDB().Raw(`
+	if err := h.DB.Raw(`
 		SELECT ur.user_id, ur.role_id, r.role_name
 		FROM user_roles ur
 		JOIN roles r ON ur.role_id = r.id
@@ -332,7 +332,7 @@ func (h *UserHandler) AssignRole(c *fiber.Ctx) error {
 
 	// Get role ID
 	var role models.Role
-	if err := h.DB.GetPostgresDB().Where("role_name = ?", req.RoleName).First(&role).Error; err != nil {
+	if err := h.DB.Where("role_name = ?", req.RoleName).First(&role).Error; err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "Invalid role name"})
 	}
 
@@ -342,7 +342,7 @@ func (h *UserHandler) AssignRole(c *fiber.Ctx) error {
 		RoleID: role.ID,
 	}
 
-	if err := h.DB.GetPostgresDB().Create(&userRole).Error; err != nil {
+	if err := h.DB.Create(&userRole).Error; err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to assign role"})
 	}
 
@@ -361,7 +361,7 @@ func (h *UserHandler) GetUserSubscription(c *fiber.Ctx) error {
 	}
 
 	var subscription models.Subscription
-	if err := h.DB.GetPostgresDB().Where("user_id = ? AND status = 'active'", userIDInt).First(&subscription).Error; err != nil {
+	if err := h.DB.Where("user_id = ? AND status = 'active'", userIDInt).First(&subscription).Error; err != nil {
 		return c.Status(404).JSON(fiber.Map{"error": "No active subscription found"})
 	}
 
@@ -391,7 +391,7 @@ func (h *UserHandler) CreateSubscription(c *fiber.Ctx) error {
 		CurrentPeriodEnd:     req.CurrentPeriodEnd,
 	}
 
-	if err := h.DB.GetPostgresDB().Create(&subscription).Error; err != nil {
+	if err := h.DB.Create(&subscription).Error; err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to create subscription"})
 	}
 
@@ -423,7 +423,7 @@ func (h *UserHandler) UpdateSubscription(c *fiber.Ctx) error {
 		updates["current_period_end"] = *req.CurrentPeriodEnd
 	}
 
-	if err := h.DB.GetPostgresDB().Model(&models.Subscription{}).Where("user_id = ?", userIDInt).Updates(updates).Error; err != nil {
+	if err := h.DB.Model(&models.Subscription{}).Where("user_id = ?", userIDInt).Updates(updates).Error; err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to update subscription"})
 	}
 
@@ -449,7 +449,7 @@ func (h *UserHandler) AssessUserJLPTLevel(c *fiber.Ctx) error {
 		Message       string `json:"message"`
 	}
 
-	if err := h.DB.GetPostgresDB().Raw("SELECT * FROM assess_user_jlpt_level(?)", userIDInt).Scan(&result).Error; err != nil {
+	if err := h.DB.Raw("SELECT * FROM assess_user_jlpt_level(?)", userIDInt).Scan(&result).Error; err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to assess JLPT level"})
 	}
 
@@ -475,7 +475,7 @@ func (h *UserHandler) GetUserJLPTLevel(c *fiber.Ctx) error {
 		Method       string    `json:"method"`
 	}
 
-	if err := h.DB.GetPostgresDB().Raw("SELECT * FROM get_user_jlpt_level(?)", userIDInt).Scan(&result).Error; err != nil {
+	if err := h.DB.Raw("SELECT * FROM get_user_jlpt_level(?)", userIDInt).Scan(&result).Error; err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to get JLPT level"})
 	}
 
@@ -496,7 +496,7 @@ func (h *UserHandler) ResetUserSRSProgress(c *fiber.Ctx) error {
 
 	// Update user settings to reset SRS
 	now := time.Now()
-	if err := h.DB.GetPostgresDB().Model(&models.UserSettings{}).
+	if err := h.DB.Model(&models.UserSettings{}).
 		Where("user_id = ?", userIDInt).
 		Update("srs_reset_at", now).Error; err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to reset SRS progress"})
@@ -521,7 +521,7 @@ func (h *UserHandler) CheckSubscriptionStatus(c *fiber.Ctx) error {
 	}
 
 	var subscription models.Subscription
-	if err := h.DB.GetPostgresDB().Where("user_id = ? AND status = 'active'", userIDInt).First(&subscription).Error; err != nil {
+	if err := h.DB.Where("user_id = ? AND status = 'active'", userIDInt).First(&subscription).Error; err != nil {
 		return c.JSON(fiber.Map{
 			"has_active_subscription": false,
 			"subscription":            nil,
@@ -553,11 +553,49 @@ func (h *UserHandler) CancelSubscription(c *fiber.Ctx) error {
 	}
 
 	// Update subscription status to canceled
-	if err := h.DB.GetPostgresDB().Model(&models.Subscription{}).
+	if err := h.DB.Model(&models.Subscription{}).
 		Where("user_id = ? AND status = 'active'", userIDInt).
 		Update("status", "canceled").Error; err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to cancel subscription"})
 	}
 
 	return c.JSON(fiber.Map{"message": "Subscription canceled successfully"})
+}
+
+// SetFavoriteGroup sets the user's favorite group
+func (h *UserHandler) SetFavoriteGroup(c *fiber.Ctx) error {
+	userID, ok := c.Locals("user_id").(int64)
+	if !ok || userID == 0 {
+		return c.Status(401).JSON(fiber.Map{"error": "User not authenticated"})
+	}
+
+	var req struct {
+		GroupID *int64 `json:"group_id"`
+	}
+
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid request body"})
+	}
+
+	// Validate group exists and user has access if groupID is provided
+	if req.GroupID != nil {
+		var group models.Group
+		if err := h.DB.First(&group, *req.GroupID).Error; err != nil {
+			return c.Status(404).JSON(fiber.Map{"error": "Group not found"})
+		}
+
+		// Check if user owns the group or if it's a system group (user_id is nil)
+		if group.UserID != nil && *group.UserID != userID {
+			return c.Status(403).JSON(fiber.Map{"error": "Not authorized to set this group as favorite"})
+		}
+	}
+
+	// Update user's favorite group
+	if err := h.DB.Model(&models.User{}).
+		Where("id = ?", userID).
+		Update("favorite_group_id", req.GroupID).Error; err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to update favorite group"})
+	}
+
+	return c.JSON(fiber.Map{"success": true})
 }

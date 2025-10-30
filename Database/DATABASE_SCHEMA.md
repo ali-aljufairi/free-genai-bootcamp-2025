@@ -338,12 +338,19 @@ The Sorami language learning platform uses PostgreSQL 16+ with a comprehensive s
 **Current Data**: 14,452 unit-item relationships imported
 
 ### `groups`
-**Purpose**: Global content grouping system
+**Purpose**: Global content grouping system with user ownership support
 ```sql
 - id: SERIAL PRIMARY KEY
 - name: TEXT UNIQUE NOT NULL
 - description: TEXT
+- user_id: INTEGER REFERENCES users(id) ON DELETE CASCADE (NULL for system groups)
+- created_at: TIMESTAMP DEFAULT NOW()
 ```
+
+**Notes**:
+- System-generated groups have `user_id = NULL`
+- User-created groups have `user_id` set to the owner's ID
+- Groups are system-generated if `user_id IS NULL`
 
 ### `word_groups`
 **Purpose**: Many-to-many relationship between words and groups

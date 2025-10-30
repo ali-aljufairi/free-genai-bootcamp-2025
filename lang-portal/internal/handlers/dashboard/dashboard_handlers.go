@@ -1,15 +1,15 @@
-package handlers
+package dashboard
 
 import (
-	"lang-portal/internal/database"
 	"time"
 
 	"github.com/getsentry/sentry-go"
 	"github.com/gofiber/fiber/v2"
+	"gorm.io/gorm"
 )
 
 type DashboardHandler struct {
-	DB *database.DB
+	DB *gorm.DB
 }
 
 type LastStudySession struct {
@@ -32,14 +32,14 @@ type QuickStats struct {
 	StudyStreakDays    int     `json:"study_streak_days"`
 }
 
-func NewDashboardHandler(db *database.DB) *DashboardHandler {
+func NewDashboardHandler(db *gorm.DB) *DashboardHandler {
 	return &DashboardHandler{DB: db}
 }
 
 // GetLastStudySession returns information about the most recent study session
 func (h *DashboardHandler) GetLastStudySession(c *fiber.Ctx) error {
 	var session LastStudySession
-	result := h.DB.GetDB().Table("study_sessions").Select(
+	result := h.DB.Table("study_sessions").Select(
 		"study_sessions.id, study_sessions.group_id, study_sessions.created_at, study_sessions.study_activity_id, groups.name as group_name",
 	).Joins(
 		"JOIN groups ON study_sessions.group_id = groups.id",
@@ -57,10 +57,10 @@ func (h *DashboardHandler) GetStudyProgress(c *fiber.Ctx) error {
 	var progress StudyProgress
 
 	// Get total words studied (unique words that have been reviewed)
-	h.DB.GetDB().Table("word_review_items").Select("COUNT(DISTINCT word_id)").Scan(&progress.TotalWordsStudied)
+	h.DB.Table("word_review_items").Select("COUNT(DISTINCT word_id)").Scan(&progress.TotalWordsStudied)
 
 	// Get total available words
-	h.DB.GetDB().Table("words").Count(&progress.TotalAvailableWords)
+	h.DB.Table("words").Count(&progress.TotalAvailableWords)
 
 	return c.JSON(progress)
 }
@@ -71,17 +71,17 @@ func (h *DashboardHandler) GetQuickStats(c *fiber.Ctx) error {
 
 	// Calculate success rate
 	var totalReviews, correctReviews int64
-	h.DB.GetDB().Table("word_review_items").Count(&totalReviews)
-	h.DB.GetDB().Table("word_review_items").Where("correct = ?", true).Count(&correctReviews)
+	h.DB.Table("word_review_items").Count(&totalReviews)
+	h.DB.Table("word_review_items").Where("correct = ?", true).Count(&correctReviews)
 	if totalReviews > 0 {
 		stats.SuccessRate = float64(correctReviews) / float64(totalReviews) * 100
 	}
 
 	// Get total study sessions
-	h.DB.GetDB().Table("study_sessions").Count(&stats.TotalStudySessions)
+	h.DB.Table("study_sessions").Count(&stats.TotalStudySessions)
 
 	// Get total active groups
-	h.DB.GetDB().Table("study_sessions").Select("COUNT(DISTINCT group_id)").Scan(&stats.TotalActiveGroups)
+	h.DB.Table("study_sessions").Select("COUNT(DISTINCT group_id)").Scan(&stats.TotalActiveGroups)
 
 	// Calculate study streak - Check for any activity type
 	type StudyDate struct {
@@ -90,7 +90,7 @@ func (h *DashboardHandler) GetQuickStats(c *fiber.Ctx) error {
 	var dates []StudyDate
 
 	// Use Raw SQL to combine dates from both study_sessions and study_activities
-	h.DB.GetDB().Raw(`
+	h.DB.Raw(`
 		SELECT activity_date FROM (
 			SELECT DATE(created_at) as activity_date FROM study_sessions
 			UNION

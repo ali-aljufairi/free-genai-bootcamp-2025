@@ -1,7 +1,7 @@
 "use client";
 
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-// import { wordApi } from "@/services/api";
+import { api } from "@/services/api";
 import { Word, WordsResponse } from "@/types/api";
 
 const ITEMS_PER_PAGE = 20;
@@ -9,7 +9,13 @@ const ITEMS_PER_PAGE = 20;
 /**
  * Hook to fetch all words with pagination and caching
  */
-export function useWords() {
+export function useWords(params?: {
+  q?: string;
+  jlpt?: number;
+  part_of_speech?: string;
+  level?: number;
+  has_kanji?: boolean;
+}) {
   const {
     data,
     fetchNextPage,
@@ -18,8 +24,14 @@ export function useWords() {
     isLoading,
     error
   } = useInfiniteQuery({
-    queryKey: ['words'],
-    // queryFn: ({ pageParam = 1 }) => wordApi.getWords(pageParam, ITEMS_PER_PAGE),
+    queryKey: ['words', params],
+    queryFn: ({ pageParam = 1 }) => {
+      if (params && (params.q || params.jlpt != null || params.part_of_speech || params.level != null || params.has_kanji != null)) {
+        const offset = ((pageParam as number) - 1) * ITEMS_PER_PAGE
+        return api.word.search({ ...params, limit: ITEMS_PER_PAGE, offset }) as any
+      }
+      return api.word.getWords(pageParam as number, ITEMS_PER_PAGE) as any
+    },
     getNextPageParam: (lastPage) => 
       lastPage.page < lastPage.totalPages ? lastPage.page + 1 : undefined,
     initialPageParam: 1
@@ -49,7 +61,7 @@ export function useWords() {
 export function useWord(id: string) {
   return useQuery({
     queryKey: ['word', id],
-    // queryFn: () => wordApi.getWord(id),
+    // queryFn: () => api.word.getWord(id),
     enabled: !!id
   });
 }
@@ -61,7 +73,7 @@ export function useCreateWord() {
   const queryClient = useQueryClient();
   
   const { mutate, isPending: isLoading, error } = useMutation({
-    // mutationFn: (data: Partial<Word>) => wordApi.createWord(data),
+    // mutationFn: (data: Partial<Word>) => api.word.createWord(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['words'] });
     }

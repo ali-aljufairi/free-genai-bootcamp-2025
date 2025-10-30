@@ -5,11 +5,13 @@ This guide covers the complete setup for Clerk authentication in the Sorami lang
 ## Architecture Overview
 
 ```
-[Browser] → [Next.js API Routes] → [Go Backend]
+[Browser] → [Next.js API Proxy] → [Go Backend]
      ↓              ↓                    ↓
-Clerk Session   Clerk JWT         JWT Verification
-   Cookies      getToken()        + User Mapping
+Bearer Token    Bearer Token      JWT Verification
+(no cookies)    (stripped)        + User Mapping
 ```
+
+**Note**: Uses Bearer tokens only (no cookies) to prevent HTTP 431 errors. See [Authentication Flow](./authentication-flow.md) for details.
 
 ## Environment Variables
 
@@ -40,8 +42,11 @@ CLERK_ISSUER=https://clerk.your-domain.com
 CLERK_AUDIENCE=your-audience-claim
 
 # Database Configuration
-DATABASE_URL=postgresql://user:password@localhost:5432/sorami
-SQLITE_DB_PATH=./words.db
+DB_HOST=localhost
+DB_PORT=5432
+DB_USER=your_user
+DB_PASSWORD=your_password
+DB_NAME=sorami
 
 # Environment
 APP_ENV=development
@@ -168,8 +173,8 @@ Test with curl:
 # Get a token from Clerk (replace with actual token)
 TOKEN="your-clerk-jwt-token"
 
-# Test flashcards endpoint
-curl -X POST http://localhost:8080/api/v2/flashcards/start \
+# Test flashcards endpoint (via Next.js proxy)
+curl -X POST http://localhost:3000/api/langportal/flashcards/start \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"flashcard_type": "word", "card_count": 5}'
@@ -178,13 +183,13 @@ curl -X POST http://localhost:8080/api/v2/flashcards/start \
 ### 3. Test Error Cases
 
 ```bash
-# Test without token
-curl -X POST http://localhost:8080/api/v2/flashcards/start \
+# Test without token (should return 401)
+curl -X POST http://localhost:3000/api/langportal/flashcards/start \
   -H "Content-Type: application/json" \
   -d '{"flashcard_type": "word", "card_count": 5}'
 
-# Test with invalid token
-curl -X POST http://localhost:8080/api/v2/flashcards/start \
+# Test with invalid token (should return 401)
+curl -X POST http://localhost:3000/api/langportal/flashcards/start \
   -H "Authorization: Bearer invalid-token" \
   -H "Content-Type: application/json" \
   -d '{"flashcard_type": "word", "card_count": 5}'

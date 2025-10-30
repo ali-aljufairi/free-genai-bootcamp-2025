@@ -1,28 +1,23 @@
-package handlers
+package session
 
 import (
 	"fmt"
-	"lang-portal/internal/database"
 	"lang-portal/internal/database/models"
 	"math/rand"
 	"strconv"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"gorm.io/gorm"
 )
 
 // StudySessionHandler contains all study session related handlers
 type StudySessionHandler struct {
-	db *database.DB
-}
-
-// DB returns the database instance
-func (h *StudySessionHandler) DB() *database.DB {
-	return h.db
+	db *gorm.DB
 }
 
 // NewStudySessionHandler creates a new instance of StudySessionHandler
-func NewStudySessionHandler(db *database.DB) *StudySessionHandler {
+func NewStudySessionHandler(db *gorm.DB) *StudySessionHandler {
 	return &StudySessionHandler{db: db}
 }
 
@@ -51,7 +46,7 @@ func (h *StudySessionHandler) CreateStudySession(c *fiber.Ctx) error {
 	var activity models.StudyActivity
 	activityType := models.ActivityType(input.ActivityType)
 
-	result := h.db.GetDB().Where(models.StudyActivity{ActivityType: activityType}).First(&activity)
+	result := h.db.Where(models.StudyActivity{ActivityType: activityType}).First(&activity)
 	if result.Error != nil {
 		// Create new activity if it doesn't exist
 		description := input.Description
@@ -70,7 +65,7 @@ func (h *StudySessionHandler) CreateStudySession(c *fiber.Ctx) error {
 			CreatedAt:    time.Now(),
 		}
 
-		if err := h.db.GetDB().Create(&activity).Error; err != nil {
+		if err := h.db.Create(&activity).Error; err != nil {
 			return c.Status(500).JSON(fiber.Map{"error": "Failed to create study activity"})
 		}
 	}
@@ -82,7 +77,7 @@ func (h *StudySessionHandler) CreateStudySession(c *fiber.Ctx) error {
 		CreatedAt:       time.Now(),
 	}
 
-	if err := h.db.GetDB().Create(&session).Error; err != nil {
+	if err := h.db.Create(&session).Error; err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to create study session"})
 	}
 
@@ -107,7 +102,7 @@ func (h *StudySessionHandler) GetStudySessionWords(c *fiber.Ctx) error {
 		})
 	}
 
-	words, err := h.db.GetStudySessionWords(sessionID)
+	words, err := h.getStudySessionWords(sessionID)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to get study session words",
@@ -121,7 +116,7 @@ func (h *StudySessionHandler) GetStudySessionWords(c *fiber.Ctx) error {
 
 // GetStudySessions handles retrieving all study sessions
 func (h *StudySessionHandler) GetStudySessions(c *fiber.Ctx) error {
-	sessions, err := h.db.GetStudySessions()
+	sessions, err := h.getStudySessions()
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to get study sessions",
@@ -142,7 +137,7 @@ func (h *StudySessionHandler) GetStudySession(c *fiber.Ctx) error {
 		})
 	}
 
-	session, err := h.db.GetStudySession(sessionID)
+	session, err := h.getStudySession(sessionID)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to get study session",
@@ -179,7 +174,7 @@ func (h *StudySessionHandler) ReviewWord(c *fiber.Ctx) error {
 		})
 	}
 
-	err = h.db.CreateWordReview(sessionID, wordID, req.Correct)
+	err = h.createWordReview(sessionID, wordID, req.Correct)
 	if err != nil {
 		fmt.Printf("Error creating word review: %v\n", err) // Add logging
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -208,7 +203,7 @@ func (h *StudySessionHandler) CreateFlashcardQuiz(c *fiber.Ctx) error {
 
 	// Get words for target flashcards
 	var targetWords []models.Word
-	query := h.db.GetDB().Order("RANDOM()")
+	query := h.db.Order("RANDOM()")
 	if limit > 0 {
 		query = query.Limit(limit)
 	}
@@ -227,7 +222,7 @@ func (h *StudySessionHandler) CreateFlashcardQuiz(c *fiber.Ctx) error {
 
 	// Get a pool of words to use for wrong answers
 	var wordPool []models.Word
-	result = h.db.GetDB().Order("RANDOM()").Limit(limit * 10).Find(&wordPool)
+	result = h.db.Order("RANDOM()").Limit(limit * 10).Find(&wordPool)
 	if result.Error != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to retrieve word pool for options",
@@ -308,7 +303,7 @@ func (h *StudySessionHandler) CreateFlashcardQuiz(c *fiber.Ctx) error {
 
 // ResetHistory handles resetting study history
 func (h *StudySessionHandler) ResetHistory(c *fiber.Ctx) error {
-	err := h.db.ResetStudyHistory()
+	err := h.resetStudyHistory()
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to reset study history",
@@ -323,7 +318,7 @@ func (h *StudySessionHandler) ResetHistory(c *fiber.Ctx) error {
 
 // FullReset handles resetting the entire system
 func (h *StudySessionHandler) FullReset(c *fiber.Ctx) error {
-	err := h.db.FullReset()
+	err := h.fullReset()
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to perform full reset",
@@ -339,7 +334,7 @@ func (h *StudySessionHandler) FullReset(c *fiber.Ctx) error {
 // StudyProgress handles retrieving study progress statistics
 func (h *StudySessionHandler) StudyProgress(c *fiber.Ctx) error {
 	// Get total words studied from word_review_items
-	totalWordsStudied, err := h.db.GetTotalWordsStudied()
+	totalWordsStudied, err := h.getTotalWordsStudied()
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to get total words studied",
@@ -347,7 +342,7 @@ func (h *StudySessionHandler) StudyProgress(c *fiber.Ctx) error {
 	}
 
 	// Get total available words from words table
-	totalAvailableWords, err := h.db.GetTotalAvailableWords()
+	totalAvailableWords, err := h.getTotalAvailableWords()
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to get total available words",
@@ -358,4 +353,92 @@ func (h *StudySessionHandler) StudyProgress(c *fiber.Ctx) error {
 		"total_words_studied":   totalWordsStudied,
 		"total_available_words": totalAvailableWords,
 	})
+}
+
+// Helper methods
+func (h *StudySessionHandler) getStudySessionWords(sessionID int64) ([]models.Word, error) {
+	var words []models.Word
+	err := h.db.Joins("JOIN word_review_items ON words.id = word_review_items.word_id").
+		Where("word_review_items.study_session_id = ?", sessionID).
+		Find(&words).Error
+	return words, err
+}
+
+func (h *StudySessionHandler) getStudySessions() ([]models.StudySession, error) {
+	var sessions []models.StudySession
+	err := h.db.Find(&sessions).Error
+	return sessions, err
+}
+
+func (h *StudySessionHandler) getStudySession(sessionID int64) (*models.StudySession, error) {
+	var session models.StudySession
+	err := h.db.First(&session, sessionID).Error
+	return &session, err
+}
+
+func (h *StudySessionHandler) createWordReview(sessionID, wordID int64, correct bool) error {
+	// First verify the session exists
+	var session models.StudySession
+	if err := h.db.First(&session, sessionID).Error; err != nil {
+		return fmt.Errorf("study session not found: %v", err)
+	}
+
+	// Then verify the word exists and is in the same group as the session
+	var count int64
+	err := h.db.Raw(`
+		SELECT COUNT(*) 
+		FROM words w 
+		JOIN words_groups wg ON w.id = wg.word_id 
+		JOIN study_sessions s ON wg.group_id = s.group_id 
+		WHERE w.id = ? AND s.id = ?`, wordID, sessionID).Count(&count).Error
+
+	if err != nil {
+		return fmt.Errorf("error checking word and session relationship: %v", err)
+	}
+
+	if count == 0 {
+		return fmt.Errorf("word %d is not part of study session %d's group", wordID, sessionID)
+	}
+
+	// All validations passed, create the review
+	review := models.WordReviewItem{
+		WordID:         wordID,
+		StudySessionID: sessionID,
+		Correct:        correct,
+		CreatedAt:      time.Now(),
+	}
+
+	if err := h.db.Create(&review).Error; err != nil {
+		return fmt.Errorf("failed to create review: %v", err)
+	}
+
+	return nil
+}
+
+func (h *StudySessionHandler) resetStudyHistory() error {
+	return h.db.Where("1 = 1").Delete(&models.WordReviewItem{}).Error
+}
+
+func (h *StudySessionHandler) fullReset() error {
+	err := h.db.Where("1 = 1").Delete(&models.WordReviewItem{}).Error
+	if err != nil {
+		return err
+	}
+	err = h.db.Where("1 = 1").Delete(&models.StudySession{}).Error
+	if err != nil {
+		return err
+	}
+	return h.db.Where("1 = 1").Delete(&models.StudyActivity{}).Error
+}
+
+func (h *StudySessionHandler) getTotalWordsStudied() (int64, error) {
+	var count int64
+	err := h.db.Model(&models.WordReviewItem{}).Distinct("word_id").Count(&count).Error
+	return count, err
+}
+
+func (h *StudySessionHandler) getTotalAvailableWords() (int64, error) {
+	var count int64
+	err := h.db.Model(&models.Word{}).Count(&count).Error
+	return count, err
 }

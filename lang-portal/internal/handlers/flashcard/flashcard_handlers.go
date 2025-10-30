@@ -35,11 +35,11 @@ func (h *FlashcardHandler) StartFlashcardSession(c *fiber.Ctx) error {
 		})
 	}
 
-	// Get user ID from context or use fallback
+	// Get user ID from context - requires authentication
 	userID, err := h.getUserID(c)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to get user ID",
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "User not authenticated",
 		})
 	}
 

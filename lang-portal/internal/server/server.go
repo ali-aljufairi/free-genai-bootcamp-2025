@@ -2,7 +2,6 @@ package server
 
 import (
 	"fmt"
-	"lang-portal/internal/database"
 	"log"
 
 	"github.com/gofiber/fiber/v2"
@@ -11,25 +10,19 @@ import (
 
 type FiberServer struct {
 	App        *fiber.App
-	sqlDB      *database.DB
-	sqliteDB   *gorm.DB
 	postgresDB *gorm.DB
 }
 
-func NewFiberServer(sqliteDB *gorm.DB, postgresDB *gorm.DB) (*FiberServer, error) {
-	// Initialize SQLite database
-	sqlDB, err := database.New("./words.db")
-	if err != nil {
-		return nil, fmt.Errorf("failed to initialize SQLite database: %w", err)
+func NewFiberServer(postgresDB *gorm.DB) (*FiberServer, error) {
+	if postgresDB == nil {
+		return nil, fmt.Errorf("PostgreSQL database connection is required")
 	}
 
 	server := &FiberServer{
 		App: fiber.New(fiber.Config{
 			DisableStartupMessage: false,
 		}),
-		sqlDB:      sqlDB,
-		sqliteDB:   sqliteDB,
-		postgresDB: postgresDB, // PostgreSQL connection if available
+		postgresDB: postgresDB,
 	}
 
 	server.RegisterFiberRoutes()
@@ -46,18 +39,18 @@ func (s *FiberServer) Shutdown() error {
 }
 
 func (s *FiberServer) Health() map[string]interface{} {
-	health := map[string]interface{}{
-		"status": "healthy",
-		"sqlite": s.sqlDB.Health(),
+	sqlDB, err := s.postgresDB.DB()
+	postgresStatus := "connected"
+	if err != nil {
+		postgresStatus = "error"
+	} else if err := sqlDB.Ping(); err != nil {
+		postgresStatus = "disconnected"
 	}
 
-	if s.postgresDB != nil {
-		health["postgres"] = "connected"
-	} else {
-		health["postgres"] = "not connected"
+	return map[string]interface{}{
+		"status":   "healthy",
+		"postgres": postgresStatus,
 	}
-
-	return health
 }
 
 func (s *FiberServer) testSentryHandler(c *fiber.Ctx) error {

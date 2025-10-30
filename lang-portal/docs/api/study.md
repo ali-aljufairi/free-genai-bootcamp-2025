@@ -1,8 +1,10 @@
 # Study API Endpoints
 
+**Base URL**: `/api/langportal/study_sessions` and `/api/langportal/study_activities`
+
 ## Study Activities
 
-### GET /api/v1/study_activities/:id
+### GET /api/langportal/study_activities/:id
 Returns information about a specific study activity.
 
 #### Response
@@ -15,7 +17,7 @@ Returns information about a specific study activity.
 }
 ```
 
-### GET /api/v1/study_activities/:id/study_sessions
+### GET /api/langportal/study_activities/:id/sessions
 Returns a paginated list of study sessions for a specific activity.
 
 #### Response
@@ -40,7 +42,7 @@ Returns a paginated list of study sessions for a specific activity.
 }
 ```
 
-### POST /api/v1/study_activities
+### POST /api/langportal/study_activities
 Creates a new study activity.
 
 #### Request Params
@@ -57,7 +59,7 @@ Creates a new study activity.
 
 ## Study Sessions
 
-### GET /api/v1/study_sessions
+### GET /api/langportal/study_sessions
 Returns a paginated list of all study sessions.
 
 #### Response
@@ -82,7 +84,7 @@ Returns a paginated list of all study sessions.
 }
 ```
 
-### GET /api/v1/study_sessions/:id
+### GET /api/langportal/study_sessions/:id
 Returns detailed information about a specific study session.
 
 #### Response
@@ -97,7 +99,7 @@ Returns detailed information about a specific study session.
 }
 ```
 
-### GET /api/v1/study_sessions/:id/words
+### GET /api/langportal/study_sessions/:id/words
 Returns a paginated list of words reviewed in a specific study session.
 
 #### Response
@@ -121,7 +123,7 @@ Returns a paginated list of words reviewed in a specific study session.
 }
 ```
 
-### POST /api/v1/study_sessions/:id/words/:word_id/review
+### POST /api/langportal/study_sessions/:id/words/:word_id/review
 Records a word review result in a study session.
 
 #### Request Params

@@ -13,7 +13,6 @@ import (
 
 	"github.com/joho/godotenv"
 	"gorm.io/driver/postgres"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
@@ -35,40 +34,31 @@ func run() error {
 	}
 	defer config.FlushSentry()
 
-	// Initialize both databases
-	var sqliteDB *gorm.DB
-	var postgresDB *gorm.DB
-	var err error
-
-	// Always initialize SQLite
-	sqliteDB, err = gorm.Open(sqlite.Open("words.db"), &gorm.Config{})
-	if err != nil {
-		return fmt.Errorf("failed to connect to SQLite database: %w", err)
-	}
-	log.Printf("Connected to SQLite database")
-
-	// Try to connect to PostgreSQL
+	// Initialize PostgreSQL database
 	dbHost := os.Getenv("DB_HOST")
 	dbPort := os.Getenv("DB_PORT")
 	dbUser := os.Getenv("DB_USER")
 	dbPassword := os.Getenv("DB_PASSWORD")
 	dbName := os.Getenv("DB_NAME")
 
-	if dbHost != "" && dbUser != "" && dbName != "" {
-		dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-			dbHost, dbPort, dbUser, dbPassword, dbName)
-		postgresDB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
-		if err != nil {
-			log.Printf("Failed to connect to PostgreSQL: %v", err)
-			log.Printf("Continuing with SQLite only...")
-			postgresDB = nil
-		} else {
-			log.Printf("Connected to PostgreSQL database")
-		}
+	if dbHost == "" || dbUser == "" || dbName == "" {
+		return fmt.Errorf("database configuration missing: DB_HOST, DB_USER, and DB_NAME are required")
 	}
 
+	if dbPort == "" {
+		dbPort = "5432"
+	}
+
+	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+		dbHost, dbPort, dbUser, dbPassword, dbName)
+	postgresDB, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	if err != nil {
+		return fmt.Errorf("failed to connect to PostgreSQL database: %w", err)
+	}
+	log.Printf("Connected to PostgreSQL database")
+
 	// Create and initialize the server
-	fiberServer, err := server.NewFiberServer(sqliteDB, postgresDB)
+	fiberServer, err := server.NewFiberServer(postgresDB)
 	if err != nil {
 		return fmt.Errorf("failed to create server: %w", err)
 	}

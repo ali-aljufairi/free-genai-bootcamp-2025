@@ -91,25 +91,37 @@ make db-seed          # Import JLPT data into database
 ```
 
 ### Clerk Authentication System
-Sorami uses Clerk for authentication with the following configuration:
+Sorami uses Clerk for authentication with a **Bearer token-based flow** that prevents 431 errors:
+
 - **Version**: @clerk/nextjs 6.14.1 with @clerk/themes 2.4.19
+- **Auth Flow**: Bearer tokens only (no cookies) to prevent HTTP 431 errors
 - **Environment Variables**:
   - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`: Public key for client-side authentication
   - `CLERK_SECRET_KEY`: Secret key for server-side operations
 - **Middleware Protection**: Routes are protected via `middleware.ts` with public routes explicitly defined
+- **API Routes**: `/api/langportal(.*)` excluded from Clerk cookie redirects (use Bearer tokens)
 - **Redirect URLs**:
   - After sign-in: `/study`
   - After sign-up: `/study`
   - Sign-in page: `/sign-in`
   - Sign-up page: `/sign-up`
-- **Public Routes**: `/`, `/sign-in(.*)`, `/sign-up(.*)`, `/api/v2/words/random`, `/api/v2/kanji/stats`, `/health`
+- **Public Routes**: `/`, `/sign-in(.*)`, `/sign-up(.*)`, `/health`, `/api/langportal(.*)`
+
+**Authentication Architecture**:
+1. **Browser**: Attaches compact Clerk Bearer token, uses `credentials: 'omit'` to prevent cookies
+2. **Next.js Proxy**: Strips cookies/large headers, forwards only `Authorization: Bearer <token>`
+3. **Go Backend**: Validates JWT signature, sets user context (`user_id`, `clerk_user_id`)
 
 **Agent Guidelines for Authentication**:
 - Never bypass Clerk authentication or JWT verification
+- Always use Bearer tokens (not cookies) for API calls
+- Use `credentials: 'omit'` in fetch calls to prevent 431 errors
+- API routes must go through `/api/langportal/*` proxy (never `/api/v2/*`)
 - Always check middleware configuration before adding new routes
 - Use Clerk's `auth()` helper for server-side authentication checks
 - Respect the glass-card themed Clerk appearance configuration in `lib/clerk-appearance.ts`
 - Test authentication flows with Playwright E2E tests before deployment
+- See `docs/auth/authentication-flow.md` for complete architecture details
 
 ### Playwright E2E Testing Framework
 Sorami uses Playwright for end-to-end testing with mobile-first focus and Clerk authentication integration:
@@ -153,8 +165,9 @@ Sorami uses Playwright for end-to-end testing with mobile-first focus and Clerk 
 ### Code Quality Standards
 - **Mobile-First**: All changes must work on mobile (360px+ breakpoints)
 - **Single Glass-Card**: Maintain one card per screen with internal sections
-- **Authentication**: Never bypass Clerk JWT verification
-- **Database**: Validate against `Database/` schema before changes
+- **Authentication**: Never bypass Clerk JWT verification; use Bearer tokens (not cookies)
+- **API Calls**: Always use `/api/langportal/*` endpoints; never `/api/v2/*`
+- **Database**: PostgreSQL only (no SQLite/Neo4j); validate against schema in `Database/` before changes
 - **Testing**: Include mobile viewport tests for critical journeys
 
 ## Immediate Follow-Up Actions

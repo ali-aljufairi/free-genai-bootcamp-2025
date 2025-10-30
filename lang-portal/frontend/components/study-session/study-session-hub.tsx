@@ -10,7 +10,6 @@ import { useIsMobile } from "@/hooks/use-mobile"
 import { useMemo, useCallback, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from "framer-motion"
 import { useSidebar } from "@/hooks/use-sidebar"
-import { useAuthSetup } from "@/hooks/use-auth-setup"
 import { CARD_IMAGE_DIMENSIONS, studyImages, studyOptions, ENABLED_FEATURES } from "./constants"
 import { createSwapy } from 'swapy'
 import { useSortedStudyOptions, useStudyCardOrderStore } from '@/stores/study-card-order-store'
@@ -44,8 +43,6 @@ export function StudySessionHub() {
   // This ensures cards appear in the order the user has arranged them
   const sortedStudyOptions = useSortedStudyOptions()
 
-  // Initialize user setup after authentication (runs in background)
-  useAuthSetup()
 
   // Move prefetching to useEffect to ensure it only runs on client
   useEffect(() => {

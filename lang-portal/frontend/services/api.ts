@@ -20,8 +20,9 @@ import {
   Unit
 } from "@/types/api";
 
+import { getCachedToken } from '@/lib/token-cache';
+
 const API_BASE_URL = '/api/langportal';
-const API_V2_BASE_URL = '/api/v2';
 
 /**
  * Basic fetch wrapper with error handling
@@ -32,13 +33,31 @@ async function fetchData<T>(
 ): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
   
-  const defaultHeaders = {
+  const defaultHeaders: Record<string, string> = {
     'Content-Type': 'application/json',
   };
+
+  // If running in browser, attach a compact Clerk session token so Next API doesn't need cookies
+  if (typeof window !== 'undefined') {
+    try {
+      const clerk: any = (window as any).Clerk;
+      const session = clerk?.session;
+      if (session) {
+        // Use cached token to reduce unnecessary Clerk API calls
+        const token = await getCachedToken(session);
+        if (token) {
+          defaultHeaders['Authorization'] = `Bearer ${token}`;
+        }
+      }
+    } catch {}
+  }
 
   try {
     const response = await fetch(url, {
       ...options,
+      // Prevent sending cookies to Next.js API (avoids 431 due to large Clerk cookies)
+      credentials: 'omit',
+      cache: 'no-store',
       headers: {
         ...defaultHeaders,
         ...options.headers,
@@ -131,16 +150,95 @@ async function fetchData<T>(
 //   }),
 // };
 
-// Word API calls
-// export const wordApi = {
-//   getWords: (page: number = 1, pageSize: number = 20) => 
-//     fetchData<WordsResponse>(`/words?page=${page}&pageSize=${pageSize}`),
-//   getWord: (id: string) => fetchData<Word>(`/words/${id}`),
-//   createWord: (data: Partial<Word>) => fetchData<Word>('/words', {
-//     method: 'POST',
-//     body: JSON.stringify(data),
-//   }),
-// };
+// Word API calls (via unified /api/langportal proxy)
+export const wordApi = {
+  getWords: (page: number = 1, pageSize: number = 20) => 
+    fetchData<WordsResponse>(`/words?page=${page}&pageSize=${pageSize}`),
+  // Optionally support search with filters
+  search: (params: {
+    q?: string;
+    jlpt?: number;
+    part_of_speech?: string;
+    level?: number;
+    has_kanji?: boolean;
+    limit?: number;
+    offset?: number;
+  }) => {
+    const usp = new URLSearchParams()
+    if (params.q) usp.set('q', params.q)
+    if (params.jlpt != null) usp.set('jlpt', String(params.jlpt))
+    if (params.part_of_speech) usp.set('part_of_speech', params.part_of_speech)
+    if (params.level != null) usp.set('level', String(params.level))
+    if (params.has_kanji != null) usp.set('has_kanji', String(params.has_kanji))
+    if (params.limit != null) usp.set('limit', String(params.limit))
+    if (params.offset != null) usp.set('offset', String(params.offset))
+    return fetchData<{ items: any[]; total: number }>(`/words/search?${usp.toString()}`)
+  },
+};
+
+// Kanji API calls (via unified /api/langportal proxy)
+export const kanjiApi = {
+  search: (params: {
+    q?: string;
+    jlpt?: number;
+    strokes_min?: number;
+    strokes_max?: number;
+    has_svg?: boolean;
+    frequency_min?: number;
+    frequency_max?: number;
+    onyomi?: boolean;
+    kunyomi?: boolean;
+    components?: string;
+    page?: number;
+    pageSize?: number;
+  }) => {
+    const usp = new URLSearchParams()
+    if (params.q) usp.set('q', params.q)
+    if (params.jlpt != null) usp.set('jlpt', String(params.jlpt))
+    if (params.strokes_min != null) usp.set('strokes_min', String(params.strokes_min))
+    if (params.strokes_max != null) usp.set('strokes_max', String(params.strokes_max))
+    if (params.has_svg != null) usp.set('has_svg', String(params.has_svg))
+    if (params.frequency_min != null) usp.set('frequency_min', String(params.frequency_min))
+    if (params.frequency_max != null) usp.set('frequency_max', String(params.frequency_max))
+    if (params.onyomi != null) usp.set('onyomi', String(params.onyomi))
+    if (params.kunyomi != null) usp.set('kunyomi', String(params.kunyomi))
+    if (params.components) usp.set('components', params.components)
+    if (params.page != null) usp.set('page', String(params.page))
+    if (params.pageSize != null) usp.set('pageSize', String(params.pageSize))
+    return fetchData<{ items: any[]; total: number; page: number; pageSize: number; totalPages: number }>(`/kanji?${usp.toString()}`)
+  },
+};
+
+// Groups API (via unified /api/langportal proxy)
+export const groupApi = {
+  getGroups: () => fetchData<any[]>('/groups'),
+  createGroup: (data: { name: string; description?: string }) => fetchData<any>('/groups', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }),
+  addWord: (groupId: number, wordId: number) => fetchData<{ success: boolean }>(`/groups/${groupId}/words`, {
+    method: 'POST',
+    body: JSON.stringify({ word_id: wordId }),
+  }),
+  removeWord: (groupId: number, wordId: number) => fetchData<{ success: boolean }>(`/groups/${groupId}/words/${wordId}`, {
+    method: 'DELETE',
+  }),
+  addKanji: (groupId: number, kanjiId: number) => fetchData<{ success: boolean }>(`/groups/${groupId}/kanji`, {
+    method: 'POST',
+    body: JSON.stringify({ kanji_id: kanjiId }),
+  }),
+  removeKanji: (groupId: number, kanjiId: number) => fetchData<{ success: boolean }>(`/groups/${groupId}/kanji/${kanjiId}`, {
+    method: 'DELETE',
+  }),
+};
+
+// User API (favorite group)
+export const userApi = {
+  setFavoriteGroup: (groupId: number) => fetchData<{ success: boolean }>(`/users/me/favorite_group`, {
+    method: 'PUT',
+    body: JSON.stringify({ group_id: groupId }),
+  }),
+};
 
 
 
@@ -239,9 +337,11 @@ export const flashcardsV2Api = {
 export const api = {
   // dashboard: dashboardApi,
   // studySession: studySessionApi,
-  // group: groupApi,
+  group: groupApi,
   // studyActivity: studyActivityApi,
-  // word: wordApi,
+  word: wordApi,
+  kanji: kanjiApi,
+  user: userApi,
   flashcardsV2: flashcardsV2Api,
 };
 

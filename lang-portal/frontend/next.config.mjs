@@ -17,10 +17,9 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
-  turbopack: process.env.NODE_ENV === 'development',
+  turbopack: {},
   productionBrowserSourceMaps: false, // Disable source maps in production for performance
   experimental: {
-    webpackBuildWorker: true,
     parallelServerBuildTraces: true,
     parallelServerCompiles: true,
     viewTransition: true,
@@ -30,16 +29,6 @@ const nextConfig = {
   },
   images: {
     unoptimized: true,
-  },
-  webpack: (config, { dev }) => {
-    // Suppress source map warnings in production builds
-    if (!dev) {
-      config.stats = {
-        ...config.stats,
-        warningsFilter: (warning) => warning.includes('Could not auto-detect referenced sourcemap'),
-      };
-    }
-    return config;
   },
 };
 
@@ -51,7 +40,6 @@ if (process.env.NODE_ENV === 'development') {
     { source: '/api/vocab-importer/:path*', destination: 'http://localhost:8000/api/vocab-importer/:path*' },
     { source: '/api/writing/:path*', destination: 'http://localhost:8001/api/writing/:path*' },
     { source: '/api/langportal/:path*', destination: 'http://localhost:8080/api/langportal/:path*' },
-    { source: '/api/v2/:path*', destination: 'http://localhost:8080/api/v2/:path*' },
   ];
 }
 
@@ -95,4 +83,8 @@ const sentryWebpackPluginOptions = {
   dryRun: process.env.NODE_ENV !== 'production',
 };
 
-export default withSentryConfig(finalConfig, sentryWebpackPluginOptions);
+// Skip Sentry wrapper in development to avoid webpack configuration conflicts with Turbopack
+// Sentry will still work via its SDK, just without the webpack plugin for source maps
+export default process.env.NODE_ENV === 'development' 
+  ? finalConfig 
+  : withSentryConfig(finalConfig, sentryWebpackPluginOptions);

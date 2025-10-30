@@ -23,26 +23,19 @@ func getFirstMeaning(meanings string) string {
 	return meanings
 }
 
-// getUserID gets user ID from context or falls back to first available user
+// getUserID gets user ID from context - requires authentication
 func (h *FlashcardHandler) getUserID(c *fiber.Ctx) (int64, error) {
-	// Try to get user ID from context first (from auth middleware)
-	if userIDInterface := c.Locals("user_id"); userIDInterface != nil {
-		if userID, ok := userIDInterface.(int64); ok && userID > 0 {
-			return userID, nil
-		}
+	// Get user ID from context (set by auth middleware)
+	userIDInterface := c.Locals("user_id")
+	if userIDInterface == nil {
+		return 0, fmt.Errorf("user not authenticated")
 	}
-
-	// Fallback: get first available user from database
-	var userID int64
-	err := h.db.Raw("SELECT id FROM users ORDER BY id LIMIT 1").Scan(&userID).Error
-	if err != nil {
-		return 0, fmt.Errorf("no users found in database: %w", err)
+	
+	userID, ok := userIDInterface.(int64)
+	if !ok || userID == 0 {
+		return 0, fmt.Errorf("invalid user ID in context")
 	}
-
-	if userID == 0 {
-		return 0, fmt.Errorf("no valid user ID found")
-	}
-
+	
 	return userID, nil
 }
 

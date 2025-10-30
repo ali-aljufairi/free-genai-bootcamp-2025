@@ -243,50 +243,7 @@ BEGIN
     RETURN activity_id;
 END;
 $$ LANGUAGE plpgsql;
+ALTER TABLE users
+ADD COLUMN favorite_group_id INTEGER REFERENCES groups (id);
 
--- =====================================================
--- PHASE 5: DATA MIGRATION (Optional - run after testing)
--- =====================================================
-
--- Migrate enhanced study sessions to learning activities
--- (Uncomment and run after testing the new system)
-/*
-INSERT INTO learning_activities (
-    user_id, activity_type, content_type,
-    item_count, correct_count, total_time_seconds,
-    started_at, completed_at, config
-)
-SELECT
-    user_id,
-    CASE session_type
-        WHEN 'vocabulary_review' THEN 'flashcards'
-        WHEN 'kanji_study' THEN 'kanji_study'
-        ELSE 'vocabulary_review'
-    END,
-    CASE session_type
-        WHEN 'vocabulary_review' THEN 'word'
-        WHEN 'kanji_study' THEN 'kanji'
-        ELSE 'word'
-    END,
-    COALESCE(total_items, 0),
-    COALESCE(total_correct, 0),
-    EXTRACT(EPOCH FROM (COALESCE(ended_at, started_at) - started_at))::INT,
-    started_at,
-    ended_at,
-    COALESCE(notes::JSONB, '{}'::JSONB)
-FROM enhanced_study_sessions
-WHERE ended_at IS NOT NULL;
-*/
-
--- =====================================================
--- PHASE 6: CLEANUP (Run after migration verification)
--- =====================================================
-
--- Drop old tables after data migration and testing
--- (Uncomment after thorough testing)
-/*
-DROP TABLE IF EXISTS enhanced_study_sessions;
-DROP TABLE IF EXISTS study_sessions;
-DROP TABLE IF EXISTS review_items;
-ALTER TABLE words DROP COLUMN IF EXISTS correct_count;
-*/
+CREATE INDEX idx_users_favorite_group_id ON users (favorite_group_id);
