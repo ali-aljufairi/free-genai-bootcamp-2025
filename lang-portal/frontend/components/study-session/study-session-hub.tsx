@@ -2,8 +2,6 @@
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
-// import { useCreateStudySession } from "@/hooks/api/useStudySession"
-// import { useGroups } from "@/hooks/api/useGroup"
 import { toast } from "sonner"
 import Image from "next/image"
 import { useIsMobile } from "@/hooks/use-mobile"
@@ -92,10 +90,6 @@ export function StudySessionHub() {
 
           // Handle drag end for cleanup and feedback
           swapyInstance.current.onSwapEnd((event: SwapEndEvent) => {
-            if (event.hasChanged) {
-              // Optional: Show success feedback or trigger animations
-              toast.success("Cards reordered successfully!");
-            }
           });
         }
       }, 100);

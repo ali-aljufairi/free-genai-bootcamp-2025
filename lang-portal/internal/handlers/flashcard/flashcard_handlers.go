@@ -43,20 +43,6 @@ func (h *FlashcardHandler) StartFlashcardSession(c *fiber.Ctx) error {
 		})
 	}
 
-	// Ensure development user exists in PostgreSQL
-	if err := h.ensureDevUserExists(userID); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to set up user",
-		})
-	}
-
-	// Ensure study activities exist
-	if err := h.ensureStudyActivitiesExist(); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to set up study activities",
-		})
-	}
-
 	// Generate a deterministic seed and use it for option shuffling
 	seed := time.Now().UnixNano()
 	rand.Seed(seed)

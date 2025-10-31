@@ -47,6 +47,8 @@ dev:
 # Backend development with Air
 dev-backend:
 	@echo "Starting backend with Air..."
+	@echo "Checking for existing processes on port 8080..."
+	@lsof -ti:8080 | xargs kill -9 2>/dev/null || echo "No existing process found on port 8080"
 	@if command -v air >/dev/null 2>&1; then \
 		air; \
 	else \

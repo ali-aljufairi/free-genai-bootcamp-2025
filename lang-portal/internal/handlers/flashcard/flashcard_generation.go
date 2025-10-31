@@ -67,17 +67,47 @@ func (h *FlashcardHandler) generateUnitFlashcards(userID int64, config *Flashcar
 		return nil, err
 	}
 
-	// Generate flashcards for each item
-	for _, item := range unitItems {
-		if config.FlashcardType == FlashcardTypeWord && item.ItemType == "word" {
-			card, err := h.generateWordFlashcard(item.ItemID, config)
-			if err == nil {
-				cards = append(cards, card)
+	// Batch-load words/kanji if needed, then generate flashcards
+	if config.FlashcardType == FlashcardTypeWord {
+		// Collect word IDs
+		var wordIDs []int64
+		for _, item := range unitItems {
+			if item.ItemType == "word" {
+				wordIDs = append(wordIDs, item.ItemID)
 			}
-		} else if config.FlashcardType == FlashcardTypeKanji && item.ItemType == "kanji" {
-			card, err := h.generateKanjiFlashcard(item.ItemID, config)
-			if err == nil {
-				cards = append(cards, card)
+		}
+		
+		// Batch load all words at once
+		if len(wordIDs) > 0 {
+			var words []models.Word
+			if err := h.db.Where("id IN (?)", wordIDs).Find(&words).Error; err == nil {
+				// Create a map for quick lookup
+				wordMap := make(map[int64]models.Word)
+				for _, word := range words {
+					wordMap[word.ID] = word
+				}
+				
+				// Generate flashcards using loaded words
+				for _, item := range unitItems {
+					if item.ItemType == "word" {
+						if word, ok := wordMap[item.ItemID]; ok {
+							card, err := h.generateWordFlashcardFromWord(word, config)
+							if err == nil {
+								cards = append(cards, card)
+							}
+						}
+					}
+				}
+			}
+		}
+	} else if config.FlashcardType == FlashcardTypeKanji {
+		// For kanji, still use individual queries (can optimize later)
+		for _, item := range unitItems {
+			if item.ItemType == "kanji" {
+				card, err := h.generateKanjiFlashcard(item.ItemID, config)
+				if err == nil {
+					cards = append(cards, card)
+				}
 			}
 		}
 	}
@@ -107,9 +137,9 @@ func (h *FlashcardHandler) generateGroupFlashcards(userID int64, config *Flashca
 			return nil, err
 		}
 
-		// Generate word flashcards
+		// Generate word flashcards - already have words loaded, use them directly
 		for _, word := range words {
-			card, err := h.generateWordFlashcard(word.ID, config)
+			card, err := h.generateWordFlashcardFromWord(word, config)
 			if err == nil {
 				cards = append(cards, card)
 			}
@@ -145,7 +175,7 @@ func (h *FlashcardHandler) generateJLPTFlashcards(userID int64, config *Flashcar
 		}
 
 		for _, word := range words {
-			card, err := h.generateWordFlashcard(word.ID, config)
+			card, err := h.generateWordFlashcardFromWord(word, config)
 			if err == nil {
 				cards = append(cards, card)
 			}
@@ -245,6 +275,11 @@ func (h *FlashcardHandler) applyWordFilters(query *gorm.DB, filters *ContentFilt
 	return query
 }
 
+// generateWordFlashcardFromWord generates a word flashcard from an already-loaded word object
+func (h *FlashcardHandler) generateWordFlashcardFromWord(word models.Word, config *FlashcardConfig) (Flashcard, error) {
+	return h.generateWordFlashcardInternal(word, config)
+}
+
 // generateWordFlashcard generates a word flashcard based on user preferences
 func (h *FlashcardHandler) generateWordFlashcard(wordID int64, config *FlashcardConfig) (Flashcard, error) {
 	var word models.Word
@@ -252,6 +287,11 @@ func (h *FlashcardHandler) generateWordFlashcard(wordID int64, config *Flashcard
 	if err != nil {
 		return Flashcard{}, err
 	}
+	return h.generateWordFlashcardInternal(word, config)
+}
+
+// generateWordFlashcardInternal internal function that generates flashcard from word object
+func (h *FlashcardHandler) generateWordFlashcardInternal(word models.Word, config *FlashcardConfig) (Flashcard, error) {
 
 	options := config.WordOptions
 
@@ -308,7 +348,7 @@ func (h *FlashcardHandler) generateWordFlashcard(wordID int64, config *Flashcard
 	}
 
 	// Generate wrong options
-	wrongOptions, err := h.generateWordWrongOptions(wordID, word, options, config)
+	wrongOptions, err := h.generateWordWrongOptions(word.ID, word, options, config)
 	if err != nil {
 		return Flashcard{}, err
 	}
@@ -328,7 +368,7 @@ func (h *FlashcardHandler) generateWordFlashcard(wordID int64, config *Flashcard
 		Answer:       answer,
 		Options:      allOptions,
 		CorrectIndex: correctIndex,
-		ItemID:       wordID,
+		ItemID:       word.ID,
 		ItemType:     "word",
 	}, nil
 }
