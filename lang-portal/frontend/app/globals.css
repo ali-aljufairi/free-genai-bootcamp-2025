@@ -1,94 +1,109 @@
 @import '../styles/animations.css';
+@import "tailwindcss";
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* Configure Tailwind to scan these directories for classes */
+@source "../app/**/*.{js,ts,jsx,tsx}";
+@source "../components/**/*.{js,ts,jsx,tsx}";
+@source "../pages/**/*.{js,ts,jsx,tsx}";
 
 /* Define CSS layers with Clerk having higher priority than base styles */
 @layer base, clerk-styles, components, utilities;
 
 @layer base {
   :root {
-    --background: 210 40% 98%;
-    --foreground: 222.2 84% 4.9%;
+    --background: oklch(98% 0.006 242.5);
+    --foreground: oklch(9.8% 0.038 285.9);
 
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card: oklch(100% 0 0);
+    --card-foreground: oklch(9.8% 0.038 285.9);
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover: oklch(100% 0 0);
+    --popover-foreground: oklch(9.8% 0.038 285.9);
 
-    --primary: 221.2 83% 53.3%;
-    --primary-foreground: 210 40% 98%;
+    --primary: oklch(59.7% 0.216 264.4);
+    --primary-foreground: oklch(98% 0.006 242.5);
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary: oklch(96.5% 0.006 242.5);
+    --secondary-foreground: oklch(20.9% 0.023 285.9);
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: oklch(96.5% 0.006 242.5);
+    --muted-foreground: oklch(56.1% 0.016 257.5);
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: oklch(96.5% 0.006 242.5);
+    --accent-foreground: oklch(20.9% 0.023 285.9);
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: oklch(62.8% 0.257 29.2);
+    --destructive-foreground: oklch(98% 0.006 242.5);
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 221.2 83% 53.3%;
+    --border: oklch(92.4% 0.003 264.5);
+    --input: oklch(92.4% 0.003 264.5);
+    --ring: oklch(59.7% 0.216 264.4);
 
     --radius: 0.5rem;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+    --background: oklch(9.8% 0.038 285.9);
+    --foreground: oklch(98% 0.006 242.5);
 
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
+    --card: oklch(9.8% 0.038 285.9);
+    --card-foreground: oklch(98% 0.006 242.5);
 
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    --popover: oklch(9.8% 0.038 285.9);
+    --popover-foreground: oklch(98% 0.006 242.5);
 
-    --primary: 217.2 91.2% 59.8%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    --primary: oklch(67.5% 0.236 262.4);
+    --primary-foreground: oklch(20.9% 0.023 285.9);
 
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: oklch(27.8% 0.034 265.8);
+    --secondary-foreground: oklch(98% 0.006 242.5);
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: oklch(27.8% 0.034 265.8);
+    --muted-foreground: oklch(70.1% 0.021 257.5);
 
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --accent: oklch(27.8% 0.034 265.8);
+    --accent-foreground: oklch(98% 0.006 242.5);
 
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: oklch(43.2% 0.165 29.2);
+    --destructive-foreground: oklch(98% 0.006 242.5);
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 224.3 76.3% 48%;
+    --border: oklch(27.8% 0.034 265.8);
+    --input: oklch(27.8% 0.034 265.8);
+    --ring: oklch(58.8% 0.222 263.5);
   }
 }
 
 @layer base {
   * {
-    @apply border-border;
+    border-color: var(--border);
   }
 
   body {
-    @apply bg-background text-foreground;
+    background-color: var(--background);
+    color: var(--foreground);
   }
 
   /* Text selection styling with animation */
   ::selection {
-    @apply bg-blue-400/30 text-blue-900 dark:bg-blue-500/40 dark:text-blue-50;
+    background-color: rgb(96 165 250 / 0.3);
+    color: rgb(30 58 138);
     animation: highlight-pulse 0.5s ease-in-out;
   }
 
   ::-moz-selection {
-    @apply bg-blue-400/30 text-blue-900 dark:bg-blue-500/40 dark:text-blue-50;
+    background-color: rgb(96 165 250 / 0.3);
+    color: rgb(30 58 138);
     animation: highlight-pulse 0.5s ease-in-out;
+  }
+
+  .dark ::selection {
+    background-color: rgb(59 130 246 / 0.4);
+    color: rgb(239 246 255);
+  }
+
+  .dark ::-moz-selection {
+    background-color: rgb(59 130 246 / 0.4);
+    color: rgb(239 246 255);
   }
 }
 
@@ -97,7 +112,7 @@
   backdrop-filter: blur(8px);
   background-color: rgba(255, 255, 255, 0.1);
   border: 2px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 
+  box-shadow:
     0 0 0 1px rgba(255, 255, 255, 0.1),
     0 0 20px rgba(59, 130, 246, 0.1),
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
@@ -108,7 +123,7 @@
 .dark .glass-card-option {
   background-color: rgba(30, 41, 59, 0.3);
   border: 2px solid rgba(59, 130, 246, 0.3);
-  box-shadow: 
+  box-shadow:
     0 0 0 1px rgba(59, 130, 246, 0.1),
     0 0 20px rgba(59, 130, 246, 0.15),
     inset 0 1px 0 rgba(255, 255, 255, 0.05);
@@ -116,7 +131,7 @@
 
 .glass-card-option:hover {
   border-color: rgba(59, 130, 246, 0.5);
-  box-shadow: 
+  box-shadow:
     0 0 0 1px rgba(59, 130, 246, 0.2),
     0 0 30px rgba(59, 130, 246, 0.2),
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
@@ -125,11 +140,12 @@
 
 .dark .glass-card-option:hover {
   border-color: rgba(59, 130, 246, 0.6);
-  box-shadow: 
+  box-shadow:
     0 0 0 1px rgba(59, 130, 246, 0.3),
     0 0 30px rgba(59, 130, 246, 0.25),
     inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
+
 .glass-card {
   backdrop-filter: blur(8px);
   background-color: rgba(255, 255, 255, 0.7);
@@ -295,7 +311,8 @@
 
 /* Theme toggle animation */
 .theme-toggle {
-  @apply relative overflow-hidden;
+  position: relative;
+  overflow: hidden;
 }
 
 /* Clerk UserButton popover: remove any entrance animations/slides */
@@ -339,11 +356,21 @@
 
 .theme-toggle::after {
   content: "";
-  @apply absolute inset-0 bg-blue-400/20 dark:bg-blue-600/20 rounded-full scale-0 transition-transform duration-500;
+  position: absolute;
+  inset: 0;
+  background-color: rgb(96 165 250 / 0.2);
+  border-radius: 9999px;
+  scale: 0;
+  transition-property: transform;
+  transition-duration: 500ms;
+}
+
+.dark .theme-toggle::after {
+  background-color: rgb(37 99 235 / 0.2);
 }
 
 .theme-toggle:active::after {
-  @apply scale-[2.5];
+  scale: 2.5;
 }
 
 /* Clerk Components CSS Layer - Higher specificity to override global styles */
@@ -418,10 +445,10 @@
 @layer base {
 
   /* Root transition configuration */
-  ::view-transition {
+  /* ::view-transition {
     duration: 300ms;
     easing: cubic-bezier(0.4, 0, 0.2, 1);
-  }
+  } */
 
   /* Page navigation transitions */
   ::view-transition-old(page) {
@@ -461,9 +488,9 @@
 
   /* Respect user's motion preferences */
   @media (prefers-reduced-motion: reduce) {
-    ::view-transition {
+    /* ::view-transition {
       duration: 0ms;
-    }
+    } */
 
     ::view-transition-old(*),
     ::view-transition-new(*) {

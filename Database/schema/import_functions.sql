@@ -497,7 +497,7 @@ BEGIN
         BEGIN
             INSERT INTO kanji (
                 id, "character", heisig_en, meanings, unicode, onyomi, kunyomi,
-                detail, jlpt, frequency, components, stroke_count, strokes_svg
+                detail, jlpt, frequency, components, stroke_count, strokes_svg, audio_path
             ) VALUES (
                 safe_jsonb_extract_int(record_data, 'id'),
                 safe_jsonb_extract_text(record_data, 'character'),
@@ -511,7 +511,8 @@ BEGIN
                 safe_jsonb_extract_int(record_data, 'frequency'),
                 safe_jsonb_extract_text(record_data, 'components'),
                 safe_jsonb_extract_int(record_data, 'stroke_count'),
-                safe_jsonb_extract_svg(record_data, 'strokes_svg')
+                safe_jsonb_extract_svg(record_data, 'strokes_svg'),
+                safe_jsonb_extract_text(record_data, 'audio') -- Audio URL from JSON
             )
             ON CONFLICT (id) DO UPDATE SET
                 "character" = EXCLUDED."character",
@@ -525,7 +526,8 @@ BEGIN
                 frequency = EXCLUDED.frequency,
                 components = EXCLUDED.components,
                 stroke_count = EXCLUDED.stroke_count,
-                strokes_svg = EXCLUDED.strokes_svg;
+                strokes_svg = EXCLUDED.strokes_svg,
+                audio_path = EXCLUDED.audio_path;
             
             inserted_count := inserted_count + 1;
         EXCEPTION
@@ -638,7 +640,7 @@ BEGIN
             END;
             
             INSERT INTO words (
-                id, kana, kanji, romaji, english, part_of_speech, jlpt, level, raw_data
+                id, kana, kanji, romaji, english, part_of_speech, jlpt, level, audio_path, raw_data
             ) VALUES (
                 word_id,
                 determined_kana, -- Determined kana reading
@@ -653,6 +655,7 @@ BEGIN
                 validate_part_of_speech(pos_array),
                 COALESCE(validate_jlpt_level(level_text), 0), -- Default to 0 if no level
                 COALESCE(validate_jlpt_level(level_text), 0), -- Default to 0 if no level
+                safe_jsonb_extract_text(record_data, 'audio'), -- Audio URL from JSON
                 record_data -- Store complete raw data for complex fields
             )
             ON CONFLICT (id) DO UPDATE SET
@@ -663,6 +666,7 @@ BEGIN
                 part_of_speech = EXCLUDED.part_of_speech,
                 jlpt = EXCLUDED.jlpt,
                 level = EXCLUDED.level,
+                audio_path = EXCLUDED.audio_path,
                 raw_data = EXCLUDED.raw_data;
             
             inserted_count := inserted_count + 1;

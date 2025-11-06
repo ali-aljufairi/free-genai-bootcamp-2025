@@ -3,7 +3,7 @@
 import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { BookOpen, GraduationCap, LayoutDashboard, Menu, Settings, X, ChevronLeft, ChevronRight } from "lucide-react"
+import { BookOpen, GraduationCap, LayoutDashboard, Menu, Settings, X, ChevronLeft, ChevronRight, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { cn } from "@/lib/utils"
@@ -23,6 +23,11 @@ export default function Sidebar() {
       name: "Dashboard",
       path: "/dashboard",
       icon: <LayoutDashboard className="h-5 w-5" />,
+    },
+    {
+      name: "Groups",
+      path: "/groups",
+      icon: <Users className="h-5 w-5" />,
     },
     {
       name: "Vocabulary",

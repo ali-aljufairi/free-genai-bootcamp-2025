@@ -10,9 +10,10 @@ import { useKanji } from "@/hooks/api/useKanji"
 import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
-import { Plus, X } from "lucide-react"
+import { Plus, X, FolderPlus, Star } from "lucide-react"
 import { Label } from "@/components/ui/label"
 // import { useVocabularyImport } from "@/hooks/api/useVocabularyImport"
+import { useCreateGroup, useGroups } from "@/hooks/api/useGroup"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -61,11 +62,17 @@ export function VocabularyBrowser() {
   const [isFilterOpen, setIsFilterOpen] = useState(false)
   const [contentType, setContentType] = useState<"words" | "kanji" | "both">("words")
   const [hasKanjiOnly, setHasKanjiOnly] = useState<boolean | undefined>(undefined)
+  const [partOfSpeech, setPartOfSpeech] = useState<string | undefined>(undefined)
   // const { importVocabularyByTopic, isLoading: importLoading } = useVocabularyImport()
-  // const { data: groups, isLoading: groupsLoading } = useGroups()
+  const { data: groups } = useGroups()
+  const { createGroup, isLoading: creatingGroup } = useCreateGroup()
+  const [isCreateOpen, setIsCreateOpen] = useState(false)
+  const [newGroupName, setNewGroupName] = useState("")
+  const [newGroupDesc, setNewGroupDesc] = useState("")
   const wordParams = {
     q: searchTerm || undefined,
     has_kanji: hasKanjiOnly,
+    part_of_speech: partOfSpeech,
   }
   const {
     data: wordsData,
@@ -172,6 +179,37 @@ export function VocabularyBrowser() {
     }
   };
 
+  const handleCreateGroup = async () => {
+    if (!newGroupName.trim()) return
+    await createGroup({ name: newGroupName.trim(), description: newGroupDesc.trim() || undefined })
+    setIsCreateOpen(false)
+    setNewGroupName("")
+    setNewGroupDesc("")
+  }
+
+  const getFavoritesGroupId = () => {
+    const favorites = (groups || []).find((g: any) => typeof g.name === 'string' && g.name.toLowerCase().includes('favorite'))
+    return favorites?.id as number | undefined
+  }
+
+  const handleFavoriteAdd = async (entry: { kind: 'word' | 'kanji'; item: any }) => {
+    try {
+      const favoritesId = getFavoritesGroupId()
+      if (!favoritesId) {
+        toast.error("No Favorites group found", { description: "Create a 'Favorites' group first on the Groups page." })
+        return
+      }
+      if (entry.kind === 'word') {
+        await fetch(`/api/langportal/groups/${favoritesId}/words`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ word_id: entry.item.id }) })
+      } else {
+        await fetch(`/api/langportal/groups/${favoritesId}/kanji`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kanji_id: entry.item.id }) })
+      }
+      toast.success("Added to Favorites")
+    } catch {
+      toast.error("Failed to add to Favorites")
+    }
+  }
+
   if ((wordsLoading && contentType !== 'kanji' && !words.length) || (kanjiLoading && contentType !== 'words' && !kanji.length)) {
     return (
       <div className="space-y-4">
@@ -231,6 +269,25 @@ export function VocabularyBrowser() {
                     <Checkbox id="has-kanji" checked={hasKanjiOnly === true} onCheckedChange={(v) => setHasKanjiOnly(v ? true : undefined)} />
                     <Label htmlFor="has-kanji" className="text-sm">Has Kanji</Label>
                   </div>
+                  <div className="space-y-2 pt-2">
+                    <Label>Part of Speech</Label>
+                    <Select value={partOfSpeech} onValueChange={(v) => setPartOfSpeech(v || undefined)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Any" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">Any</SelectItem>
+                        <SelectItem value="noun">Noun</SelectItem>
+                        <SelectItem value="verb">Verb</SelectItem>
+                        <SelectItem value="adjective">Adjective</SelectItem>
+                        <SelectItem value="adverb">Adverb</SelectItem>
+                        <SelectItem value="particle">Particle</SelectItem>
+                        <SelectItem value="prefix">Prefix</SelectItem>
+                        <SelectItem value="suffix">Suffix</SelectItem>
+                        <SelectItem value="expression">Expression</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
                 <Separator />
                 <div className="space-y-2">
@@ -262,23 +319,51 @@ export function VocabularyBrowser() {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setShowImport(!showImport)}
-        >
-          {showImport ? (
-            <>
-              <X className="mr-2 h-4 w-4" />
-              Hide Import
-            </>
-          ) : (
-            <>
-              <Plus className="mr-2 h-4 w-4" />
-              Import Words
-            </>
-          )}
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowImport(!showImport)}
+          >
+            {showImport ? (
+              <>
+                <X className="mr-2 h-4 w-4" />
+                Hide Import
+              </>
+            ) : (
+              <>
+                <Plus className="mr-2 h-4 w-4" />
+                Import Words
+              </>
+            )}
+          </Button>
+          <Sheet open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+            <SheetTrigger asChild>
+              <Button size="sm">
+                <Plus className="mr-2 h-4 w-4" />
+                Create Group
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="right" className="w-full sm:max-w-md">
+              <SheetHeader>
+                <SheetTitle>Create Group</SheetTitle>
+              </SheetHeader>
+              <div className="mt-4 space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="gname">Name</Label>
+                  <Input id="gname" value={newGroupName} onChange={(e) => setNewGroupName(e.target.value)} placeholder="e.g. JLPT N5 Verbs" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="gdesc">Description</Label>
+                  <Input id="gdesc" value={newGroupDesc} onChange={(e) => setNewGroupDesc(e.target.value)} placeholder="Optional" />
+                </div>
+                <Button className="w-full" onClick={handleCreateGroup} disabled={!newGroupName.trim() || creatingGroup}>
+                  {creatingGroup ? "Creating..." : "Create Group"}
+                </Button>
+              </div>
+            </SheetContent>
+          </Sheet>
+        </div>
       </div>
 
       {showImport && (
@@ -386,8 +471,14 @@ export function VocabularyBrowser() {
             {unifiedItems.map((entry, idx) => {
               if (entry.kind === 'word') {
                 const word = entry.item
+                const englishPreview = (word.english || "")
+                  .split(',')
+                  .map((s: string) => s.trim())
+                  .filter(Boolean)
+                  .slice(0, 6)
+                  .join(', ')
                 return (
-                  <Card key={`w-${word.id}-${idx}`} className="glass-card">
+                  <Card key={`w-${word.id}-${idx}`} className="glass-card relative">
                     <CardHeader>
                       <CardTitle className="text-lg font-medium flex flex-col gap-1">
                         <span className="text-xl">{word.japanese ?? word.kanji ?? word.kana}</span>
@@ -396,28 +487,53 @@ export function VocabularyBrowser() {
                         )}
                       </CardTitle>
                     </CardHeader>
+                    <Button aria-label="Favorite" variant="ghost" size="icon" className="!absolute top-2 right-2 z-20 h-8 w-8" onClick={() => handleFavoriteAdd({ kind: 'word', item: word })}>
+                      <Star className="h-5 w-5" />
+                    </Button>
                     <CardContent>
-                      {word.english && <p className="text-base mb-2">{word.english}</p>}
+                      {englishPreview && <p className="text-base mb-2">{englishPreview}</p>}
                       <div className="flex gap-2 mt-2">
                         {word.parts?.type && <Badge variant="secondary">{word.parts.type}</Badge>}
+                        {word.jlpt != null && <Badge>JLPT N{word.jlpt}</Badge>}
                       </div>
                     </CardContent>
                     <CardFooter className="flex gap-2">
-                      <Button variant="outline" className="flex-1" onClick={() => handleStudyWord(word.id)}>Study</Button>
+                      <div className="flex-1">
+                        <Select onValueChange={(val) => {
+                          const groupId = Number(val)
+                          if (!groupId) return
+                          // optimistic UX; backend add-to-group handled elsewhere in app if needed later
+                          toast.success("Added to group", { description: (groups || []).find((g: any) => g.id === groupId)?.name })
+                        }}>
+                          <SelectTrigger>
+                            <SelectValue placeholder={<div className="flex items-center gap-2"><FolderPlus className="h-4 w-4" /> Add to Group</div>} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {(groups || []).map((g: any) => (
+                              <SelectItem key={g.id} value={String(g.id)}>{g.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
                       <Button variant="secondary" className="flex-1" onClick={() => window.open(`https://jisho.org/search/${encodeURIComponent(word.japanese ?? word.kanji ?? word.kana)}`, '_blank')}>Look up</Button>
                     </CardFooter>
                   </Card>
                 )
               }
               const k = entry.item
-              const meanings = Array.isArray(k.meanings) ? k.meanings.join(', ') : (k.meanings || '')
+              const meanings = Array.isArray(k.meanings)
+                ? k.meanings.slice(0, 6).join(', ')
+                : (k.meanings || '').split(',').slice(0, 6).map((s: string) => s.trim()).join(', ')
               return (
-                <Card key={`k-${k.id}-${idx}`} className="glass-card">
+                <Card key={`k-${k.id}-${idx}`} className="glass-card relative">
                   <CardHeader>
                     <CardTitle className="text-lg font-medium flex items-center gap-2">
                       <span className="text-2xl">{k.character}</span>
                     </CardTitle>
                   </CardHeader>
+                  <Button aria-label="Favorite" variant="ghost" size="icon" className="!absolute top-2 right-2 z-20 h-8 w-8" onClick={() => handleFavoriteAdd({ kind: 'kanji', item: k })}>
+                    <Star className="h-5 w-5" />
+                  </Button>
                   <CardContent>
                     {meanings && <p className="text-base mb-2">{meanings}</p>}
                     <div className="flex gap-2 mt-2 flex-wrap">

@@ -14,9 +14,6 @@ const userConfig = await getUserConfig();
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'standalone',
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
   turbopack: {},
   productionBrowserSourceMaps: false, // Disable source maps in production for performance
   experimental: {

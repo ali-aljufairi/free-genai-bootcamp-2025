@@ -95,7 +95,7 @@ CREATE TABLE user_settings ( -- UPDATED
     daily_review_target INT DEFAULT 20, -- # of reviews the user aims for
     current_jlpt_level INT DEFAULT 5, -- User's current JLPT level (1-5)
     jlpt_level_assessed_at TIMESTAMPTZ, -- When the level was last assessed
-    jlpt_level_assessment_method TEXT ,
+    jlpt_level_assessment_method TEXT,
     created_at TIMESTAMPTZ DEFAULT now(),
     updated_at TIMESTAMPTZ DEFAULT now()
 );
@@ -129,7 +129,8 @@ CREATE TABLE kanji (
     frequency INT,
     components TEXT,
     stroke_count INT,
-    strokes_svg TEXT -- From kanji_svg_strokes.json "strokes_svg"
+    strokes_svg TEXT, -- From kanji_svg_strokes.json "strokes_svg"
+    audio_path TEXT -- Audio URL from Jisho
 );
 
 CREATE TABLE words (
@@ -1521,5 +1522,4 @@ VALUES (
     (
         'Kanji Stroke Order',
         'stroke'
-    )
-ON CONFLICT (activity_type) DO NOTHING;
+    ) ON CONFLICT (activity_type) DO NOTHING;

@@ -1,7 +1,7 @@
 "use client"
 
 import { useRouter } from "next/navigation"
-import { FlashcardStudy } from "@/components/study/flashcard-study"
+import { UnifiedFlashcard } from "@/components/study/unified-flashcard"
 import { KanjiFlashcard } from "@/components/study/kanji-flashcard"
 import { WordsFlashcard } from "@/components/study/words-flashcard"
 import { QuizStudy } from "@/components/study/quiz-study"
@@ -35,7 +35,7 @@ export default function StudySessionPage({
             </div>
 
             {type === "flashcards" && (
-                <FlashcardStudy />
+                <UnifiedFlashcard />
             )}
 
             {type === "kanji" && (
