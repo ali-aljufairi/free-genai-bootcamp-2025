@@ -16,6 +16,7 @@ export interface KanjiSearchParams {
   onyomi?: boolean;
   kunyomi?: boolean;
   components?: string;
+  group_id?: number;
 }
 
 export function useKanji(params: KanjiSearchParams = {}) {

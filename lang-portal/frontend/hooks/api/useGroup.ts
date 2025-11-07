@@ -17,12 +17,15 @@ export function useGroups() {
 
 export function useCreateGroup() {
   const [isLoading, setIsLoading] = useState(false);
+  const { refetch } = useGroups();
 
   const createGroup = async (payload: { name: string; description?: string }) => {
     try {
       setIsLoading(true);
       const res = await groupApi.createGroup(payload);
       toast.success("Group created", { description: payload.name });
+      // Refetch groups to update the list
+      await refetch();
       return res;
     } catch (e: any) {
       toast.error("Failed to create group", { description: e?.message || "Unknown error" });

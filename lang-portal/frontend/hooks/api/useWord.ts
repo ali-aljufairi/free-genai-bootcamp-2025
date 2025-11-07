@@ -15,6 +15,8 @@ export function useWords(params?: {
   part_of_speech?: string;
   level?: number;
   has_kanji?: boolean;
+  correct_count?: number;
+  group_id?: number;
 }) {
   const {
     data,
@@ -26,14 +28,27 @@ export function useWords(params?: {
   } = useInfiniteQuery({
     queryKey: ['words', params],
     queryFn: ({ pageParam = 1 }) => {
-      if (params && (params.q || params.jlpt != null || params.part_of_speech || params.level != null || params.has_kanji != null)) {
+      if (params && (params.q || params.jlpt != null || params.part_of_speech || params.level != null || params.has_kanji != null || params.correct_count != null || params.group_id != null)) {
         const offset = ((pageParam as number) - 1) * ITEMS_PER_PAGE
         return api.word.search({ ...params, limit: ITEMS_PER_PAGE, offset }) as any
       }
       return api.word.getWords(pageParam as number, ITEMS_PER_PAGE) as any
     },
-    getNextPageParam: (lastPage) => 
-      lastPage.page < lastPage.totalPages ? lastPage.page + 1 : undefined,
+    getNextPageParam: (lastPage, allPages) => {
+      // For search API, calculate pagination based on total and items loaded
+      if (lastPage.total !== undefined) {
+        const itemsLoaded = allPages.reduce((sum, page) => sum + (page.items?.length || 0), 0);
+        if (itemsLoaded < lastPage.total) {
+          return allPages.length + 1;
+        }
+        return undefined;
+      }
+      // For regular paginated API
+      if (lastPage.page !== undefined && lastPage.totalPages !== undefined) {
+        return lastPage.page < lastPage.totalPages ? lastPage.page + 1 : undefined;
+      }
+      return undefined;
+    },
     initialPageParam: 1
   });
 

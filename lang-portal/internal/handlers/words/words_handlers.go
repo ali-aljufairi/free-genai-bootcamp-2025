@@ -76,6 +76,14 @@ func (h *WordsHandler) SearchWords(c *fiber.Ctx) error {
 		hasKanji = &val
 	}
 
+	var groupID *int64
+	if groupIDStr := c.Query("group_id"); groupIDStr != "" {
+		val, _ := strconv.ParseInt(groupIDStr, 10, 64)
+		if val > 0 {
+			groupID = &val
+		}
+	}
+
 	var limit *int
 	if limitStr := c.Query("limit"); limitStr != "" {
 		val, _ := strconv.Atoi(limitStr)
@@ -93,7 +101,7 @@ func (h *WordsHandler) SearchWords(c *fiber.Ctx) error {
 		queryStr = *q
 	}
 
-	params := buildSearchParams(queryStr, jlpt, pos, level, hasKanji, limit, offset)
+	params := buildSearchParams(queryStr, jlpt, pos, level, hasKanji, groupID, limit, offset)
 
 	if err := h.validateSearchParams(&params); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{

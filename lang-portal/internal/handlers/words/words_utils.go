@@ -31,7 +31,7 @@ func convertModelsToWords(words []models.Word) []Word {
 }
 
 // buildSearchParams builds search parameters from query strings
-func buildSearchParams(query string, jlpt *int, pos *string, level *int, hasKanji *bool, limit *int, offset *int) repositories.SearchWordsParams {
+func buildSearchParams(query string, jlpt *int, pos *string, level *int, hasKanji *bool, groupID *int64, limit *int, offset *int) repositories.SearchWordsParams {
 	params := repositories.SearchWordsParams{}
 
 	if query != "" {
@@ -48,6 +48,9 @@ func buildSearchParams(query string, jlpt *int, pos *string, level *int, hasKanj
 	}
 	if hasKanji != nil {
 		params.HasKanji = hasKanji
+	}
+	if groupID != nil {
+		params.GroupID = groupID
 	}
 	if limit != nil {
 		params.Limit = limit

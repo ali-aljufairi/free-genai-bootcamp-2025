@@ -161,6 +161,8 @@ export const wordApi = {
     part_of_speech?: string;
     level?: number;
     has_kanji?: boolean;
+    correct_count?: number;
+    group_id?: number;
     limit?: number;
     offset?: number;
   }) => {
@@ -170,6 +172,8 @@ export const wordApi = {
     if (params.part_of_speech) usp.set('part_of_speech', params.part_of_speech)
     if (params.level != null) usp.set('level', String(params.level))
     if (params.has_kanji != null) usp.set('has_kanji', String(params.has_kanji))
+    if (params.correct_count != null) usp.set('correct_count', String(params.correct_count))
+    if (params.group_id != null) usp.set('group_id', String(params.group_id))
     if (params.limit != null) usp.set('limit', String(params.limit))
     if (params.offset != null) usp.set('offset', String(params.offset))
     return fetchData<{ items: any[]; total: number }>(`/words/search?${usp.toString()}`)
@@ -189,6 +193,7 @@ export const kanjiApi = {
     onyomi?: boolean;
     kunyomi?: boolean;
     components?: string;
+    group_id?: number;
     page?: number;
     pageSize?: number;
   }) => {
@@ -203,6 +208,7 @@ export const kanjiApi = {
     if (params.onyomi != null) usp.set('onyomi', String(params.onyomi))
     if (params.kunyomi != null) usp.set('kunyomi', String(params.kunyomi))
     if (params.components) usp.set('components', params.components)
+    if (params.group_id != null) usp.set('group_id', String(params.group_id))
     if (params.page != null) usp.set('page', String(params.page))
     if (params.pageSize != null) usp.set('pageSize', String(params.pageSize))
     return fetchData<{ items: any[]; total: number; page: number; pageSize: number; totalPages: number }>(`/kanji?${usp.toString()}`)

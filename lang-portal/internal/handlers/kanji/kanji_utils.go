@@ -40,7 +40,7 @@ func convertModelsToKanji(kanji []KanjiModel) []Kanji {
 // buildSearchParams builds search parameters from query strings
 func buildSearchParams(query string, jlpt *int, strokesMin *int, strokesMax *int, hasSVG *bool,
 	frequencyMin *int, frequencyMax *int, onyomi *bool, kunyomi *bool, components *string,
-	limit *int, offset *int) KanjiSearchParams {
+	groupID *int64, limit *int, offset *int) KanjiSearchParams {
 
 	params := KanjiSearchParams{}
 
@@ -73,6 +73,9 @@ func buildSearchParams(query string, jlpt *int, strokesMin *int, strokesMax *int
 	}
 	if components != nil && *components != "" {
 		params.Components = components
+	}
+	if groupID != nil {
+		params.GroupID = groupID
 	}
 	if limit != nil {
 		params.Limit = limit

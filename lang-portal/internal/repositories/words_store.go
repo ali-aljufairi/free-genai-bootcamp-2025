@@ -91,6 +91,11 @@ func (s *WordsStore) Search(params SearchWordsParams) ([]models.Word, int64, err
 		}
 	}
 
+	if params.GroupID != nil {
+		query = query.Joins("JOIN word_groups ON words.id = word_groups.word_id").
+			Where("word_groups.group_id = ?", *params.GroupID)
+	}
+
 	var words []models.Word
 	var total int64
 
@@ -111,6 +116,7 @@ type SearchWordsParams struct {
 	PartOfSpeech *string
 	Level        *int
 	HasKanji     *bool
+	GroupID      *int64
 	Limit        *int
 	Offset       *int
 }

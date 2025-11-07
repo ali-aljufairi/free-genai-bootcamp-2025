@@ -81,6 +81,11 @@ func (s *KanjiStore) Search(params kanji.KanjiSearchParams) ([]kanji.KanjiModel,
 		query = query.Where("components ILIKE ?", "%"+*params.Components+"%")
 	}
 
+	if params.GroupID != nil {
+		query = query.Joins("JOIN kanji_groups ON kanji.id = kanji_groups.kanji_id").
+			Where("kanji_groups.group_id = ?", *params.GroupID)
+	}
+
 	var kanjiModels []kanji.KanjiModel
 	var total int64
 
