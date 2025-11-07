@@ -1,13 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Plus, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, X, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useVocabularyBrowser } from "@/hooks/api/useVocabularyBrowser";
+import type { UnifiedItem } from "@/hooks/api/useVocabularyBrowser";
 import { useVocabularyBrowserState } from "@/hooks/useVocabularyBrowserState";
 import { useAddToGroup, useAddToFavorites } from "@/hooks/api/useVocabularyActions";
 import { useGroups, useCreateGroup } from "@/hooks/api/useGroup";
@@ -15,11 +16,36 @@ import { VocabularyFilterSidebar } from "./vocabulary-filter-sidebar";
 import { VocabularyGrid } from "./vocabulary-grid";
 import { VocabularyImportSection } from "./vocabulary-import-section";
 
+const getItemKey = (entry: UnifiedItem) => `${entry.kind}-${entry.item?.id ?? "unknown"}`;
+
+const appendUniqueItems = (current: UnifiedItem[], incoming: UnifiedItem[]) => {
+  if (incoming.length === 0) return current;
+
+  const seen = new Set(current.map(getItemKey));
+  const merged = [...current];
+
+  for (const item of incoming) {
+    const key = getItemKey(item);
+    if (!seen.has(key)) {
+      seen.add(key);
+      merged.push(item);
+    }
+  }
+
+  return merged;
+};
+
 export function VocabularyBrowser() {
   const [showImport, setShowImport] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [newGroupName, setNewGroupName] = useState("");
   const [newGroupDesc, setNewGroupDesc] = useState("");
+  const [visibleItems, setVisibleItems] = useState<UnifiedItem[]>([]);
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+  const filtersKeyRef = useRef<string | null>(null);
+  const lastSyncedPageRef = useRef(0);
+  const lastItemsSignatureRef = useRef<string | null>(null);
+  const isRequestingMoreRef = useRef(false);
 
   // Browser state and filters
   const {
@@ -40,7 +66,34 @@ export function VocabularyBrowser() {
   } = useVocabularyBrowserState();
 
   // Data fetching
-  const { items, isLoading, total, totalPages, hasMore, hasPrevious } = useVocabularyBrowser(filters);
+  const { items, isLoading, total, hasMore } = useVocabularyBrowser(filters);
+  const filterSignature = useMemo(
+    () =>
+      JSON.stringify({
+        search: filters.search || "",
+        contentType: filters.contentType,
+        hasKanji: filters.hasKanji ?? null,
+        partOfSpeech: filters.partOfSpeech || [],
+        jlpt: filters.jlpt ?? null,
+        correctCountMin: filters.correctCountMin ?? null,
+        onyomi: filters.onyomi ?? null,
+        kunyomi: filters.kunyomi ?? null,
+        sortBy: filters.sortBy ?? "default",
+        group: filters.group ?? null,
+      }),
+    [
+      filters.search,
+      filters.contentType,
+      filters.hasKanji,
+      filters.partOfSpeech,
+      filters.jlpt,
+      filters.correctCountMin,
+      filters.onyomi,
+      filters.kunyomi,
+      filters.sortBy,
+      filters.group,
+    ]
+  );
 
   // Actions
   const { addToFavorites } = useAddToFavorites();
@@ -72,6 +125,68 @@ export function VocabularyBrowser() {
       }
     );
   };
+
+  useEffect(() => {
+    if (filtersKeyRef.current !== filterSignature) {
+      filtersKeyRef.current = filterSignature;
+      lastSyncedPageRef.current = 0;
+      lastItemsSignatureRef.current = null;
+      isRequestingMoreRef.current = false;
+      setVisibleItems([]);
+    }
+  }, [filterSignature]);
+
+  useEffect(() => {
+    if (isLoading) return;
+
+    const itemsSignature =
+      items.length > 0 ? items.map(getItemKey).join("|") : "empty";
+    const alreadySynced =
+      lastSyncedPageRef.current === page &&
+      lastItemsSignatureRef.current === itemsSignature;
+
+    if (alreadySynced) {
+      return;
+    }
+
+    setVisibleItems((prev) =>
+      page === 1 ? items : appendUniqueItems(prev, items)
+    );
+    lastSyncedPageRef.current = page;
+    lastItemsSignatureRef.current = itemsSignature;
+    isRequestingMoreRef.current = false;
+  }, [items, page, isLoading]);
+
+  const loadNextPage = useCallback(() => {
+    if (!hasMore || isLoading || isRequestingMoreRef.current) return;
+    isRequestingMoreRef.current = true;
+    setPage(page + 1);
+  }, [hasMore, isLoading, page, setPage]);
+
+  useEffect(() => {
+    if (!hasMore) {
+      isRequestingMoreRef.current = false;
+    }
+  }, [hasMore]);
+
+  useEffect(() => {
+    if (!hasMore) return;
+    const node = loadMoreRef.current;
+    if (!node) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const first = entries[0];
+        if (first.isIntersecting) {
+          loadNextPage();
+        }
+      },
+      { rootMargin: "200px" }
+    );
+
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [hasMore, loadNextPage, visibleItems.length]);
 
   const headerContent = (
     <div className="flex flex-col sm:flex-row justify-between gap-4 items-start sm:items-center">
@@ -171,66 +286,25 @@ export function VocabularyBrowser() {
     </div>
   );
 
-  // Pagination component
-  const PaginationControls = () => {
-    if (totalPages <= 1) return null;
-    
-    return (
-      <>
-        <div className="flex items-center justify-center gap-2 py-4">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setPage(page - 1)}
-            disabled={!hasPrevious || isLoading}
-          >
-            <ChevronLeft className="h-4 w-4 mr-1" />
-            Previous
-          </Button>
-          <div className="flex items-center gap-1">
-            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-              let pageNum: number;
-              if (totalPages <= 5) {
-                pageNum = i + 1;
-              } else if (page <= 3) {
-                pageNum = i + 1;
-              } else if (page >= totalPages - 2) {
-                pageNum = totalPages - 4 + i;
-              } else {
-                pageNum = page - 2 + i;
-              }
-              return (
-                <Button
-                  key={pageNum}
-                  variant={page === pageNum ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setPage(pageNum)}
-                  disabled={isLoading}
-                  className="min-w-[2.5rem]"
-                >
-                  {pageNum}
-                </Button>
-              );
-            })}
+  const resolvedTotalCount = Math.max(visibleItems.length, total ?? 0);
+  const loadStatus = visibleItems.length === 0 ? null : (
+    <div className="flex flex-col items-center gap-2 py-6 text-center">
+      <p className="text-sm text-muted-foreground">
+        Showing {visibleItems.length} of {resolvedTotalCount || visibleItems.length} entries
+      </p>
+      {hasMore ? (
+        <>
+          <div className="flex items-center gap-2 text-sm font-medium">
+            <Loader2 className={`h-4 w-4 ${isLoading ? "animate-spin" : "opacity-0"}`} />
+            <span>{isLoading ? "Loading more vocabulary..." : "Scroll to load more"}</span>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setPage(page + 1)}
-            disabled={!hasMore || isLoading}
-          >
-            Next
-            <ChevronRight className="h-4 w-4 ml-1" />
-          </Button>
-        </div>
-        {totalPages > 0 && (
-          <div className="text-center text-sm text-muted-foreground py-2">
-            Page {page} of {totalPages} ({total} total items)
-          </div>
-        )}
-      </>
-    );
-  };
+          <div ref={loadMoreRef} className="h-10 w-full" aria-hidden="true" />
+        </>
+      ) : (
+        <span className="text-sm text-muted-foreground">You&apos;ve reached the end of the list.</span>
+      )}
+    </div>
+  );
 
   return (
     <div className="space-y-6">
@@ -239,14 +313,13 @@ export function VocabularyBrowser() {
         {headerContent}
         {showImport && <VocabularyImportSection />}
         <VocabularyGrid
-          items={items}
+          items={visibleItems}
           isLoading={isLoading}
           groups={groups}
           onAddToGroup={handleAddToGroup}
           onAddToFavorites={addToFavorites}
           searchTerm={filters.search}
         />
-        <PaginationControls />
       </div>
 
       {/* Mobile: Standard layout */}
@@ -285,15 +358,15 @@ export function VocabularyBrowser() {
         {headerContent}
         {showImport && <VocabularyImportSection />}
         <VocabularyGrid
-          items={items}
+          items={visibleItems}
           isLoading={isLoading}
           groups={groups}
           onAddToGroup={handleAddToGroup}
           onAddToFavorites={addToFavorites}
           searchTerm={filters.search}
         />
-        <PaginationControls />
       </div>
+      {loadStatus}
     </div>
   );
 }

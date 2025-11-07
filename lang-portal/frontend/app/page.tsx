@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import Image from "next/image"
 import { motion } from "framer-motion"
-import { ArrowRight, BookOpen, Brain, CheckCircle, GraduationCap, Sparkles, Users, AlertTriangle } from "lucide-react"
+import { ArrowRight, BookOpen, Brain, CheckCircle, GraduationCap, Sparkles, Users, AlertTriangle, Mic, MessageSquare, Bot, Image as ImageIcon, Zap, BarChart3 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { StatsCards } from "@/components/dashboard/stats-cards"
@@ -15,7 +15,7 @@ import TourGuide from "@/components/common/tour-guide"
 const clerkAppearance = {
   elements: {
     rootBox: "",
-    card: "bg-gradient-to-r from-blue-600 to-indigo-600 shadow-xl border-0",
+    card: "bg-gradient-to-r from-blue-600 to-blue-700 shadow-xl border-0",
     modalBackdrop: "backdrop-blur-md",
     modalContent: "bg-transparent",
     headerTitle: "text-white font-bold",
@@ -49,24 +49,51 @@ export default function HomePage() {
     // If not signed in, the SignUpButton component will handle it
   }
 
+  const scrollToSection = (sectionId: string) => {
+    const element = document.getElementById(sectionId)
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }
+
+  useEffect(() => {
+    // Add structured data for SEO
+    const structuredData = {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "Sorami",
+      "alternateName": "空見",
+      "description": "AI-powered Japanese language learning platform with immersive tools for lasting fluency",
+      "url": process.env.NEXT_PUBLIC_APP_URL || "https://sorami.app",
+      "applicationCategory": "EducationalApplication",
+      "operatingSystem": "Web",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "featureList": [
+        "AI Live Speaking Practice",
+        "AI Chat Tutor",
+        "Speech-to-Image Learning",
+        "Interactive Flashcards",
+        "JLPT-Aligned Content",
+        "Progress Tracking"
+      ]
+    }
+
+    const script = document.createElement('script')
+    script.type = 'application/ld+json'
+    script.text = JSON.stringify(structuredData)
+    document.head.appendChild(script)
+
+    return () => {
+      document.head.removeChild(script)
+    }
+  }, [])
+
   return (
-    <div className="flex flex-col gap-16 pb-20">
-      {/* Database Migration Warning Banner */}
-      <div className="bg-yellow-50 dark:bg-yellow-900/20 border-b border-yellow-200 dark:border-yellow-800">
-        <div className="container mx-auto px-4 py-3">
-          <div className="flex items-center gap-3">
-            <AlertTriangle className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
-            <div className="flex-1">
-              <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
-                Database Migration in Progress
-              </p>
-              <p className="text-xs text-yellow-700 dark:text-yellow-300">
-                Some features are temporarily disabled. Only Word Flashcards and Kanji Cards are available.
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
+    <main className="flex flex-col gap-16 pb-20">
 
       {/* Hero Section */}
       <section id="hero-section" className="relative min-h-[90vh] flex items-center py-20 overflow-hidden">
@@ -85,7 +112,7 @@ export default function HomePage() {
             }}
           />
           <motion.div
-            className="absolute bottom-20 right-10 w-80 h-80 rounded-full bg-indigo-300/20 dark:bg-indigo-500/10 blur-3xl"
+            className="absolute bottom-20 right-10 w-80 h-80 rounded-full bg-blue-300/20 dark:bg-blue-500/10 blur-3xl"
             animate={{
               x: [0, -20, 0],
               y: [0, 10, 0],
@@ -132,6 +159,25 @@ export default function HomePage() {
               Elevate your language learning journey with an immersive, intuitive experience designed for lasting
               fluency.
             </motion.p>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: isVisible ? 1 : 0, y: isVisible ? 0 : 20 }}
+              transition={{ duration: 0.5, delay: 0.25 }}
+              className="flex flex-wrap justify-center gap-3 text-sm text-muted-foreground mb-8"
+            >
+              <span className="flex items-center gap-1">
+                <Zap className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                AI-Powered Learning
+              </span>
+              <span className="flex items-center gap-1">
+                <BookOpen className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                Comprehensive Content
+              </span>
+              <span className="flex items-center gap-1">
+                <BarChart3 className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                Track Your Progress
+              </span>
+            </motion.div>
 
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -142,7 +188,7 @@ export default function HomePage() {
               {isSignedIn ? (
                 <Button
                   size="lg"
-                  className="px-8 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white border-0"
+                  className="px-8 bg-primary text-primary-foreground hover:brightness-95 border-0"
                   onClick={handleGetStarted}
                 >
                   Get Started
@@ -152,7 +198,7 @@ export default function HomePage() {
                 <SignUpButton mode="modal" appearance={clerkAppearance}>
                   <Button
                     size="lg"
-                    className="px-8 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white border-0"
+                    className="px-8 bg-primary text-primary-foreground hover:brightness-95 border-0"
                   >
                     Get Started
                     <ArrowRight className="ml-2 h-4 w-4" />
@@ -176,8 +222,8 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Features Section */}
-      <section id="features-section" className="container mx-auto px-4">
+      {/* AI Features Showcase Section */}
+      <section id="ai-features-section" className="container mx-auto px-4">
         <div className="text-center mb-12">
           <motion.h2
             initial={{ opacity: 0, y: 20 }}
@@ -185,7 +231,7 @@ export default function HomePage() {
             transition={{ duration: 0.5, delay: 0.1 }}
             className="text-3xl font-bold mb-4"
           >
-            Core Features
+            AI-Powered Learning Features
           </motion.h2>
           <motion.p
             initial={{ opacity: 0, y: 20 }}
@@ -193,25 +239,35 @@ export default function HomePage() {
             transition={{ duration: 0.5, delay: 0.2 }}
             className="text-xl text-muted-foreground max-w-2xl mx-auto"
           >
-            Everything you need for effective language learning
+            Experience the future of language learning with cutting-edge AI technology
           </motion.p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {features.map((feature, index) => (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
+          {aiFeatures.map((feature, index) => (
             <motion.div
               key={feature.title}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: isVisible ? 1 : 0, y: isVisible ? 0 : 20 }}
               transition={{ duration: 0.5, delay: 0.2 + index * 0.1 }}
             >
-              <Card className="glass-card h-full border-blue-100/80 dark:border-blue-900/70 overflow-hidden">
+              <Card className="glass-card h-full border-blue-100/80 dark:border-blue-900/70 overflow-hidden hover:shadow-xl transition-shadow">
                 <CardContent className="p-6">
-                  <div className="rounded-full p-3 w-12 h-12 flex items-center justify-center bg-blue-100 dark:bg-blue-900/30 mb-4">
-                    {feature.icon}
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="rounded-full p-3 w-12 h-12 flex items-center justify-center flex-shrink-0">
+                      {feature.icon}
+                    </div>
+                    <h3 className="text-xl font-bold">{feature.title}</h3>
                   </div>
-                  <h3 className="text-xl font-bold mb-2">{feature.title}</h3>
-                  <p className="text-muted-foreground">{feature.description}</p>
+                  <p className="text-muted-foreground mb-3">{feature.description}</p>
+                  <ul className="space-y-1 text-sm text-muted-foreground">
+                    {feature.benefits.map((benefit, i) => (
+                      <li key={i} className="flex items-start gap-2">
+                        <CheckCircle className={`h-4 w-4 mt-0.5 flex-shrink-0 ${feature.checkmarkColor}`} />
+                        <span>{benefit}</span>
+                      </li>
+                    ))}
+                  </ul>
                 </CardContent>
               </Card>
             </motion.div>
@@ -219,15 +275,47 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Stats Section */}
-      <section id="stats-section" className="container mx-auto px-4">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: isVisible ? 1 : 0, y: isVisible ? 0 : 20 }}
-          transition={{ duration: 0.5, delay: 0.3 }}
-        >
-          <StatsCards />
-        </motion.div>
+      {/* Why Choose Sorami Section */}
+      <section id="why-choose-section" className="container mx-auto px-4">
+        <div className="text-center mb-12">
+          <motion.h2
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: isVisible ? 1 : 0, y: isVisible ? 0 : 20 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+            className="text-3xl font-bold mb-4"
+          >
+            Why Choose Sorami?
+          </motion.h2>
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: isVisible ? 1 : 0, y: isVisible ? 0 : 20 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+            className="text-xl text-muted-foreground max-w-2xl mx-auto"
+          >
+            Everything you need for effective and engaging language learning
+          </motion.p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {valuePropositions.map((prop, index) => (
+            <motion.div
+              key={prop.title}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: isVisible ? 1 : 0, y: isVisible ? 0 : 20 }}
+              transition={{ duration: 0.5, delay: 0.2 + index * 0.1 }}
+            >
+              <Card className="glass-card h-full border-blue-100/80 dark:border-blue-900/70 overflow-hidden">
+                <CardContent className="p-6">
+                  <div className="rounded-full p-3 w-12 h-12 flex items-center justify-center bg-blue-100 dark:bg-blue-900/30 mb-4">
+                    {prop.icon}
+                  </div>
+                  <h3 className="text-xl font-bold mb-2">{prop.title}</h3>
+                  <p className="text-muted-foreground">{prop.description}</p>
+                </CardContent>
+              </Card>
+            </motion.div>
+          ))}
+        </div>
       </section>
 
       {/* CTA Section */}
@@ -236,22 +324,20 @@ export default function HomePage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: isVisible ? 1 : 0, y: isVisible ? 0 : 20 }}
           transition={{ duration: 0.5, delay: 0.4 }}
-          className="relative overflow-hidden rounded-2xl p-8 md:p-16"
+          className="relative glass-card overflow-hidden rounded-2xl p-8 md:p-16 border border-blue-100/80 dark:border-blue-900/70"
         >
-          <div className="absolute inset-0 bg-gradient-to-br from-blue-100/90 to-indigo-100/90 dark:from-blue-900/90 dark:to-indigo-900/90 backdrop-blur-sm"></div>
-          <div className="absolute inset-0 bg-grid-pattern opacity-10"></div>
 
           <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
             <div className="max-w-lg">
               <h2 className="text-3xl font-bold mb-4">Ready to start your language journey?</h2>
               <p className="text-lg text-muted-foreground mb-6">
-                Join thousands of learners who have achieved fluency with Sorami's immersive approach.
+                Start your journey to Japanese fluency with Sorami's immersive, AI-powered learning experience.
               </p>
               <div className="flex flex-wrap gap-4">
                 {isSignedIn ? (
                   <Button
                     size="lg"
-                    className="px-8 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white border-0"
+                    className="px-8 bg-primary text-primary-foreground hover:brightness-95 border-0"
                     onClick={handleGetStarted}
                   >
                     Get Started Free
@@ -260,69 +346,120 @@ export default function HomePage() {
                   <SignUpButton mode="modal" appearance={clerkAppearance}>
                     <Button
                       size="lg"
-                      className="px-8 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white border-0"
+                      className="px-8 bg-primary text-primary-foreground hover:brightness-95 border-0"
                     >
                       Get Started Free
                     </Button>
                   </SignUpButton>
                 )}
-                <Button size="lg" variant="outline" className="px-8">
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="px-8"
+                  onClick={() => router.push("/pricing")}
+                >
                   View Pricing
                 </Button>
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
-              <div className="flex -space-x-4">
-                {[1, 2, 3, 4].map((i) => (
-                  <div
-                    key={i}
-                    className="w-10 h-10 rounded-full bg-blue-200 dark:bg-blue-800 border-2 border-white dark:border-slate-900"
-                  ></div>
-                ))}
+            <div className="flex flex-col items-center gap-4 text-center">
+              <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
+                <Sparkles className="h-5 w-5" />
+                <span className="font-semibold">Beta Available Now</span>
               </div>
-              <div>
-                <div className="font-bold">Join 10,000+ users</div>
-                <div className="text-sm text-muted-foreground">Learning with Sorami</div>
-              </div>
+              <p className="text-sm text-muted-foreground max-w-md">
+                Start your Japanese learning journey today with our comprehensive AI-powered platform
+              </p>
             </div>
           </div>
         </motion.div>
       </section>
-    </div>
+    </main>
   )
 }
 
-const features = [
+const aiFeatures = [
   {
-    title: "Interactive Dashboard",
-    description: "Track your progress with detailed insights and visualizations of your learning journey.",
-    icon: <Brain className="h-6 w-6 text-blue-600 dark:text-blue-400" />,
+    title: "AI Live Speaking",
+    description: "Practice real conversations with our AI-powered speaking companion. Get instant feedback and improve your pronunciation naturally.",
+    icon: <Mic className="h-6 w-6 text-blue-500" />,
+    checkmarkColor: "text-green-600 dark:text-green-400",
+    benefits: [
+      "Real-time conversation practice",
+      "Instant pronunciation feedback",
+      "Natural dialogue flow",
+      "Build confidence speaking Japanese"
+    ]
   },
   {
-    title: "Vocabulary Browser",
-    description: "Explore and learn new words with our interactive card-based vocabulary system.",
+    title: "AI Chat Tutor",
+    description: "Learn grammar and vocabulary through interactive conversations with your AI Japanese tutor. Get personalized explanations and examples.",
+    icon: <MessageSquare className="h-6 w-6 text-purple-500" />,
+    checkmarkColor: "text-green-600 dark:text-green-400",
+    benefits: [
+      "Personalized grammar explanations",
+      "Contextual vocabulary learning",
+      "Adaptive difficulty levels",
+      "24/7 available tutor"
+    ]
+  },
+  {
+    title: "Speech-to-Image Learning",
+    description: "Describe scenarios in Japanese and watch as AI generates visual representations. Learn through visual association and creative expression.",
+    icon: <ImageIcon className="h-6 w-6 text-green-500" />,
+    checkmarkColor: "text-green-600 dark:text-green-400",
+    benefits: [
+      "Visual learning reinforcement",
+      "Creative expression practice",
+      "Vocabulary in context",
+      "Engaging study method"
+    ]
+  },
+  {
+    title: "AI Agent Study",
+    description: "Interactive learning scenarios powered by AI agents. Practice real-world situations and receive intelligent guidance throughout your journey.",
+    icon: <Bot className="h-6 w-6 text-orange-500" />,
+    checkmarkColor: "text-green-600 dark:text-green-400",
+    benefits: [
+      "Real-world scenario practice",
+      "Intelligent learning guidance",
+      "Contextual learning",
+      "Dynamic study sessions"
+    ]
+  },
+]
+
+const valuePropositions = [
+  {
+    title: "Comprehensive Content Library",
+    description: "Access extensive vocabulary, kanji characters, and JLPT-aligned questions to support your learning at every level.",
     icon: <BookOpen className="h-6 w-6 text-blue-600 dark:text-blue-400" />,
   },
   {
-    title: "Study Sessions",
-    description: "Engage in focused learning activities designed to maximize retention and fluency.",
+    title: "Multiple Study Modes",
+    description: "Choose from flashcards, quizzes, chat sessions, speech practice, drawing exercises, and AI agent interactions.",
     icon: <GraduationCap className="h-6 w-6 text-blue-600 dark:text-blue-400" />,
   },
   {
+    title: "Interactive Dashboard",
+    description: "Track your progress with detailed insights, visualizations, and analytics of your learning journey.",
+    icon: <Brain className="h-6 w-6 text-blue-600 dark:text-blue-400" />,
+  },
+  {
     title: "Progress Tracking",
-    description: "Monitor your learning streak and achievements to stay motivated.",
-    icon: <CheckCircle className="h-6 w-6 text-blue-600 dark:text-blue-400" />,
+    description: "Monitor your learning streak, achievements, and mastery levels to stay motivated and on track.",
+    icon: <BarChart3 className="h-6 w-6 text-blue-600 dark:text-blue-400" />,
   },
   {
     title: "Personalized Learning",
-    description: "Adaptive learning paths that adjust to your strengths and areas for improvement.",
+    description: "Adaptive learning paths that adjust to your strengths, weaknesses, and learning pace for optimal results.",
     icon: <Sparkles className="h-6 w-6 text-blue-600 dark:text-blue-400" />,
   },
   {
-    title: "Community Support",
-    description: "Connect with fellow learners to practice and share your language journey.",
-    icon: <Users className="h-6 w-6 text-blue-600 dark:text-blue-400" />,
+    title: "Immersive Experience",
+    description: "Engage with Japanese language learning through beautiful, intuitive design that makes studying enjoyable.",
+    icon: <CheckCircle className="h-6 w-6 text-blue-600 dark:text-blue-400" />,
   },
 ]
 

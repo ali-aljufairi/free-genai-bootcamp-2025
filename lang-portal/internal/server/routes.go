@@ -35,6 +35,10 @@ func (s *FiberServer) RegisterFiberRoutes() {
 	s.App.Get("/", s.HelloWorldHandler)
 	s.App.Get("/health", s.healthHandler)
 
+	// Public content stats endpoint (no auth required)
+	contentHandler := roothandlers.NewContentSearchHandler(s.postgresDB)
+	s.App.Get("/api/public/stats", contentHandler.GetContentStats)
+
 	// Test endpoints for development
 	if strings.ToLower(os.Getenv("APP_ENV")) != "prod" {
 		dashboardHandler := dashboard.NewDashboardHandler(s.postgresDB)
@@ -101,7 +105,6 @@ func (s *FiberServer) RegisterFiberRoutes() {
 	s.App.Get("/api/langportal/words/search", wordsHandler.SearchWords)
 
 	// Unified vocabulary search route (server-side merge of kanji+words)
-	contentHandler := roothandlers.NewContentSearchHandler(s.postgresDB)
 	s.App.Get("/api/langportal/vocabulary/search", contentHandler.SearchContent)
 
 	// Study activity routes

@@ -2,6 +2,7 @@
 
 import Sidebar from "@/components/layout/sidebar"
 import Navbar from "@/components/layout/navbar"
+import Footer from "@/components/layout/footer"
 import { usePathname } from "next/navigation"
 import { ErrorBoundary } from "@/components/common/error-boundary"
 import type React from "react"
@@ -25,6 +26,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   const pathname = usePathname()
   const isHomePage = pathname === "/"
   const isAuthPage = pathname?.startsWith("/sign-in") || pathname?.startsWith("/sign-up")
+  const isPublicPage = pathname === "/pricing" || pathname === "/terms" || pathname === "/privacy"
 
   if (isHomePage) {
     return (
@@ -37,6 +39,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
           <div className="flex flex-col min-h-screen">
             <Navbar />
             <main className="flex-1">{children}</main>
+            <Footer />
           </div>
           <Toaster />
         </ThemeProvider>
@@ -55,6 +58,25 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
           <main className="min-h-screen flex items-center justify-center p-4 md:p-8">
             {children}
           </main>
+          <Toaster />
+        </ThemeProvider>
+      </QueryClientProvider>
+    )
+  }
+
+  if (isPublicPage) {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="dark"
+          disableTransitionOnChange
+        >
+          <div className="flex flex-col min-h-screen">
+            <Navbar />
+            <main className="flex-1">{children}</main>
+            <Footer />
+          </div>
           <Toaster />
         </ThemeProvider>
       </QueryClientProvider>
