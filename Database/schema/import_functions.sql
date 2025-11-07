@@ -506,7 +506,16 @@ BEGIN
                 safe_jsonb_extract_text(record_data, 'unicode'),
                 safe_jsonb_extract_text(record_data, 'onyomi'),
                 safe_jsonb_extract_text(record_data, 'kunyomi'),
-                safe_jsonb_extract_text(record_data, 'detail'),
+                CASE 
+                    WHEN safe_jsonb_extract_text(record_data, 'detail') IS NOT NULL THEN
+                        safe_jsonb_extract_text(record_data, 'detail')
+                    WHEN record_data -> 'meanings' IS NOT NULL AND jsonb_array_length(record_data -> 'meanings') > 0 THEN
+                        array_to_string(ARRAY(
+                            SELECT jsonb_array_elements_text(record_data -> 'meanings')
+                            ORDER BY jsonb_array_elements_text(record_data -> 'meanings')
+                        ), ', ')
+                    ELSE NULL
+                END,
                 safe_jsonb_extract_int(record_data, 'jlpt'),
                 safe_jsonb_extract_int(record_data, 'frequency'),
                 safe_jsonb_extract_text(record_data, 'components'),
@@ -538,6 +547,28 @@ BEGIN
     END LOOP;
     
     RETURN inserted_count;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Function to fix inconsistencies between meanings and detail fields
+CREATE OR REPLACE FUNCTION fix_kanji_meanings_detail()
+RETURNS INTEGER AS $$
+DECLARE
+    updated_count INTEGER := 0;
+BEGIN
+    -- Update records where meanings exists but detail is null/empty
+    UPDATE kanji SET 
+        detail = array_to_string(ARRAY(
+            SELECT jsonb_array_elements_text(meanings)
+            ORDER BY jsonb_array_elements_text(meanings)
+        ), ', ')
+    WHERE meanings IS NOT NULL 
+      AND jsonb_array_length(meanings) > 0 
+      AND (detail IS NULL OR detail = '');
+    
+    GET DIAGNOSTICS updated_count = ROW_COUNT;
+    
+    RETURN updated_count;
 END;
 $$ LANGUAGE plpgsql;
 

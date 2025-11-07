@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"lang-portal/internal/database/models"
 	"lang-portal/internal/handlers/kanji"
 	"gorm.io/gorm"
 )
@@ -89,6 +90,27 @@ func (s *KanjiStore) Search(params kanji.KanjiSearchParams) ([]kanji.KanjiModel,
 
 	if err := query.Limit(limit).Offset(offset).Order("id ASC").Find(&kanjiModels).Error; err != nil {
 		return nil, 0, err
+	}
+
+	// Add fallback meanings from heisig_en or words table for kanji with empty meanings
+	for i := range kanjiModels {
+		if len(kanjiModels[i].Meanings) == 0 {
+			// First try to use heisig_en if available
+			if kanjiModels[i].HeisigEn != nil && *kanjiModels[i].HeisigEn != "" {
+				kanjiModels[i].Meanings = kanji.StringSlice{*kanjiModels[i].HeisigEn}
+			} else {
+				// Fallback to words table if heisig_en is not available
+				var word models.Word
+				err := s.DB.Model(&models.Word{}).
+					Where("kanji LIKE ?", "%"+kanjiModels[i].Character+"%").
+					First(&word).Error
+				
+				if err == nil && word.English != "" {
+					// Populate meanings with the word's English translation
+					kanjiModels[i].Meanings = kanji.StringSlice{word.English}
+				}
+			}
+		}
 	}
 
 	return kanjiModels, total, nil

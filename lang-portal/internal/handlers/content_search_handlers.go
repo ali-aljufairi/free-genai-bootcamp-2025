@@ -126,7 +126,7 @@ func (h *ContentSearchHandler) searchKanji(query string, jlptLevel *int, limit, 
 		if k.Character == query {
 			relevance = 1.0
 			matchedField = "character"
-		} else if containsString(k.Meanings, query) {
+		} else if containsString([]string(k.Meanings), query) {
 			relevance = 0.8
 			matchedField = "meaning"
 		} else if k.HeisigEn != nil && containsString([]string{*k.HeisigEn}, query) {

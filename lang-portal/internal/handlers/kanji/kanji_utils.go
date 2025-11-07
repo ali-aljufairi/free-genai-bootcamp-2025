@@ -7,8 +7,8 @@ import (
 // convertModelToKanji converts database model to response type
 func convertModelToKanji(k KanjiModel) Kanji {
 	meanings := make([]string, 0)
-	if k.Meanings != nil {
-		meanings = k.Meanings
+	if len(k.Meanings) > 0 {
+		meanings = []string(k.Meanings)
 	}
 
 	return Kanji{
@@ -110,4 +110,3 @@ func calculateTotalPages(total int64, pageSize int) int64 {
 	}
 	return (total + int64(pageSize) - 1) / int64(pageSize)
 }
-
