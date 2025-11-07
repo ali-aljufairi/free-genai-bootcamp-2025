@@ -1,6 +1,5 @@
 "use client";
 
-import { useCallback } from "react";
 import { useWords } from "./useWord";
 import { useKanji } from "./useKanji";
 
@@ -17,6 +16,7 @@ export interface VocabularyBrowserFilters {
   kunyomi?: boolean;
   sortBy?: 'frequency' | 'default';
   group?: number;
+  page?: number;
 }
 
 export type UnifiedItem = 
@@ -26,9 +26,11 @@ export type UnifiedItem =
 export interface UseVocabularyBrowserReturn {
   items: UnifiedItem[];
   isLoading: boolean;
+  total: number;
+  page: number;
+  totalPages: number;
   hasMore: boolean;
-  loadMore: () => void;
-  isFetchingMore: boolean;
+  hasPrevious: boolean;
 }
 
 /**
@@ -36,17 +38,20 @@ export interface UseVocabularyBrowserReturn {
  * Combines useWords and useKanji hooks based on contentType filter
  */
 export function useVocabularyBrowser(filters: VocabularyBrowserFilters): UseVocabularyBrowserReturn {
+  const currentPage = filters.page || 1;
+  
   // For words, use first partOfSpeech if array (API may not support array, so we'll filter client-side)
   const partOfSpeechForAPI = filters.partOfSpeech && filters.partOfSpeech.length > 0 
     ? filters.partOfSpeech[0] 
     : undefined;
 
+  // Always use backend search endpoint when there are any filters or search term
+  const hasFilters = !!(filters.search || filters.jlpt != null || filters.hasKanji != null || 
+    partOfSpeechForAPI || filters.correctCountMin != null || filters.group != null);
+
   const {
     data: wordsData,
     isLoading: wordsLoading,
-    loadMore: loadMoreWords,
-    hasMore: hasMoreWords,
-    isFetchingMore: isFetchingMoreWords
   } = useWords({
     q: filters.search || undefined,
     has_kanji: filters.hasKanji,
@@ -54,20 +59,20 @@ export function useVocabularyBrowser(filters: VocabularyBrowserFilters): UseVoca
     jlpt: filters.jlpt,
     correct_count: filters.correctCountMin,
     group_id: filters.group,
+    page: currentPage,
+    useSearch: hasFilters, // Always use search endpoint when filters are present
   });
 
   const {
     data: kanjiData,
     isLoading: kanjiLoading,
-    loadMore: loadMoreKanji,
-    hasMore: hasMoreKanji,
-    isFetchingMore: isFetchingMoreKanji
   } = useKanji({
     q: filters.contentType !== 'words' && filters.search ? filters.search : undefined,
     jlpt: filters.jlpt,
     onyomi: filters.onyomi,
     kunyomi: filters.kunyomi,
     group_id: filters.group,
+    page: currentPage,
   });
 
   let words = wordsData?.items || [];
@@ -107,29 +112,36 @@ export function useVocabularyBrowser(filters: VocabularyBrowserFilters): UseVoca
   const isLoading = (filters.contentType !== 'kanji' && wordsLoading && words.length === 0) ||
                      (filters.contentType !== 'words' && kanjiLoading && kanji.length === 0);
 
-  // Determine if there's more to load
-  const hasMore = (filters.contentType !== 'kanji' && hasMoreWords) ||
-                  (filters.contentType !== 'words' && hasMoreKanji);
+  // Get pagination info
+  const wordsTotal = wordsData?.total || 0;
+  const wordsTotalPages = wordsData?.totalPages || 0;
+  const kanjiTotal = kanjiData?.total || 0;
+  const kanjiTotalPages = kanjiData?.totalPages || 0;
 
-  // Load more function - memoized to prevent unnecessary re-renders
-  const loadMore = useCallback(() => {
-    if (filters.contentType !== 'kanji' && hasMoreWords) {
-      loadMoreWords();
-    }
-    if (filters.contentType !== 'words' && hasMoreKanji) {
-      loadMoreKanji();
-    }
-  }, [filters.contentType, hasMoreWords, hasMoreKanji, loadMoreWords, loadMoreKanji]);
+  // For combined view, use the maximum totals
+  const total = filters.contentType === 'words' 
+    ? wordsTotal 
+    : filters.contentType === 'kanji'
+    ? kanjiTotal
+    : Math.max(wordsTotal, kanjiTotal);
 
-  const isFetchingMore = (filters.contentType !== 'kanji' && isFetchingMoreWords) ||
-                         (filters.contentType !== 'words' && isFetchingMoreKanji);
+  const totalPages = filters.contentType === 'words'
+    ? wordsTotalPages
+    : filters.contentType === 'kanji'
+    ? kanjiTotalPages
+    : Math.max(wordsTotalPages, kanjiTotalPages);
+
+  const hasMore = currentPage < totalPages;
+  const hasPrevious = currentPage > 1;
 
   return {
     items: unifiedItems,
     isLoading,
+    total,
+    page: currentPage,
+    totalPages,
     hasMore,
-    loadMore,
-    isFetchingMore,
+    hasPrevious,
   };
 }
 

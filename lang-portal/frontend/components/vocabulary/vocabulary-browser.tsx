@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Plus, X } from "lucide-react";
+import { Plus, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { useVocabularyBrowser } from "@/hooks/api/useVocabularyBrowser";
 import { useVocabularyBrowserState } from "@/hooks/useVocabularyBrowserState";
@@ -24,6 +24,8 @@ export function VocabularyBrowser() {
   // Browser state and filters
   const {
     filters,
+    page,
+    setPage,
     setSearch,
     setContentType,
     setHasKanji,
@@ -35,11 +37,10 @@ export function VocabularyBrowser() {
     setKunyomi,
     setSortBy,
     setGroup,
-    loaderRef,
   } = useVocabularyBrowserState();
 
   // Data fetching
-  const { items, isLoading, hasMore, loadMore, isFetchingMore } = useVocabularyBrowser(filters);
+  const { items, isLoading, total, totalPages, hasMore, hasPrevious } = useVocabularyBrowser(filters);
 
   // Actions
   const { addToFavorites } = useAddToFavorites();
@@ -47,46 +48,13 @@ export function VocabularyBrowser() {
   const { data: groups } = useGroups();
   const { createGroup, isLoading: creatingGroup } = useCreateGroup();
 
-  // Setup infinite scroll - improved implementation
-  useEffect(() => {
-    const currentLoader = loaderRef.current;
-    if (!currentLoader) {
-      return;
-    }
-
-    // Don't observe if no more data or already loading
-    if (!hasMore || isLoading || isFetchingMore) {
-      return;
-    }
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const entry = entries[0];
-        if (entry && entry.isIntersecting) {
-          // Use the latest values from the closure
-          loadMore();
-        }
-      },
-      {
-        threshold: 0,
-        rootMargin: '300px'
-      }
-    );
-
-    observer.observe(currentLoader);
-
-    return () => {
-      observer.disconnect();
-    };
-  }, [hasMore, isLoading, isFetchingMore, loadMore]);
-
   const handleCreateGroup = async () => {
     if (!newGroupName.trim()) return;
     try {
-      await createGroup({ name: newGroupName.trim(), description: newGroupDesc.trim() || undefined });
-      setIsCreateOpen(false);
-      setNewGroupName("");
-      setNewGroupDesc("");
+    await createGroup({ name: newGroupName.trim(), description: newGroupDesc.trim() || undefined });
+    setIsCreateOpen(false);
+    setNewGroupName("");
+    setNewGroupDesc("");
       // Groups will be refetched automatically via useGroups hook
     } catch (error) {
       // Error is already handled by useCreateGroup hook
@@ -203,6 +171,67 @@ export function VocabularyBrowser() {
     </div>
   );
 
+  // Pagination component
+  const PaginationControls = () => {
+    if (totalPages <= 1) return null;
+    
+    return (
+      <>
+        <div className="flex items-center justify-center gap-2 py-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPage(page - 1)}
+            disabled={!hasPrevious || isLoading}
+          >
+            <ChevronLeft className="h-4 w-4 mr-1" />
+            Previous
+          </Button>
+          <div className="flex items-center gap-1">
+            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+              let pageNum: number;
+              if (totalPages <= 5) {
+                pageNum = i + 1;
+              } else if (page <= 3) {
+                pageNum = i + 1;
+              } else if (page >= totalPages - 2) {
+                pageNum = totalPages - 4 + i;
+              } else {
+                pageNum = page - 2 + i;
+              }
+              return (
+                <Button
+                  key={pageNum}
+                  variant={page === pageNum ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setPage(pageNum)}
+                  disabled={isLoading}
+                  className="min-w-[2.5rem]"
+                >
+                  {pageNum}
+                </Button>
+              );
+            })}
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPage(page + 1)}
+            disabled={!hasMore || isLoading}
+          >
+            Next
+            <ChevronRight className="h-4 w-4 ml-1" />
+          </Button>
+        </div>
+        {totalPages > 0 && (
+          <div className="text-center text-sm text-muted-foreground py-2">
+            Page {page} of {totalPages} ({total} total items)
+          </div>
+        )}
+      </>
+    );
+  };
+
   return (
     <div className="space-y-6">
       {/* Desktop: Main content layout */}
@@ -212,14 +241,12 @@ export function VocabularyBrowser() {
         <VocabularyGrid
           items={items}
           isLoading={isLoading}
-          hasMore={hasMore}
-          isFetchingMore={isFetchingMore}
-          loaderRef={loaderRef}
           groups={groups}
           onAddToGroup={handleAddToGroup}
           onAddToFavorites={addToFavorites}
           searchTerm={filters.search}
         />
+        <PaginationControls />
       </div>
 
       {/* Mobile: Standard layout */}
@@ -260,14 +287,12 @@ export function VocabularyBrowser() {
         <VocabularyGrid
           items={items}
           isLoading={isLoading}
-          hasMore={hasMore}
-          isFetchingMore={isFetchingMore}
-          loaderRef={loaderRef}
           groups={groups}
           onAddToGroup={handleAddToGroup}
           onAddToFavorites={addToFavorites}
           searchTerm={filters.search}
         />
+        <PaginationControls />
       </div>
     </div>
   );

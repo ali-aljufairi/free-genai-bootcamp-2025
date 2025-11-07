@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState } from "react";
 import type { ContentType, VocabularyBrowserFilters } from "./api/useVocabularyBrowser";
 
 export interface UseVocabularyBrowserStateReturn {
   filters: VocabularyBrowserFilters;
+  page: number;
+  setPage: (page: number) => void;
   setSearch: (search: string) => void;
   setContentType: (type: ContentType) => void;
   setHasKanji: (hasKanji: boolean | undefined) => void;
@@ -16,7 +18,6 @@ export interface UseVocabularyBrowserStateReturn {
   setKunyomi: (kunyomi: boolean | undefined) => void;
   setSortBy: (sort: 'frequency' | 'default') => void;
   setGroup: (group: number | undefined) => void;
-  loaderRef: React.RefObject<HTMLDivElement | null>;
 }
 
 /**
@@ -33,10 +34,10 @@ export function useVocabularyBrowserState(): UseVocabularyBrowserStateReturn {
   const [kunyomi, setKunyomi] = useState<boolean | undefined>(undefined);
   const [sortBy, setSortBy] = useState<'frequency' | 'default'>('default');
   const [group, setGroup] = useState<number | undefined>(undefined);
-  
-  const loaderRef = useRef<HTMLDivElement>(null);
+  const [page, setPage] = useState(1);
 
   const togglePartOfSpeech = (pos: string) => {
+    setPage(1);
     setPartOfSpeech(prev => {
       if (prev.includes(pos)) {
         return prev.filter(p => p !== pos);
@@ -58,20 +59,63 @@ export function useVocabularyBrowserState(): UseVocabularyBrowserStateReturn {
     group,
   };
 
+  // Wrapper functions that reset page to 1 when filters change
+  const wrappedSetSearch = (value: string) => {
+    setPage(1);
+    setSearch(value);
+  };
+  const wrappedSetContentType = (value: ContentType) => {
+    setPage(1);
+    setContentType(value);
+  };
+  const wrappedSetHasKanji = (value: boolean | undefined) => {
+    setPage(1);
+    setHasKanji(value);
+  };
+  const wrappedSetPartOfSpeech = (value: string[]) => {
+    setPage(1);
+    setPartOfSpeech(value);
+  };
+  const wrappedSetJlpt = (value: number | undefined) => {
+    setPage(1);
+    setJlpt(value);
+  };
+  const wrappedSetCorrectCountMin = (value: number | undefined) => {
+    setPage(1);
+    setCorrectCountMin(value);
+  };
+  const wrappedSetOnyomi = (value: boolean | undefined) => {
+    setPage(1);
+    setOnyomi(value);
+  };
+  const wrappedSetKunyomi = (value: boolean | undefined) => {
+    setPage(1);
+    setKunyomi(value);
+  };
+  const wrappedSetSortBy = (value: 'frequency' | 'default') => {
+    setPage(1);
+    setSortBy(value);
+  };
+  const wrappedSetGroup = (value: number | undefined) => {
+    setPage(1);
+    setGroup(value);
+  };
+
   return {
-    filters,
-    setSearch,
-    setContentType,
-    setHasKanji,
+    filters: { ...filters, page },
+    page,
+    setPage,
+    setSearch: wrappedSetSearch,
+    setContentType: wrappedSetContentType,
+    setHasKanji: wrappedSetHasKanji,
     togglePartOfSpeech,
-    setPartOfSpeech,
-    setJlpt,
-    setCorrectCountMin,
-    setOnyomi,
-    setKunyomi,
-    setSortBy,
-    setGroup,
-    loaderRef,
+    setPartOfSpeech: wrappedSetPartOfSpeech,
+    setJlpt: wrappedSetJlpt,
+    setCorrectCountMin: wrappedSetCorrectCountMin,
+    setOnyomi: wrappedSetOnyomi,
+    setKunyomi: wrappedSetKunyomi,
+    setSortBy: wrappedSetSortBy,
+    setGroup: wrappedSetGroup,
   };
 }
 

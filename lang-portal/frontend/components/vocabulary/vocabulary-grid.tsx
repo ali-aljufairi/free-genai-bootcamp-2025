@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card } from "@/components/ui/card";
 import type { UnifiedItem } from "@/hooks/api/useVocabularyBrowser";
@@ -9,9 +8,6 @@ import { VocabularyCard } from "./vocabulary-card";
 interface VocabularyGridProps {
   items: UnifiedItem[];
   isLoading: boolean;
-  hasMore: boolean;
-  isFetchingMore: boolean;
-  loaderRef: React.RefObject<HTMLDivElement | null>;
   groups?: Array<{ id: number; name: string }>;
   onAddToGroup?: (groupId: number, itemId: number, type: 'word' | 'kanji') => void;
   onAddToFavorites?: (itemId: number, type: 'word' | 'kanji') => void;
@@ -21,9 +17,6 @@ interface VocabularyGridProps {
 export function VocabularyGrid({
   items,
   isLoading,
-  hasMore,
-  isFetchingMore,
-  loaderRef,
   groups,
   onAddToGroup,
   onAddToFavorites,
@@ -59,28 +52,17 @@ export function VocabularyGrid({
   }
 
   return (
-    <>
-      <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 w-full">
-        {items.map((item, idx) => (
-          <VocabularyCard
-            key={`${item.kind}-${item.item.id}-${idx}`}
-            item={item}
-            groups={groups}
-            onAddToGroup={onAddToGroup}
-            onAddToFavorites={onAddToFavorites}
-          />
-        ))}
-      </div>
-      {hasMore && (
-        <div ref={loaderRef} className="flex justify-center py-4 w-full">
-          {isFetchingMore ? (
-            <Skeleton className="h-8 w-8 rounded-full" />
-          ) : (
-            <div className="h-8 w-8" />
-          )}
-        </div>
-      )}
-    </>
+    <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 w-full">
+      {items.map((item, idx) => (
+        <VocabularyCard
+          key={`${item.kind}-${item.item.id}-${idx}`}
+          item={item}
+          groups={groups}
+          onAddToGroup={onAddToGroup}
+          onAddToFavorites={onAddToFavorites}
+        />
+      ))}
+    </div>
   );
 }
 
