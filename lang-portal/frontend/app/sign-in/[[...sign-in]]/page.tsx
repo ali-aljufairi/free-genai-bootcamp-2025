@@ -62,10 +62,10 @@ export default function Page() {
             <div className="w-full max-w-md">
                 <Card className="glass-card border-0 shadow-2xl bg-background/70 backdrop-blur-lg">
                     <CardHeader className="text-center space-y-4">
-                        <div className="mx-auto w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center">
-                            <Logo width={32} height={32} className="text-white" />
+                        <div className="mx-auto w-24 h-24 rounded-2xl flex items-center justify-center">
+                            <Logo width={48} height={48} className="text-white" />
                         </div>
-                        <CardTitle className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                        <CardTitle className="text-3xl font-bold text-blue-600 drop-shadow-lg">
                             Welcome Back
                         </CardTitle>
                         <CardDescription className="text-lg">
@@ -142,7 +142,7 @@ export default function Page() {
                             <Button
                                 type="submit"
                                 disabled={isLoading}
-                                className="w-full h-12 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold shadow-lg shadow-blue-900/30 transition-all duration-200"
+                                className="w-full h-12 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-lg shadow-blue-900/30 transition-all duration-200"
                             >
                                 {isLoading ? "Signing in..." : "Sign In"}
                             </Button>
