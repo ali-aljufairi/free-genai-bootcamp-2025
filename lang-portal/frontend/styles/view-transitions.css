@@ -1,0 +1,155 @@
+/* View Transitions API Styles */
+@layer base {
+
+  /* Root transition configuration */
+  /* ::view-transition {
+    duration: 300ms;
+    easing: cubic-bezier(0.4, 0, 0.2, 1);
+  } */
+
+  /* Page navigation transitions */
+  ::view-transition-old(page) {
+    animation: slide-out-left 300ms ease-out;
+  }
+
+  ::view-transition-new(page) {
+    animation: slide-in-right 300ms ease-out;
+  }
+
+  /* Card/item transitions */
+  ::view-transition-old(card) {
+    animation: fade-out-scale 250ms ease-out;
+  }
+
+  ::view-transition-new(card) {
+    animation: fade-in-scale 250ms ease-out;
+  }
+
+  /* Modal transitions */
+  ::view-transition-old(modal) {
+    animation: fade-out-up 200ms ease-out;
+  }
+
+  ::view-transition-new(modal) {
+    animation: fade-in-down 200ms ease-out;
+  }
+
+  /* Study session transitions */
+  ::view-transition-old(study-session) {
+    animation: slide-out-up 300ms ease-out;
+  }
+
+  ::view-transition-new(study-session) {
+    animation: slide-in-down 300ms ease-out;
+  }
+
+  /* Respect user's motion preferences */
+  @media (prefers-reduced-motion: reduce) {
+    /* ::view-transition {
+      duration: 0ms;
+    } */
+
+    ::view-transition-old(*),
+    ::view-transition-new(*) {
+      animation: none;
+    }
+  }
+}
+
+/* View Transition Animations */
+@keyframes slide-out-left {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+
+  to {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+}
+
+@keyframes slide-in-right {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slide-out-up {
+  from {
+    transform: translateY(0);
+    opacity: 1;
+  }
+
+  to {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+}
+
+@keyframes slide-in-down {
+  from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fade-out-scale {
+  from {
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  to {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+}
+
+@keyframes fade-in-scale {
+  from {
+    transform: scale(1.05);
+    opacity: 0;
+  }
+
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes fade-out-up {
+  from {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+
+  to {
+    transform: translateY(-20px) scale(0.95);
+    opacity: 0;
+  }
+}
+
+@keyframes fade-in-down {
+  from {
+    transform: translateY(20px) scale(0.95);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+

@@ -478,23 +478,30 @@ export function VocabularyBrowser() {
                   .slice(0, 6)
                   .join(', ')
                 return (
-                  <Card key={`w-${word.id}-${idx}`} className="glass-card relative">
+                  <Card key={`w-${word.id}-${idx}`} className="glass-card relative flex flex-col">
                     <CardHeader>
                       <CardTitle className="text-lg font-medium flex flex-col gap-1">
-                        <span className="text-xl">{word.japanese ?? word.kanji ?? word.kana}</span>
+                        <span className="text-xl">{(word as any).kanji ?? (word as any).japanese ?? (word as any).kana}</span>
+                        {(word as any).kana && (
+                          <span className="text-base text-muted-foreground font-normal">{(word as any).kana}</span>
+                        )}
                         {word.romaji && (
                           <span className="text-sm text-muted-foreground font-normal">{word.romaji}</span>
+                        )}
+                        {(word as any).jlpt != null && (
+                          <div>
+                            <Badge>JLPT N{(word as any).jlpt}</Badge>
+                          </div>
                         )}
                       </CardTitle>
                     </CardHeader>
                     <Button aria-label="Favorite" variant="ghost" size="icon" className="!absolute top-2 right-2 z-20 h-8 w-8" onClick={() => handleFavoriteAdd({ kind: 'word', item: word })}>
                       <Star className="h-5 w-5" />
                     </Button>
-                    <CardContent>
+                    <CardContent className="flex-1">
                       {englishPreview && <p className="text-base mb-2">{englishPreview}</p>}
                       <div className="flex gap-2 mt-2">
                         {word.parts?.type && <Badge variant="secondary">{word.parts.type}</Badge>}
-                        {word.jlpt != null && <Badge>JLPT N{word.jlpt}</Badge>}
                       </div>
                     </CardContent>
                     <CardFooter className="flex gap-2">
@@ -515,7 +522,7 @@ export function VocabularyBrowser() {
                           </SelectContent>
                         </Select>
                       </div>
-                      <Button variant="secondary" className="flex-1" onClick={() => window.open(`https://jisho.org/search/${encodeURIComponent(word.japanese ?? word.kanji ?? word.kana)}`, '_blank')}>Look up</Button>
+                      <Button variant="secondary" className="flex-1" onClick={() => window.open(`https://jisho.org/search/${encodeURIComponent((word as any).kanji ?? (word as any).japanese ?? (word as any).kana ?? '')}`, '_blank')}>Look up</Button>
                     </CardFooter>
                   </Card>
                 )
@@ -525,22 +532,34 @@ export function VocabularyBrowser() {
                 ? k.meanings.slice(0, 6).join(', ')
                 : (k.meanings || '').split(',').slice(0, 6).map((s: string) => s.trim()).join(', ')
               return (
-                <Card key={`k-${k.id}-${idx}`} className="glass-card relative">
+                <Card key={`k-${k.id}-${idx}`} className="glass-card relative flex flex-col">
                   <CardHeader>
-                    <CardTitle className="text-lg font-medium flex items-center gap-2">
+                    <CardTitle className="text-lg font-medium flex flex-col gap-1">
                       <span className="text-2xl">{k.character}</span>
+                      <div className="flex items-center gap-3 flex-wrap text-sm">
+                        {k.onyomi && (
+                          <span className="text-muted-foreground">
+                            <span className="font-medium">音読み:</span> {k.onyomi}
+                          </span>
+                        )}
+                        {k.kunyomi && (
+                          <span className="text-muted-foreground">
+                            <span className="font-medium">訓読み:</span> {k.kunyomi}
+                          </span>
+                        )}
+                      </div>
+                      {k.jlpt != null && (
+                        <div>
+                          <Badge>JLPT {k.jlpt}</Badge>
+                        </div>
+                      )}
                     </CardTitle>
                   </CardHeader>
                   <Button aria-label="Favorite" variant="ghost" size="icon" className="!absolute top-2 right-2 z-20 h-8 w-8" onClick={() => handleFavoriteAdd({ kind: 'kanji', item: k })}>
                     <Star className="h-5 w-5" />
                   </Button>
-                  <CardContent>
+                  <CardContent className="flex-1">
                     {meanings && <p className="text-base mb-2">{meanings}</p>}
-                    <div className="flex gap-2 mt-2 flex-wrap">
-                      {k.onyomi && <Badge variant="secondary">Onyomi: {k.onyomi}</Badge>}
-                      {k.kunyomi && <Badge variant="outline">Kunyomi: {k.kunyomi}</Badge>}
-                      {k.jlpt != null && <Badge>JLPT {k.jlpt}</Badge>}
-                    </div>
                   </CardContent>
                   <CardFooter className="flex gap-2">
                     <Button variant="secondary" className="flex-1" onClick={() => window.open(`https://jisho.org/search/${encodeURIComponent(k.character)}`, '_blank')}>Look up</Button>

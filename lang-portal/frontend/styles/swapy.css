@@ -1,0 +1,36 @@
+/* Swapy drag-and-drop visual feedback */
+@layer components {
+
+    /* Enhanced drag state for Swapy items */
+    [data-swapy-item]:hover {
+        cursor: grab;
+    }
+
+    [data-swapy-item]:active {
+        cursor: grabbing;
+    }
+
+    /* Visual feedback during drag operations */
+    .swapy-dragging {
+        opacity: 0.7;
+        transform: scale(1.02);
+        z-index: 1000;
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2);
+    }
+
+    /* Drop zone highlighting */
+    .swapy-drop-zone {
+        background-color: rgba(59, 130, 246, 0.1);
+        border: 2px dashed rgba(59, 130, 246, 0.5);
+        border-radius: 0.5rem;
+    }
+
+    /* Smooth transitions for card reordering */
+    [data-swapy-slot] {
+        transition: all 0.2s ease-in-out;
+    }
+
+    [data-swapy-slot]:hover {
+        transform: translateY(-2px);
+    }
+}

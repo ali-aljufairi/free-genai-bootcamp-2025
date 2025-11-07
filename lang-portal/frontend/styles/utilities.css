@@ -1,0 +1,95 @@
+/* Utility classes and helper styles */
+
+/* Text selection highlight animation */
+@keyframes highlight-pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(96, 165, 250, 0);
+    }
+
+    50% {
+        box-shadow: 0 0 0 4px rgba(96, 165, 250, 0.3);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 rgba(96, 165, 250, 0);
+    }
+}
+
+@keyframes float {
+    0% {
+        transform: translateY(0px);
+    }
+
+    50% {
+        transform: translateY(-20px);
+    }
+
+    100% {
+        transform: translateY(0px);
+    }
+}
+
+.floating {
+    animation: float 6s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0% {
+        opacity: 0.6;
+    }
+
+    50% {
+        opacity: 1;
+    }
+
+    100% {
+        opacity: 0.6;
+    }
+}
+
+.pulsing {
+    animation: pulse 3s ease-in-out infinite;
+}
+
+/* Card background shimmer animation */
+@keyframes shimmer {
+    0% {
+        background-position: -200% 0;
+    }
+
+    100% {
+        background-position: 200% 0;
+    }
+}
+
+/* Media queries and responsive utilities */
+@media (min-width: 768px) {
+    .md\:p-16 {
+        padding: 4rem;
+    }
+}
+
+/* Hide Sentry development notifications */
+:where([class*="sentry"], [id*="sentry"], [data-sentry]) {
+    display: none !important;
+}
+
+/* Hide bottom corner logos and overlays */
+:where([class*="logo"], [class*="brand"], [id*="logo"], [id*="brand"]) {
+    display: none !important;
+}
+
+/* Hide any corner overlays */
+:where([class*="corner"], [class*="overlay"]) {
+    display: none !important;
+}
+
+/* Style development mode banner to match theme */
+:where([class*="development"], [class*="dev-mode"], [data-localization-key*="development"]) {
+    background: rgba(30, 58, 138, 0.8) !important;
+    border: 1px solid rgba(59, 130, 246, 0.5) !important;
+    color: rgba(219, 234, 254, 0.9) !important;
+    border-radius: 0.5rem !important;
+    padding: 0.5rem 0.75rem !important;
+    font-size: 0.875rem !important;
+}

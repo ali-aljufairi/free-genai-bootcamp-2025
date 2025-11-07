@@ -1,0 +1,80 @@
+/* Clerk Components CSS Layer - Higher specificity to override global styles */
+@layer clerk-styles {
+
+    /* Ensure Clerk buttons aren't affected by global button styles */
+    [class*="cl-formButton"]:not([class*="cl-formButtonPrimary"]) {
+        background-color: transparent !important;
+        background-image: none !important;
+        border: 1px solid rgba(147, 197, 253, 0.5) !important;
+        color: rgba(219, 234, 254, 0.8) !important;
+    }
+
+    [class*="cl-formButton"]:not([class*="cl-formButtonPrimary"]):hover {
+        background-color: rgba(30, 64, 175, 0.3) !important;
+        color: rgba(219, 234, 254, 1) !important;
+    }
+
+    /* Ensure primary buttons maintain their gradient */
+    [class*="cl-formButtonPrimary"] {
+        background: linear-gradient(to right, #2563eb, #4f46e5) !important;
+        color: white !important;
+        border: none !important;
+    }
+
+    [class*="cl-formButtonPrimary"]:hover {
+        background: linear-gradient(to right, #1d4ed8, #4338ca) !important;
+    }
+
+    /* Fix any reset/cancel/clear buttons specifically */
+    [class*="cl-formButtonReset"],
+    [class*="cl-formButtonSecondary"],
+    [data-localization-key*="signIn.start.actionText"],
+    [data-localization-key*="signUp.start.actionText"] {
+        background-color: transparent !important;
+        background-image: none !important;
+        border: 1px solid rgba(147, 197, 253, 0.5) !important;
+        color: rgba(219, 234, 254, 0.8) !important;
+    }
+
+    /* Ensure Continue button matches website styling */
+    [class*="cl-formButtonPrimary"] {
+        background: linear-gradient(to right, #2563eb, #4f46e5) !important;
+        color: white !important;
+        border: none !important;
+        height: 3.5rem !important;
+        font-size: 1rem !important;
+        font-weight: 600 !important;
+        border-radius: 0.5rem !important;
+        transition: all 0.2s ease-in-out !important;
+        box-shadow: 0 10px 15px -3px rgba(37, 99, 235, 0.3) !important;
+    }
+
+    [class*="cl-formButtonPrimary"]:hover {
+        background: linear-gradient(to right, #1d4ed8, #4338ca) !important;
+        transform: translateY(-1px) !important;
+        box-shadow: 0 20px 25px -5px rgba(37, 99, 235, 0.4) !important;
+    }
+
+    /* Responsive dialog styling for full screen */
+    @media (min-width: 1024px) {
+        [class*="cl-card"] {
+            max-width: 28rem !important;
+            margin: 0 auto !important;
+        }
+    }
+
+    /* Preserve original glass card styling - let appearance config handle it */
+}
+
+/* Clerk UserButton popover: remove any entrance animations/slides */
+:where([class*="cl-userButtonPopover"]) {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+    opacity: 1 !important;
+}
+
+/* Hide only the problematic development elements */
+:where([data-localization-key*="badge"], [class*="cl-badge"]) {
+    display: none !important;
+}

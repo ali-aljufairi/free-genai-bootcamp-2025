@@ -1,94 +1,136 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import './animations.css';
+@import './components.css';
+@import './clerk.css';
+@import './view-transitions.css';
+@import './swapy.css';
+@import './utilities.css';
+@import "tailwindcss";
 
-body {
-  font-family: Arial, Helvetica, sans-serif;
+/* Configure Tailwind to scan these directories for classes */
+@source "../app/**/*.{js,ts,jsx,tsx}";
+@source "../components/**/*.{js,ts,jsx,tsx}";
+@source "../pages/**/*.{js,ts,jsx,tsx}";
+
+/* Map CSS variables to Tailwind theme colors for v4 compatibility */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
 }
 
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
-}
+/* Define CSS layers with Clerk having higher priority than base styles */
+@layer base, clerk-styles, components, utilities;
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 0 0% 3.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 3.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 3.9%;
-    --primary: 0 0% 9%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 0 0% 96.1%;
-    --secondary-foreground: 0 0% 9%;
-    --muted: 0 0% 96.1%;
-    --muted-foreground: 0 0% 45.1%;
-    --accent: 0 0% 96.1%;
-    --accent-foreground: 0 0% 9%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 89.8%;
-    --input: 0 0% 89.8%;
-    --ring: 0 0% 3.9%;
-    --chart-1: 12 76% 61%;
-    --chart-2: 173 58% 39%;
-    --chart-3: 197 37% 24%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
+    --background: oklch(98% 0.006 242.5);
+    --foreground: oklch(9.8% 0.038 285.9);
+
+    --card: oklch(100% 0 0);
+    --card-foreground: oklch(9.8% 0.038 285.9);
+
+    --popover: oklch(100% 0 0);
+    --popover-foreground: oklch(9.8% 0.038 285.9);
+
+    --primary: oklch(59.7% 0.216 264.4);
+    --primary-foreground: oklch(98% 0.006 242.5);
+
+    --secondary: oklch(96.5% 0.006 242.5);
+    --secondary-foreground: oklch(20.9% 0.023 285.9);
+
+    --muted: oklch(96.5% 0.006 242.5);
+    --muted-foreground: oklch(56.1% 0.016 257.5);
+
+    --accent: oklch(96.5% 0.006 242.5);
+    --accent-foreground: oklch(20.9% 0.023 285.9);
+
+    --destructive: oklch(62.8% 0.257 29.2);
+    --destructive-foreground: oklch(98% 0.006 242.5);
+
+    --border: oklch(92.4% 0.003 264.5);
+    --input: oklch(92.4% 0.003 264.5);
+    --ring: oklch(59.7% 0.216 264.4);
+
     --radius: 0.5rem;
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
   }
+
   .dark {
-    --background: 0 0% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 0 0% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 0 0% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 0 0% 9%;
-    --secondary: 0 0% 14.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 0 0% 14.9%;
-    --muted-foreground: 0 0% 63.9%;
-    --accent: 0 0% 14.9%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 14.9%;
-    --input: 0 0% 14.9%;
-    --ring: 0 0% 83.1%;
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --background: oklch(9.8% 0.038 285.9);
+    --foreground: oklch(98% 0.006 242.5);
+
+    --card: oklch(9.8% 0.038 285.9);
+    --card-foreground: oklch(98% 0.006 242.5);
+
+    --popover: oklch(9.8% 0.038 285.9);
+    --popover-foreground: oklch(98% 0.006 242.5);
+
+    --primary: oklch(67.5% 0.236 262.4);
+    --primary-foreground: oklch(20.9% 0.023 285.9);
+
+    --secondary: oklch(27.8% 0.034 265.8);
+    --secondary-foreground: oklch(98% 0.006 242.5);
+
+    --muted: oklch(27.8% 0.034 265.8);
+    --muted-foreground: oklch(70.1% 0.021 257.5);
+
+    --accent: oklch(27.8% 0.034 265.8);
+    --accent-foreground: oklch(98% 0.006 242.5);
+
+    --destructive: oklch(43.2% 0.165 29.2);
+    --destructive-foreground: oklch(98% 0.006 242.5);
+
+    --border: oklch(27.8% 0.034 265.8);
+    --input: oklch(27.8% 0.034 265.8);
+    --ring: oklch(58.8% 0.222 263.5);
   }
 }
 
 @layer base {
   * {
-    @apply border-border;
+    border-color: var(--border);
   }
+
   body {
-    @apply bg-background text-foreground;
+    background-color: var(--background);
+    color: var(--foreground);
+  }
+
+  /* Text selection styling with animation */
+  ::selection {
+    background-color: rgb(96 165 250 / 0.3);
+    color: rgb(30 58 138);
+    animation: highlight-pulse 0.5s ease-in-out;
+  }
+
+  ::-moz-selection {
+    background-color: rgb(96 165 250 / 0.3);
+    color: rgb(30 58 138);
+    animation: highlight-pulse 0.5s ease-in-out;
+  }
+
+  .dark ::selection {
+    background-color: rgb(59 130 246 / 0.4);
+    color: rgb(239 246 255);
+  }
+
+  .dark ::-moz-selection {
+    background-color: rgb(59 130 246 / 0.4);
+    color: rgb(239 246 255);
   }
 }

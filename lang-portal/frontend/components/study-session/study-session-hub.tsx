@@ -223,14 +223,14 @@ export function StudySessionHub() {
             )}
           </motion.div>
         </CardContent>
-        <CardFooter className="z-10 pt-0 pb-4">
+        <CardFooter className="z-10 pt-0 pb-4 px-6">
           <motion.div
             className="w-full"
             whileTap={{ scale: 0.95 }}
             transition={{ duration: 0.2 }}
           >
             <Button
-              className="w-full text-sm sm:text-base"
+              className="w-full text-sm sm:text-base font-medium bg-blue-600 hover:bg-blue-700 text-white shadow-md"
               disabled={!ENABLED_FEATURES.has(type)}
             >
               {ENABLED_FEATURES.has(type)
