@@ -25,9 +25,9 @@ export default function Sidebar() {
       icon: <LayoutDashboard className="h-5 w-5" />,
     },
     {
-      name: "Groups",
-      path: "/groups",
-      icon: <Users className="h-5 w-5" />,
+      name: "Study",
+      path: "/study",
+      icon: <GraduationCap className="h-5 w-5" />,
     },
     {
       name: "Vocabulary",
@@ -35,9 +35,9 @@ export default function Sidebar() {
       icon: <BookOpen className="h-5 w-5" />,
     },
     {
-      name: "Study",
-      path: "/study",
-      icon: <GraduationCap className="h-5 w-5" />,
+      name: "Groups",
+      path: "/groups",
+      icon: <Users className="h-5 w-5" />,
     },
     {
       name: "Settings",
