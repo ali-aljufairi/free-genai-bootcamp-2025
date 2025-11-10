@@ -25,6 +25,7 @@ func convertModelToKanji(k KanjiModel) Kanji {
 		Components:  k.Components,
 		StrokeCount: k.StrokeCount,
 		StrokesSVG:  k.StrokesSVG,
+		AudioPath:   k.AudioPath,
 	}
 }
 

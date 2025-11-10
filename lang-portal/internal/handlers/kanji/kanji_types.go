@@ -43,6 +43,7 @@ type Kanji struct {
 	Components  *string  `json:"components"`
 	StrokeCount *int     `json:"stroke_count"`
 	StrokesSVG  *string  `json:"strokes_svg"`
+	AudioPath   *string  `json:"audio_path"`
 }
 
 // KanjiSearchResponse represents a search result response

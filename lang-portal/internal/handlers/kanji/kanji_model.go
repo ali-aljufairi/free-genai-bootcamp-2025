@@ -63,6 +63,7 @@ type KanjiModel struct {
 	Components  *string      `json:"components"`
 	StrokeCount *int         `json:"stroke_count" gorm:"column:stroke_count"`
 	StrokesSVG  *string      `json:"strokes_svg" gorm:"column:strokes_svg"`
+	AudioPath   *string      `json:"audio_path" gorm:"column:audio_path"`
 }
 
 // TableName specifies the table name for KanjiModel

@@ -14,14 +14,19 @@ export interface StudySession {
 // Word Types
 export interface Word {
   id: number;
-  japanese: string;
+  japanese?: string;
+  kana?: string;
+  kanji?: string;
   romaji: string;
   english: string;
-  parts: {
+  parts?: {
     type: string;
     category?: string;
     formality?: string;
   };
+  audio_path?: string | null;
+  jlpt?: number;
+  part_of_speech?: string;
 }
 
 // Group Types
@@ -187,3 +192,21 @@ export interface FlashcardResult {
 
 export interface Course { id: number; name: string; level: number }
 export interface Unit { id: number; name: string; path: string; title?: string }
+
+// Kanji Types
+export interface Kanji {
+  id: number;
+  character: string;
+  heisig_en?: string;
+  meanings: string[];
+  detail?: string;
+  unicode: string;
+  onyomi?: string;
+  kunyomi?: string;
+  jlpt?: number;
+  frequency?: number;
+  components?: string;
+  stroke_count?: number;
+  strokes_svg?: string;
+  audio_path?: string | null;
+}

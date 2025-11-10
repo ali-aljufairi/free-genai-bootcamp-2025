@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Star, FolderPlus } from "lucide-react";
 import type { UnifiedItem } from "@/hooks/api/useVocabularyBrowser";
+import { AudioPlayer } from "./audio-player";
 
 interface VocabularyCardProps {
   item: UnifiedItem;
@@ -28,9 +29,16 @@ export function VocabularyCard({ item, groups = [], onAddToGroup, onAddToFavorit
       <Card className="glass-card relative flex flex-col">
         <CardHeader>
           <CardTitle className="text-lg font-medium flex flex-col gap-1">
-            <span className="text-xl">
-              {(word as any).kanji ?? (word as any).japanese ?? (word as any).kana}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-xl">
+                {(word as any).kanji ?? (word as any).japanese ?? (word as any).kana}
+              </span>
+              <AudioPlayer
+                audioPath={(word as any).audio_path}
+                text={(word as any).kana || (word as any).kanji || (word as any).japanese || ""}
+                className="shrink-0"
+              />
+            </div>
             {(word as any).kana && (
               <span className="text-base text-muted-foreground font-normal">
                 {(word as any).kana}
@@ -119,7 +127,14 @@ export function VocabularyCard({ item, groups = [], onAddToGroup, onAddToFavorit
     <Card className="glass-card relative flex flex-col">
       <CardHeader>
         <CardTitle className="text-lg font-medium flex flex-col gap-1">
-          <span className="text-2xl">{kanji.character}</span>
+          <div className="flex items-center gap-2">
+            <span className="text-2xl">{kanji.character}</span>
+            <AudioPlayer
+              audioPath={(kanji as any).audio_path}
+              text={kanji.character}
+              className="shrink-0"
+            />
+          </div>
           <div className="flex items-center gap-3 flex-wrap text-sm">
             {kanji.onyomi && (
               <span className="text-muted-foreground">
