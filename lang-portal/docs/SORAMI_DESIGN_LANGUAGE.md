@@ -60,11 +60,6 @@ blue: {
 }
 ```
 
-### Gradient Applications
-- **Primary Actions**: `bg-gradient-to-r from-blue-600 to-indigo-600`
-- **Hover States**: `hover:from-blue-700 hover:to-indigo-700`
-- **Background Overlays**: Blue/indigo gradients with low opacity
-- **Glass Card Borders**: Blue tones with transparency
 
 ### Semantic Colors
 - **Success**: Green tones for progress and completion

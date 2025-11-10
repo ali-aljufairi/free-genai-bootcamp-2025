@@ -15,10 +15,78 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Sorami - Language Learning Portal",
-  description: "Learn Japanese with AI-powered tools and interactive features",
+  title: {
+    default: "Sorami - AI-Powered Japanese Language Learning Platform",
+    template: "%s | Sorami"
+  },
+  description: "Elevate your Japanese language learning journey with Sorami's immersive AI-powered tools. Practice with live speaking, interactive flashcards, AI chat tutor, speech-to-image learning, and comprehensive JLPT-aligned content.",
+  keywords: [
+    "Japanese language learning",
+    "JLPT preparation",
+    "AI language tutor",
+    "Japanese flashcards",
+    "kanji learning",
+    "Japanese vocabulary",
+    "language learning app",
+    "Japanese study tools",
+    "AI-powered learning",
+    "Japanese conversation practice"
+  ],
+  authors: [{ name: "Sorami" }],
+  creator: "Sorami",
+  publisher: "Sorami",
+  formatDetection: {
+    email: false,
+    address: false,
+    telephone: false,
+  },
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://sorami.app'),
+  alternates: {
+    canonical: '/',
+  },
+  openGraph: {
+    type: 'website',
+    locale: 'en_US',
+    url: '/',
+    siteName: 'Sorami',
+    title: 'Sorami - AI-Powered Japanese Language Learning Platform',
+    description: 'Elevate your Japanese language learning journey with Sorami\'s immersive AI-powered tools. Practice with live speaking, interactive flashcards, AI chat tutor, and comprehensive JLPT-aligned content.',
+    images: [
+      {
+        url: '/logo.svg',
+        width: 1200,
+        height: 630,
+        alt: 'Sorami - Japanese Language Learning Platform',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Sorami - AI-Powered Japanese Language Learning Platform',
+    description: 'Elevate your Japanese language learning journey with Sorami\'s immersive AI-powered tools.',
+    images: ['/logo.svg'],
+    creator: '@sorami',
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
   icons: {
     icon: '/fav.ico',
+    shortcut: '/fav.ico',
+    apple: '/fav.ico',
+  },
+  verification: {
+    // Add verification codes when available
+    // google: 'verification_token',
+    // yandex: 'verification_token',
   },
 };
 
@@ -36,7 +104,7 @@ export default function RootLayout({
     >
       <html lang="en" suppressHydrationWarning>
         <body
-          className={`${inter.className} bg-gradient-to-br from-sky-50/80 via-blue-50/60 to-indigo-50/70 dark:from-slate-900/90 dark:via-blue-950/80 dark:to-indigo-950/90 paper-texture atmospheric-bg`}
+          className={`${inter.className} bg-gradient-to-br from-sky-50/80 via-blue-50/60 to-blue-100/70 dark:from-slate-900/90 dark:via-blue-950/80 dark:to-blue-950/90 paper-texture atmospheric-bg`}
           suppressHydrationWarning
         >
           <ClientLayout>{children}</ClientLayout>

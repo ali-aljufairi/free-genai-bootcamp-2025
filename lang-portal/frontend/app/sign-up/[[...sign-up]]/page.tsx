@@ -35,7 +35,7 @@ export default function Page() {
                         <div className="mt-8 text-center">
                             <div className="flex items-center justify-center text-sm text-muted-foreground">
                                 <Sparkles className="w-4 h-4 mr-2" />
-                                <span>Join thousands of learners</span>
+                                <span>Start your Japanese learning journey</span>
                             </div>
                         </div>
                     </CardContent>

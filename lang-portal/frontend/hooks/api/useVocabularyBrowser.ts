@@ -22,6 +22,7 @@ export interface VocabularyBrowserFilters {
 export type UnifiedItem = 
   | { kind: 'word'; item: any } 
   | { kind: 'kanji'; item: any };
+const DEFAULT_PAGE_SIZE = 20;
 
 export interface UseVocabularyBrowserReturn {
   items: UnifiedItem[];
@@ -131,7 +132,20 @@ export function useVocabularyBrowser(filters: VocabularyBrowserFilters): UseVoca
     ? kanjiTotalPages
     : Math.max(wordsTotalPages, kanjiTotalPages);
 
-  const hasMore = currentPage < totalPages;
+  const wordsPageSize = wordsData?.pageSize || DEFAULT_PAGE_SIZE;
+  const kanjiPageSize = kanjiData?.pageSize || DEFAULT_PAGE_SIZE;
+  const wordsHasMore = wordsTotal > currentPage * wordsPageSize;
+  const kanjiHasMore = kanjiTotal > currentPage * kanjiPageSize;
+
+  const derivedHasMore =
+    filters.contentType === 'words'
+      ? wordsHasMore
+      : filters.contentType === 'kanji'
+      ? kanjiHasMore
+      : wordsHasMore || kanjiHasMore;
+
+  const hasMore =
+    totalPages > 0 ? currentPage < totalPages : derivedHasMore;
   const hasPrevious = currentPage > 1;
 
   return {
@@ -144,4 +158,3 @@ export function useVocabularyBrowser(filters: VocabularyBrowserFilters): UseVoca
     hasPrevious,
   };
 }
-
