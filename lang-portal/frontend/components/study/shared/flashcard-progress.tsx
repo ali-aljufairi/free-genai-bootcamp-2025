@@ -11,6 +11,7 @@ interface FlashcardProgressProps {
     timerDuration?: number
     onShowSettings: () => void
     isMobile?: boolean
+    label?: string // Optional label (default: "Word")
 }
 
 export function FlashcardProgress({
@@ -20,9 +21,10 @@ export function FlashcardProgress({
     timeRemaining,
     timerDuration,
     onShowSettings,
-    isMobile = false
+    isMobile = false,
+    label = "Word"
 }: FlashcardProgressProps) {
-    const progressText = `Word ${currentIndex + 1} of ${totalCards}`
+    const progressText = `${label} ${currentIndex + 1} of ${totalCards}`
     const progressPercentage = ((currentIndex + 1) / totalCards) * 100
     const timerProgress = timerDuration && timeRemaining !== undefined
         ? ((timerDuration - timeRemaining) / timerDuration) * 100

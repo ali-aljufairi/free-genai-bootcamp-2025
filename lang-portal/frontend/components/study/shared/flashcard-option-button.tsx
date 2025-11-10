@@ -54,7 +54,7 @@ export function FlashcardOptionButton({
           onClick={() => onSelect(index)}
           disabled={selectedOption !== null}
         >
-          <span className="line-clamp-3 px-3 text-center break-words hyphens-auto overflow-hidden text-ellipsis w-full">
+          <span className="px-3 text-center break-words hyphens-auto w-full whitespace-normal">
             {renderOption(option)}
           </span>
         </Button>
@@ -76,7 +76,7 @@ export function FlashcardOptionButton({
         onClick={() => onSelect(index)}
         disabled={selectedOption !== null}
       >
-        <span className="text-center break-words hyphens-auto leading-tight line-clamp-4 overflow-hidden text-ellipsis w-full px-2">
+        <span className="text-center break-words hyphens-auto leading-tight w-full px-2 whitespace-normal">
           {renderOption(option)}
         </span>
       </Button>

@@ -17,7 +17,11 @@ import {
   FlashcardSubmission,
   FlashcardResult,
   Course,
-  Unit
+  Unit,
+  GrammarQuizConfig,
+  GrammarQuizSession,
+  GrammarSubmission,
+  GrammarResult
 } from "@/types/api";
 
 import { getCachedToken } from '@/lib/token-cache';
@@ -340,6 +344,27 @@ export const flashcardsV2Api = {
   },
 };
 
+// Grammar Quiz API using langportal proxy
+export const grammarApi = {
+  start: async (config: GrammarQuizConfig): Promise<GrammarQuizSession> => {
+    return fetchData<GrammarQuizSession>('/grammar/start', {
+      method: 'POST',
+      body: JSON.stringify(config),
+    });
+  },
+
+  submit: async (submission: GrammarSubmission): Promise<GrammarResult> => {
+    return fetchData<GrammarResult>('/grammar/submit', {
+      method: 'POST',
+      body: JSON.stringify(submission),
+    });
+  },
+
+  history: async (page: number = 1, pageSize: number = 10) => {
+    return fetchData<{ sessions: GrammarQuizSession[], total: number, page: number, pageSize: number, totalPages: number }>(`/grammar/history?page=${page}&pageSize=${pageSize}`);
+  },
+};
+
 export const api = {
   // dashboard: dashboardApi,
   // studySession: studySessionApi,
@@ -349,6 +374,7 @@ export const api = {
   kanji: kanjiApi,
   user: userApi,
   flashcardsV2: flashcardsV2Api,
+  grammar: grammarApi,
 };
 
 export default api;

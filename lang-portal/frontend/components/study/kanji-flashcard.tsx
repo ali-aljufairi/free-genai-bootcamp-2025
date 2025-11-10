@@ -12,7 +12,7 @@ import type {
     FlashcardResult,
     ContentSource,
 } from "@/types/api"
-import { useFlashcardStore } from "@/stores/flashcard-store"
+import { useKanjiFlashcardStore } from "@/stores/kanji-flashcard-store"
 import { useIsMobile } from "@/components/ui/use-mobile"
 import { KanjiFlashcardConfig } from "./configs/kanji-flashcard-config"
 import { FlashcardSession as FlashcardSessionComponent } from "./shared/flashcard-session"
@@ -46,7 +46,7 @@ export function KanjiFlashcard() {
     const [isSubmitting, setIsSubmitting] = useState(false)
 
     // Zustand store
-    const store = useFlashcardStore()
+    const store = useKanjiFlashcardStore()
     const queryClient = useQueryClient()
     const {
         level, selectedGroup, count,

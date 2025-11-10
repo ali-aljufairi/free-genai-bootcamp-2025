@@ -96,6 +96,8 @@ export function FlashcardSession({
         <FlashcardQuestionCard
           card={currentCard}
           selectedOption={selectedOption}
+          isCorrect={isCorrect}
+          explanation={(currentCard as any).explanation}
           renderQuestion={renderQuestion}
           renderOption={renderOption}
           onOptionSelect={onOptionSelect}
@@ -132,6 +134,8 @@ export function FlashcardSession({
       <FlashcardQuestionCard
         card={currentCard}
         selectedOption={selectedOption}
+        isCorrect={isCorrect}
+        explanation={(currentCard as any).explanation}
         renderQuestion={renderQuestion}
         renderOption={renderOption}
         onOptionSelect={onOptionSelect}

@@ -1,17 +1,17 @@
 "use client"
 
-import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { motion } from "framer-motion"
 import { X, Settings, Menu } from "lucide-react"
 import { FlashcardProgress } from "../shared/flashcard-progress"
-import type { Flashcard } from "@/types/api"
+import type { GrammarQuestion } from "@/types/api"
 
-interface MobileKanjiFlashcardProps {
-    cards: Flashcard[]
+interface MobileGrammarQuizProps {
+    question: GrammarQuestion
     currentIndex: number
+    totalQuestions: number
     selectedOption: number | null
     isCorrect: boolean | null
     score: number
@@ -20,13 +20,14 @@ interface MobileKanjiFlashcardProps {
     onOptionSelect: (index: number) => void
     onExit: () => void
     onShowSettings?: () => void
-    renderQuestion: (card: Flashcard) => React.ReactNode
-    renderOption: (option: any) => React.ReactNode
+    renderQuestion: (question: GrammarQuestion) => React.ReactNode
+    renderOption: (option: string) => React.ReactNode
 }
 
-export function MobileKanjiFlashcard({
-    cards,
+export function MobileGrammarQuiz({
+    question,
     currentIndex,
+    totalQuestions,
     selectedOption,
     isCorrect,
     score,
@@ -37,9 +38,8 @@ export function MobileKanjiFlashcard({
     onShowSettings,
     renderQuestion,
     renderOption
-}: MobileKanjiFlashcardProps) {
+}: MobileGrammarQuizProps) {
     const router = useRouter()
-    const currentCard = cards[currentIndex]
 
     return (
         <div className="fixed inset-0 z-50 bg-background flex flex-col">
@@ -78,12 +78,13 @@ export function MobileKanjiFlashcard({
             {/* Progress Bar */}
             <FlashcardProgress
                 currentIndex={currentIndex}
-                totalCards={cards.length}
+                totalCards={totalQuestions}
                 score={score}
                 timeRemaining={timeRemaining}
                 timerDuration={timerDuration}
                 onShowSettings={onShowSettings || (() => { })}
                 isMobile={true}
+                label="Question"
             />
 
             {/* Question Card */}
@@ -95,19 +96,32 @@ export function MobileKanjiFlashcard({
                             initial={{ opacity: 0, scale: 0.95 }}
                             animate={{ opacity: 1, scale: 1 }}
                             transition={{ duration: 0.3 }}
-                            className="text-center space-y-2 min-h-[120px] flex flex-col items-center justify-center"
+                            className="text-center space-y-4 min-h-[120px] flex flex-col items-center justify-center"
                         >
-                            {renderQuestion(currentCard)}
+                            {renderQuestion(question)}
+                            
+                            {/* Show explanation only if wrong answer */}
+                            {selectedOption !== null && !isCorrect && question.explanation && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ duration: 0.3, delay: 0.2 }}
+                                    className="mt-4 p-3 bg-muted/50 rounded-lg border border-muted"
+                                >
+                                    <p className="text-sm text-muted-foreground font-medium mb-1">Explanation:</p>
+                                    <p className="text-sm">{question.explanation}</p>
+                                </motion.div>
+                            )}
                         </motion.div>
                     </CardContent>
                 </Card>
             </div>
 
-            {/* Answer Options - Fixed layout issue by putting them inside a container */}
+            {/* Answer Options */}
             <div className="px-4 pb-safe pb-4">
                 <div className="space-y-2.5">
-                    {currentCard.options.map((option, index) => {
-                        const isCorrectAnswer = index === currentCard.correct_index
+                    {question.answers.map((option, index) => {
+                        const isCorrectAnswer = index === question.correct_index
                         const isSelectedWrong = selectedOption === index && !isCorrectAnswer
                         const isUnselected = selectedOption !== null && selectedOption !== index && !isCorrectAnswer
 

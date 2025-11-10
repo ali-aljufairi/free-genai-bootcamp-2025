@@ -4,6 +4,7 @@ import (
 	roothandlers "lang-portal/internal/handlers"
 	"lang-portal/internal/handlers/dashboard"
 	"lang-portal/internal/handlers/flashcard"
+	"lang-portal/internal/handlers/grammar"
 	"lang-portal/internal/handlers/group"
 	"lang-portal/internal/handlers/kanji"
 	"lang-portal/internal/handlers/session"
@@ -122,6 +123,12 @@ func (s *FiberServer) RegisterFiberRoutes() {
 	s.App.Get("/api/langportal/flashcards/courses", flashcardHandler.GetAvailableCourses)
 	s.App.Get("/api/langportal/flashcards/courses/:courseId/units", flashcardHandler.GetCourseUnits)
 	s.App.Get("/api/langportal/flashcards/parts-of-speech", flashcardHandler.GetAvailablePartsOfSpeech)
+
+	// Grammar quiz routes
+	grammarHandler := grammar.NewGrammarHandler(s.postgresDB)
+	s.App.Post("/api/langportal/grammar/start", grammarHandler.StartGrammarQuiz)
+	s.App.Post("/api/langportal/grammar/submit", grammarHandler.SubmitGrammarQuiz)
+	s.App.Get("/api/langportal/grammar/history", grammarHandler.GetGrammarQuizHistory)
 
 	// Disabled routes during migration
 	s.App.All("/api/langportal/kanji/*/compounds", func(c *fiber.Ctx) error {

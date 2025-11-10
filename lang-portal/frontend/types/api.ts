@@ -211,3 +211,68 @@ export interface Kanji {
   strokes_svg?: string;
   audio_path?: string | null;
 }
+
+// Grammar Quiz Types
+export type GrammarQuestionType = 'grammar_choice' | 'passage_grammar' | 'sentence_composition' | 'all'
+
+export interface GrammarQuizConfig {
+  level: number
+  question_type: GrammarQuestionType
+  use_srs: boolean // If true, only show questions that need review (due items)
+  question_count: number
+  time_limit?: number
+  shuffle_options: boolean
+  required_correct_count?: number
+}
+
+export interface GrammarQuestion {
+  id: number
+  question_id: number
+  question_type: string
+  question_text: string
+  answers: string[]
+  correct_index: number
+  explanation?: string | null
+  level: number
+}
+
+export interface GrammarQuizSession {
+  id: number
+  user_id: number
+  config: GrammarQuizConfig
+  questions: GrammarQuestion[]
+  started_at: string
+  ended_at?: string
+  score?: number
+  total: number
+}
+
+export interface GrammarAnswer {
+  question_id: number
+  answer: number
+}
+
+export interface GrammarSubmission {
+  session_id: number
+  answers: GrammarAnswer[]
+}
+
+export interface QuestionResult {
+  question_id: number
+  item_id: number
+  item_type: string
+  user_answer: number
+  correct_index: number
+  is_correct: boolean
+}
+
+export interface GrammarResult {
+  session_id: number
+  score: number
+  total: number
+  percentage: number
+  correct_count: number
+  wrong_count: number
+  duration: number
+  results: QuestionResult[]
+}

@@ -20,7 +20,7 @@ export const studyImages = {
 
 // During the Postgres migration we only allow the new v2 flashcards (words & kanji).
 // All other features are temporarily disabled and hidden or marked as such.
-export const ENABLED_FEATURES = new Set(["words", "kanji"]);
+export const ENABLED_FEATURES = new Set(["words", "kanji", "grammar"]);
 
 export type StudyOption = {
     title: string;
@@ -47,16 +47,14 @@ export const studyOptions: StudyOption[] = [
         image: studyImages.flashcards,
         type: "kanji"
     },
-    // Disabled legacy + other features
     {
         title: "Grammar Quiz",
-        description: "Test your knowledge (coming back soon)",
+        description: "Practice Japanese grammar with interactive quizzes",
         icon: <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-green-500" />,
         image: studyImages.quiz,
-        type: "quiz",
-        disabled: true,
-        reason: "Migration in progress"
+        type: "grammar"
     },
+    // Disabled legacy + other features
     {
         title: "Sentence Constructor",
         description: "Practice constructing sentences (coming soon)",

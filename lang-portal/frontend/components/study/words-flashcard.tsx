@@ -14,7 +14,7 @@ import type {
     Course,
     Unit
 } from "@/types/api"
-import { useFlashcardStore } from "@/stores/flashcard-store"
+import { useWordFlashcardStore } from "@/stores/word-flashcard-store"
 import { useIsMobile } from "@/components/ui/use-mobile"
 import { WordFlashcardConfig } from "./configs/word-flashcard-config"
 import { FlashcardSession as FlashcardSessionComponent } from "./shared/flashcard-session"
@@ -48,7 +48,7 @@ export function WordsFlashcard() {
     const [isSubmitting, setIsSubmitting] = useState(false)
 
     // Zustand store
-    const store = useFlashcardStore()
+    const store = useWordFlashcardStore()
     const queryClient = useQueryClient()
     const {
         level, selectedCourse, selectedUnit, count, selectedPartsOfSpeech,
