@@ -28,7 +28,7 @@ export function FlashcardResults({
           <div className="flex flex-col items-center justify-center space-y-12">
             <div className="text-center">
               <h2 className={isMobile ? "text-3xl font-bold mb-4" : "text-5xl font-bold mb-6"}>
-                Words Session Complete!
+                Session Complete!
               </h2>
               <div className="space-y-2">
                 <p className={isMobile ? "text-2xl font-semibold" : "text-4xl font-semibold"}>

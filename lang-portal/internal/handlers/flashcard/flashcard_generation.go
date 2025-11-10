@@ -76,7 +76,7 @@ func (h *FlashcardHandler) generateUnitFlashcards(userID int64, config *Flashcar
 				wordIDs = append(wordIDs, item.ItemID)
 			}
 		}
-		
+
 		// Batch load all words at once
 		if len(wordIDs) > 0 {
 			var words []models.Word
@@ -86,7 +86,7 @@ func (h *FlashcardHandler) generateUnitFlashcards(userID int64, config *Flashcar
 				for _, word := range words {
 					wordMap[word.ID] = word
 				}
-				
+
 				// Generate flashcards using loaded words
 				for _, item := range unitItems {
 					if item.ItemType == "word" {
@@ -115,7 +115,7 @@ func (h *FlashcardHandler) generateUnitFlashcards(userID int64, config *Flashcar
 	return cards, nil
 }
 
-// generateGroupFlashcards generates flashcards from a word group
+// generateGroupFlashcards generates flashcards from a word group or kanji group
 func (h *FlashcardHandler) generateGroupFlashcards(userID int64, config *FlashcardConfig) ([]Flashcard, error) {
 	var cards []Flashcard
 
@@ -140,6 +140,36 @@ func (h *FlashcardHandler) generateGroupFlashcards(userID int64, config *Flashca
 		// Generate word flashcards - already have words loaded, use them directly
 		for _, word := range words {
 			card, err := h.generateWordFlashcardFromWord(word, config)
+			if err == nil {
+				cards = append(cards, card)
+			}
+		}
+	} else if config.FlashcardType == FlashcardTypeKanji {
+		// Get kanji in group
+		var kanji []struct {
+			ID int64 `json:"id"`
+		}
+		query := h.db.Table("kanji").
+			Select("kanji.id").
+			Joins("JOIN kanji_groups ON kanji.id = kanji_groups.kanji_id").
+			Where("kanji_groups.group_id = ?", *config.GroupID)
+
+		// Apply JLPT level filter if specified
+		if len(config.Filters.JLPTLevels) > 0 {
+			query = query.Where("kanji.jlpt IN (?)", config.Filters.JLPTLevels)
+		}
+
+		err := query.Order("RANDOM()").
+			Limit(config.CardCount * 2).
+			Find(&kanji).Error
+
+		if err != nil {
+			return nil, err
+		}
+
+		// Generate kanji flashcards
+		for _, k := range kanji {
+			card, err := h.generateKanjiFlashcard(k.ID, config)
 			if err == nil {
 				cards = append(cards, card)
 			}

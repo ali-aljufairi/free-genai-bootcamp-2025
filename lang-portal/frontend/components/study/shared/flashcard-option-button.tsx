@@ -49,12 +49,12 @@ export function FlashcardOptionButton({
         transition={{ duration: 0.2, delay: index * 0.05 }}
       >
         <Button
-          className={`w-full min-h-[65px] text-base font-medium transition-all duration-200 ${getButtonClasses()}`}
+          className={`w-full min-h-[65px] max-h-[120px] text-base font-medium transition-all duration-200 overflow-hidden ${getButtonClasses()}`}
           variant="outline"
           onClick={() => onSelect(index)}
           disabled={selectedOption !== null}
         >
-          <span className="line-clamp-2 px-3 text-center break-words hyphens-auto">
+          <span className="line-clamp-3 px-3 text-center break-words hyphens-auto overflow-hidden text-ellipsis w-full">
             {renderOption(option)}
           </span>
         </Button>
@@ -71,12 +71,12 @@ export function FlashcardOptionButton({
       transition={{ duration: 0.3, delay: index * 0.1 }}
     >
       <Button
-        className={`w-full p-8 h-auto text-2xl justify-center transition-all duration-200 ${getButtonClasses()}`}
+        className={`w-full p-8 h-auto min-h-[100px] max-h-[200px] text-2xl justify-center transition-all duration-200 overflow-hidden ${getButtonClasses()}`}
         variant="outline"
         onClick={() => onSelect(index)}
         disabled={selectedOption !== null}
       >
-        <span className="text-center break-words hyphens-auto leading-tight">
+        <span className="text-center break-words hyphens-auto leading-tight line-clamp-4 overflow-hidden text-ellipsis w-full px-2">
           {renderOption(option)}
         </span>
       </Button>

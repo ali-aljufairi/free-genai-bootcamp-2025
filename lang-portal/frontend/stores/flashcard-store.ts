@@ -7,22 +7,35 @@ export interface FlashcardPreferences {
   level: number
   selectedCourse: number | null
   selectedUnit: number | null
+  selectedGroup: number | null // Kanji uses groups, not units/courses
   count: number
   
   // Part of Speech Filtering
   selectedPartsOfSpeech: PartOfSpeech[]
   
-  // Display Options
+  // Display Options (Words)
   showKana: boolean
   showKanji: boolean
   showRomaji: boolean
   showEnglish: boolean
   
-  // Ask Options
+  // Ask Options (Words)
   askForKana: boolean
   askForKanji: boolean
   askForRomaji: boolean
   askForEnglish: boolean
+  
+  // Display Options (Kanji)
+  showCharacter: boolean
+  showOnyomi: boolean
+  showKunyomi: boolean
+  showKanjiEnglish: boolean
+  
+  // Ask Options (Kanji)
+  askForCharacter: boolean
+  askForOnyomi: boolean
+  askForKunyomi: boolean
+  askForKanjiEnglish: boolean
   
   // SRS Control
   requiredCorrectCount: number
@@ -36,6 +49,7 @@ interface FlashcardStore extends FlashcardPreferences {
   setLevel: (level: number) => void
   setCourse: (courseId: number | null) => void
   setUnit: (unitId: number | null) => void
+  setGroup: (groupId: number | null) => void
   setCount: (count: number) => void
   setPartsOfSpeech: (parts: PartOfSpeech[]) => void
   setRequiredCorrectCount: (count: number) => void
@@ -44,8 +58,12 @@ interface FlashcardStore extends FlashcardPreferences {
   setShowOptions: (options: Partial<Pick<FlashcardPreferences, 'showKana' | 'showKanji' | 'showRomaji' | 'showEnglish'>>) => void
   setAskOptions: (options: Partial<Pick<FlashcardPreferences, 'askForKana' | 'askForKanji' | 'askForRomaji' | 'askForEnglish'>>) => void
   
+  setKanjiShowOptions: (options: Partial<Pick<FlashcardPreferences, 'showCharacter' | 'showOnyomi' | 'showKunyomi' | 'showKanjiEnglish'>>) => void
+  setKanjiAskOptions: (options: Partial<Pick<FlashcardPreferences, 'askForCharacter' | 'askForOnyomi' | 'askForKunyomi' | 'askForKanjiEnglish'>>) => void
+  
   // Smart validation
   validateAndFixOptions: () => void
+  validateAndFixKanjiOptions: () => void
   
   // Reset
   resetToDefaults: () => void
@@ -55,6 +73,7 @@ const defaultPreferences: FlashcardPreferences = {
   level: 5,
   selectedCourse: null,
   selectedUnit: null,
+  selectedGroup: null,
   count: 10,
   
   selectedPartsOfSpeech: [],
@@ -69,6 +88,17 @@ const defaultPreferences: FlashcardPreferences = {
   askForRomaji: false,
   askForEnglish: true,
   
+  // Kanji defaults
+  showCharacter: true,
+  showOnyomi: false,
+  showKunyomi: false,
+  showKanjiEnglish: false,
+  
+  askForCharacter: false,
+  askForOnyomi: false,
+  askForKunyomi: false,
+  askForKanjiEnglish: true,
+  
   requiredCorrectCount: 3,
   
   timerDuration: 0, // 0 = off, 10/15/20/30 = seconds
@@ -82,6 +112,7 @@ export const useFlashcardStore = create<FlashcardStore>()(
       setLevel: (level) => set({ level, selectedCourse: null, selectedUnit: null }),
       setCourse: (selectedCourse) => set({ selectedCourse, selectedUnit: null }),
       setUnit: (selectedUnit) => set({ selectedUnit }),
+      setGroup: (selectedGroup) => set({ selectedGroup }),
       setCount: (count) => set({ count }),
       setPartsOfSpeech: (selectedPartsOfSpeech) => set({ selectedPartsOfSpeech }),
       setRequiredCorrectCount: (requiredCorrectCount) => set({ requiredCorrectCount }),
@@ -102,6 +133,22 @@ export const useFlashcardStore = create<FlashcardStore>()(
           return newState
         })
         get().validateAndFixOptions()
+      },
+      
+      setKanjiShowOptions: (options) => {
+        set((state) => {
+          const newState = { ...state, ...options }
+          return newState
+        })
+        get().validateAndFixKanjiOptions()
+      },
+      
+      setKanjiAskOptions: (options) => {
+        set((state) => {
+          const newState = { ...state, ...options }
+          return newState
+        })
+        get().validateAndFixKanjiOptions()
       },
       
       validateAndFixOptions: () => {
@@ -152,11 +199,57 @@ export const useFlashcardStore = create<FlashcardStore>()(
         })
       },
       
+      validateAndFixKanjiOptions: () => {
+        set((state) => {
+          const newState = { ...state }
+          
+          // Rule 1: Don't show what you're asking for (it defeats the purpose)
+          if (newState.askForCharacter && newState.showCharacter) {
+            newState.showCharacter = false
+          }
+          if (newState.askForOnyomi && newState.showOnyomi) {
+            newState.showOnyomi = false
+          }
+          if (newState.askForKunyomi && newState.showKunyomi) {
+            newState.showKunyomi = false
+          }
+          if (newState.askForKanjiEnglish && newState.showKanjiEnglish) {
+            newState.showKanjiEnglish = false
+          }
+          
+          // Rule 2: Must have at least one ask option
+          const hasAnyAsk = newState.askForCharacter || newState.askForOnyomi || 
+                           newState.askForKunyomi || newState.askForKanjiEnglish
+          
+          if (!hasAnyAsk) {
+            newState.askForKanjiEnglish = true // Default fallback
+            newState.showKanjiEnglish = false // Don't show what we're asking for
+          }
+          
+          // Rule 3: Must have at least one show option (except what we're asking for)
+          const hasAnyShow = newState.showCharacter || newState.showOnyomi || 
+                            newState.showKunyomi || newState.showKanjiEnglish
+          
+          if (!hasAnyShow) {
+            // Show character by default (it's always available)
+            if (!newState.askForCharacter) {
+              newState.showCharacter = true
+            } else if (!newState.askForOnyomi) {
+              newState.showOnyomi = true
+            } else if (!newState.askForKunyomi) {
+              newState.showKunyomi = true
+            }
+          }
+          
+          return newState
+        })
+      },
+      
       resetToDefaults: () => set(defaultPreferences),
     }),
     {
       name: 'flashcard-preferences',
-      version: 1,
+      version: 2, // Increment version for kanji preferences
     }
   )
 )

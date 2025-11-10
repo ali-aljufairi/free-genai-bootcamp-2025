@@ -9,7 +9,7 @@ import { X, Settings, Menu } from "lucide-react"
 import { FlashcardProgress } from "../shared/flashcard-progress"
 import type { Flashcard } from "@/types/api"
 
-interface MobileWordsFlashcardProps {
+interface MobileKanjiFlashcardProps {
     cards: Flashcard[]
     currentIndex: number
     selectedOption: number | null
@@ -17,13 +17,6 @@ interface MobileWordsFlashcardProps {
     score: number
     timeRemaining?: number
     timerDuration?: number
-    showKana: boolean
-    showKanji: boolean
-    showRomaji: boolean
-    askForKana: boolean
-    askForKanji: boolean
-    askForRomaji: boolean
-    askForEnglish: boolean
     onOptionSelect: (index: number) => void
     onExit: () => void
     onShowSettings?: () => void
@@ -31,7 +24,7 @@ interface MobileWordsFlashcardProps {
     renderOption: (option: any) => React.ReactNode
 }
 
-export function MobileWordsFlashcard({
+export function MobileKanjiFlashcard({
     cards,
     currentIndex,
     selectedOption,
@@ -39,19 +32,12 @@ export function MobileWordsFlashcard({
     score,
     timeRemaining,
     timerDuration,
-    showKana,
-    showKanji,
-    showRomaji,
-    askForKana,
-    askForKanji,
-    askForRomaji,
-    askForEnglish,
     onOptionSelect,
     onExit,
     onShowSettings,
     renderQuestion,
     renderOption
-}: MobileWordsFlashcardProps) {
+}: MobileKanjiFlashcardProps) {
     const router = useRouter()
     const currentCard = cards[currentIndex]
 
@@ -157,3 +143,4 @@ export function MobileWordsFlashcard({
         </div>
     )
 }
+
