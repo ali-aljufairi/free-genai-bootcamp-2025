@@ -150,6 +150,7 @@ export interface Flashcard {
   correct_index: number
   item_id: number
   item_type: string
+  audio_path?: string | null
 }
 
 export interface FlashcardSession {

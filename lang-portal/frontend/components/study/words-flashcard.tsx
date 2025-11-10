@@ -22,6 +22,7 @@ import { FlashcardResults } from "./shared/flashcard-results"
 import { MobileWordsFlashcard } from "./mobile/mobile-words-flashcard"
 import { FlashcardSkeleton } from "./shared/flashcard-skeleton"
 import { ConfigSkeleton } from "./configs/config-skeleton"
+import { AudioPlayer } from "@/components/vocabulary/audio-player"
 
 export function WordsFlashcard() {
     const isMobile = useIsMobile()
@@ -394,25 +395,54 @@ export function WordsFlashcard() {
     }
 
     // Custom rendering for word content
-    const renderWordQuestion = (card: Flashcard) => (
-        <>
-            {card.question.kanji && showKanji && (
-                <h2 className={isMobile ? "text-5xl font-bold leading-tight" : "text-8xl font-bold"}>
-                    {card.question.kanji}
-                </h2>
-            )}
-            {card.question.kana && showKana && (
-                <p className={isMobile ? "text-4xl text-primary font-medium" : "text-5xl text-primary"}>
-                    {card.question.kana}
-                </p>
-            )}
-            {card.question.romaji && showRomaji && (
-                <p className={isMobile ? "text-base text-muted-foreground" : "text-4xl text-muted-foreground"}>
-                    {card.question.romaji}
-                </p>
-            )}
-        </>
-    )
+    const renderWordQuestion = (card: Flashcard) => {
+        // Get text for audio (prefer kana, fallback to kanji, then romaji)
+        const audioText = card.question.kana || card.question.kanji || card.question.romaji || ""
+        // Get audio_path from card
+        const audioPath = card.audio_path || null
+
+        // Determine if we should show audio button next to kanji or kana
+        const showKanjiWithAudio = card.question.kanji && showKanji
+        const showKanaWithAudio = card.question.kana && showKana && !showKanjiWithAudio
+
+        return (
+            <div className="flex flex-col items-center gap-4">
+                {card.question.kanji && showKanji && (
+                    <div className="flex items-center gap-3">
+                        <h2 className={isMobile ? "text-5xl font-bold leading-tight" : "text-8xl font-bold"}>
+                            {card.question.kanji}
+                        </h2>
+                        {showKanjiWithAudio && audioText && (
+                            <AudioPlayer
+                                audioPath={audioPath}
+                                text={audioText}
+                                className="shrink-0"
+                            />
+                        )}
+                    </div>
+                )}
+                {card.question.kana && showKana && (
+                    <div className="flex items-center gap-3">
+                        <p className={isMobile ? "text-4xl text-primary font-medium" : "text-5xl text-primary"}>
+                            {card.question.kana}
+                        </p>
+                        {showKanaWithAudio && audioText && (
+                            <AudioPlayer
+                                audioPath={audioPath}
+                                text={audioText}
+                                className="shrink-0"
+                            />
+                        )}
+                    </div>
+                )}
+                {card.question.romaji && showRomaji && (
+                    <p className={isMobile ? "text-base text-muted-foreground" : "text-4xl text-muted-foreground"}>
+                        {card.question.romaji}
+                    </p>
+                )}
+            </div>
+        )
+    }
 
     const renderWordOption = (option: any) => {
         const parts = []

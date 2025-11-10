@@ -370,6 +370,7 @@ func (h *FlashcardHandler) generateWordFlashcardInternal(word models.Word, confi
 		CorrectIndex: correctIndex,
 		ItemID:       word.ID,
 		ItemType:     "word",
+		AudioPath:    word.AudioPath,
 	}, nil
 }
 
@@ -430,15 +431,16 @@ func (h *FlashcardHandler) generateWordWrongOptions(wordID int64, word models.Wo
 // generateKanjiFlashcard generates a kanji flashcard based on user preferences
 func (h *FlashcardHandler) generateKanjiFlashcard(kanjiID int64, config *FlashcardConfig) (Flashcard, error) {
 	var kanji struct {
-		ID        int64  `json:"id"`
-		Character string `json:"character"`
-		Meanings  string `json:"meanings"`
-		Onyomi    string `json:"onyomi"`
-		Kunyomi   string `json:"kunyomi"`
+		ID        int64   `json:"id"`
+		Character string  `json:"character"`
+		Meanings  string  `json:"meanings"`
+		Onyomi    string  `json:"onyomi"`
+		Kunyomi   string  `json:"kunyomi"`
+		AudioPath *string `json:"audio_path"`
 	}
 
 	err := h.db.Table("kanji").
-		Select("id, character, meanings, onyomi, kunyomi").
+		Select("id, character, meanings, onyomi, kunyomi, audio_path").
 		Where("id = ?", kanjiID).
 		First(&kanji).Error
 
@@ -546,6 +548,7 @@ func (h *FlashcardHandler) generateKanjiFlashcard(kanjiID int64, config *Flashca
 		CorrectIndex: correctIndex,
 		ItemID:       kanjiID,
 		ItemType:     "kanji",
+		AudioPath:    kanji.AudioPath,
 	}, nil
 }
 

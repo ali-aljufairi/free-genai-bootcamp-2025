@@ -106,6 +106,7 @@ type Flashcard struct {
 	CorrectIndex int                `json:"correct_index"` // Index of correct answer in options
 	ItemID       int64              `json:"item_id"`
 	ItemType     string             `json:"item_type"`
+	AudioPath    *string            `json:"audio_path,omitempty"` // Audio file path for pronunciation
 }
 
 // FlashcardSession represents a flashcard session
