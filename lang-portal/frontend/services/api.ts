@@ -21,7 +21,10 @@ import {
   GrammarQuizConfig,
   GrammarQuizSession,
   GrammarSubmission,
-  GrammarResult
+  GrammarResult,
+  ChatSession,
+  SaveChatSessionRequest,
+  SaveSkillAssessmentRequest
 } from "@/types/api";
 
 import { getCachedToken } from '@/lib/token-cache';
@@ -365,6 +368,27 @@ export const grammarApi = {
   },
 };
 
+// Chat API using langportal proxy
+export const chatApi = {
+  saveSession: async (request: SaveChatSessionRequest): Promise<{ id: number; session_id: string; created?: boolean; updated?: boolean }> => {
+    return fetchData<{ id: number; session_id: string; created?: boolean; updated?: boolean }>('/chat/sessions', {
+      method: 'POST',
+      body: JSON.stringify(request),
+    });
+  },
+
+  getHistory: async (): Promise<ChatSession[]> => {
+    return fetchData<ChatSession[]>('/chat/sessions');
+  },
+
+  saveSkillAssessment: async (sessionId: string, assessment: SaveSkillAssessmentRequest): Promise<ChatSession> => {
+    return fetchData<ChatSession>(`/chat/sessions/${sessionId}/assessment`, {
+      method: 'POST',
+      body: JSON.stringify(assessment),
+    });
+  },
+};
+
 export const api = {
   // dashboard: dashboardApi,
   // studySession: studySessionApi,
@@ -375,6 +399,7 @@ export const api = {
   user: userApi,
   flashcardsV2: flashcardsV2Api,
   grammar: grammarApi,
+  chat: chatApi,
 };
 
 export default api;

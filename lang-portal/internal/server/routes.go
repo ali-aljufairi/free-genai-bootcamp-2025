@@ -2,6 +2,7 @@ package server
 
 import (
 	roothandlers "lang-portal/internal/handlers"
+	"lang-portal/internal/handlers/chat"
 	"lang-portal/internal/handlers/dashboard"
 	"lang-portal/internal/handlers/flashcard"
 	"lang-portal/internal/handlers/grammar"
@@ -129,6 +130,12 @@ func (s *FiberServer) RegisterFiberRoutes() {
 	s.App.Post("/api/langportal/grammar/start", grammarHandler.StartGrammarQuiz)
 	s.App.Post("/api/langportal/grammar/submit", grammarHandler.SubmitGrammarQuiz)
 	s.App.Get("/api/langportal/grammar/history", grammarHandler.GetGrammarQuizHistory)
+
+	// Chat routes
+	chatHandler := chat.NewChatHandler(s.postgresDB)
+	s.App.Post("/api/langportal/chat/sessions", chatHandler.SaveChatSession)
+	s.App.Get("/api/langportal/chat/sessions", chatHandler.GetChatHistory)
+	s.App.Post("/api/langportal/chat/sessions/:id/assessment", chatHandler.SaveSkillAssessment)
 
 	// Disabled routes during migration
 	s.App.All("/api/langportal/kanji/*/compounds", func(c *fiber.Ctx) error {

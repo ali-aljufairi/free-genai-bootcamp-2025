@@ -1,5 +1,6 @@
 import { modelID } from "@/ai/providers";
 import { SystemPromptID, defaultPrompt } from "@/ai/prompts";
+import { availableModels, availablePrompts } from "@/ai/config";
 import { Textarea as ShadcnTextarea } from "@/components/ui/textarea";
 import { ArrowUp } from "lucide-react";
 import { useState } from "react";
@@ -28,22 +29,21 @@ export function ChatInput({
     const [showModelPicker, setShowModelPicker] = useState(false);
     const [showPromptPicker, setShowPromptPicker] = useState(false);
 
-    const promptLabels: Record<SystemPromptID, string> = {
-        "Grammar-Explainer": "Grammar Explainer",
-        "sentence-construction": "Sentence Constructor",
-        "japanese-only": "Japanese Only",
-        "grammar-focus": "Grammar Focus",
-        "conversation-partner": "Conversation Partner",
-        "speech-analysis-japanese": "Speech Analysis (Japanese)",
-        "vocabulary-builder": "Vocabulary Builder",
-    };
+    // Guard against undefined input to prevent .trim() crashes
+    const safeInput = input ?? "";
+
+    // Get current model label
+    const currentModelLabel = availableModels.find(m => m.id === selectedModel)?.label || selectedModel.split('-')[0].charAt(0).toUpperCase() + selectedModel.split('-')[0].slice(1);
+    
+    // Get current prompt label
+    const currentPromptLabel = availablePrompts.find(p => p.id === selectedPrompt)?.label || selectedPrompt;
 
     return (
         <form onSubmit={handleSubmit} className="w-full">
             <div className="relative w-full pt-4">
                 <ShadcnTextarea
                     className="resize-none bg-secondary w-full rounded-2xl pr-12 pt-4 pb-12 border focus-visible:ring-1 focus-visible:ring-primary"
-                    value={input}
+                    value={safeInput}
                     autoFocus
                     placeholder="Type your message..."
                     // @ts-expect-error err
@@ -51,7 +51,7 @@ export function ChatInput({
                     onKeyDown={(e) => {
                         if (e.key === "Enter" && !e.shiftKey) {
                             e.preventDefault();
-                            if (input.trim() && !isLoading) {
+                            if (safeInput.trim() && !isLoading) {
                                 // @ts-expect-error err
                                 const form = e.target.closest("form");
                                 if (form) form.requestSubmit();
@@ -73,7 +73,7 @@ export function ChatInput({
                         }}
                         className="text-xs text-muted-foreground hover:text-foreground p-1 rounded-md transition-colors"
                     >
-                        {selectedModel.split('-')[0].charAt(0).toUpperCase() + selectedModel.split('-')[0].slice(1)} ▾
+                        {currentModelLabel} ▾
                     </button>
                     {setSelectedPrompt && (
                         <button
@@ -85,59 +85,42 @@ export function ChatInput({
                             }}
                             className="text-xs text-muted-foreground hover:text-foreground p-1 rounded-md transition-colors"
                         >
-                            {promptLabels[selectedPrompt]} ▾
+                            {currentPromptLabel} ▾
                         </button>
                     )}
                     {showModelPicker && (
                         <div className="absolute bottom-10 left-0 bg-background border border-border rounded-md p-2 z-10 w-[200px] shadow-md">
                             <div className="space-y-2">
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setSelectedModel("llama-3.3-70b-versatile");
-                                        setShowModelPicker(false);
-                                    }}
-                                    className={`w-full text-left text-xs px-2 py-1 rounded-md ${selectedModel === "llama-3.3-70b-versatile" ? "bg-secondary text-foreground" : "text-muted-foreground hover:bg-secondary/50"}`}
-                                >
-                                    Llama 3.3 70B (Best Quality)
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setSelectedModel("llama-3.1-8b-instant");
-                                        setShowModelPicker(false);
-                                    }}
-                                    className={`w-full text-left text-xs px-2 py-1 rounded-md ${selectedModel === "llama-3.1-8b-instant" ? "bg-secondary text-foreground" : "text-muted-foreground hover:bg-secondary/50"}`}
-                                >
-                                    Llama 3.1 8B (Faster)
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setSelectedModel("deepseek-r1-distill-llama-70b");
-                                        setShowModelPicker(false);
-                                    }}
-                                    className={`w-full text-left text-xs px-2 py-1 rounded-md ${selectedModel === "deepseek-r1-distill-llama-70b" ? "bg-secondary text-foreground" : "text-muted-foreground hover:bg-secondary/50"}`}
-                                >
-                                    DeepSeek R1 70B
-                                </button>
+                                {availableModels.map((model) => (
+                                    <button
+                                        key={model.id}
+                                        type="button"
+                                        onClick={() => {
+                                            setSelectedModel(model.id);
+                                            setShowModelPicker(false);
+                                        }}
+                                        className={`w-full text-left text-xs px-2 py-1 rounded-md ${selectedModel === model.id ? "bg-secondary text-foreground" : "text-muted-foreground hover:bg-secondary/50"}`}
+                                    >
+                                        {model.label}
+                                    </button>
+                                ))}
                             </div>
                         </div>
                     )}
                     {showPromptPicker && setSelectedPrompt && (
                         <div className="absolute bottom-10 left-[150px] bg-background border border-border rounded-md p-2 z-10 w-[200px] shadow-md">
                             <div className="space-y-2">
-                                {Object.entries(promptLabels).map(([id, label]) => (
+                                {availablePrompts.map((prompt) => (
                                     <button
-                                        key={id}
+                                        key={prompt.id}
                                         type="button"
                                         onClick={() => {
-                                            setSelectedPrompt(id as SystemPromptID);
+                                            setSelectedPrompt(prompt.id);
                                             setShowPromptPicker(false);
                                         }}
-                                        className={`w-full text-left text-xs px-2 py-1 rounded-md ${selectedPrompt === id ? "bg-secondary text-foreground" : "text-muted-foreground hover:bg-secondary/50"}`}
+                                        className={`w-full text-left text-xs px-2 py-1 rounded-md ${selectedPrompt === prompt.id ? "bg-secondary text-foreground" : "text-muted-foreground hover:bg-secondary/50"}`}
                                     >
-                                        {label}
+                                        {prompt.label}
                                     </button>
                                 ))}
                             </div>
@@ -146,7 +129,7 @@ export function ChatInput({
                 </div>
                 <button
                     type="submit"
-                    disabled={isLoading || !input.trim()}
+                    disabled={isLoading || !safeInput.trim()}
                     className="absolute right-2 bottom-2 rounded-full p-2 bg-primary hover:bg-primary/80 disabled:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                     {isLoading ? (

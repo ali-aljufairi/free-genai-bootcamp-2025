@@ -276,3 +276,49 @@ export interface GrammarResult {
   duration: number
   results: QuestionResult[]
 }
+
+// Chat Types
+export interface ChatMessage {
+  id: string
+  role: 'user' | 'assistant' | 'system'
+  content: string
+  createdAt?: string
+}
+
+export interface SkillAssessment {
+  estimated_jlpt_level?: number
+  strengths?: string[]
+  areas_for_improvement?: string[]
+  vocabulary_usage?: {
+    level: string
+    diversity: string
+  }
+  grammar_accuracy?: {
+    score: number
+    feedback: string
+  }
+  assessed_at?: string
+}
+
+export interface ChatSession {
+  id: number
+  user_id: number
+  session_id: string
+  messages: ChatMessage[]
+  skill_summary?: SkillAssessment | null
+  model_used: string
+  prompt_used: string
+  created_at: string
+  updated_at: string
+}
+
+export interface SaveChatSessionRequest {
+  session_id: string
+  messages: ChatMessage[]
+  model_used: string
+  prompt_used: string
+}
+
+export interface SaveSkillAssessmentRequest {
+  skill_summary: SkillAssessment
+}

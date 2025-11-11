@@ -2,29 +2,27 @@
 
 import { useChat } from '@ai-sdk/react';
 import { useState, useEffect, useRef } from "react";
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { X } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { modelID } from "@/ai/providers";
 import { SystemPromptID } from "@/ai/prompts";
 import { defaultModel, defaultPrompt } from "@/ai/config";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { chatApi } from "@/services/api";
-import { ChatInput } from "../chat/chat-input";
-import { ChatMessages } from "../chat/chat-messages";
-import { MobileChatStudy } from "./mobile/mobile-chat-study";
+import { ChatInput } from "../../chat/chat-input";
+import { ChatMessages } from "../../chat/chat-messages";
 
-interface ChatProps {
+interface MobileChatStudyProps {
     sessionId: string;
     onComplete: () => void;
 }
 
-export function Chat({ sessionId, onComplete }: ChatProps) {
-    const isMobile = useIsMobile();
+export function MobileChatStudy({ sessionId, onComplete }: MobileChatStudyProps) {
+    const router = useRouter();
     const [selectedModel, setSelectedModel] = useState<modelID>(defaultModel);
     const [selectedPrompt, setSelectedPrompt] = useState<SystemPromptID>(defaultPrompt);
     const [isComplete, setIsComplete] = useState(false);
-    const initialized = useRef(false);
     const messagesRef = useRef<any[]>([]);
     const hasSavedRef = useRef(false);
 
@@ -41,11 +39,6 @@ export function Chat({ sessionId, onComplete }: ChatProps) {
     useEffect(() => {
         messagesRef.current = messages;
     }, [messages]);
-
-    // Add this useEffect to prevent unnecessary re-renders on first use
-    useEffect(() => {
-        initialized.current = true;
-    }, []);
 
     // Background submission on unmount (user leaves page)
     useEffect(() => {
@@ -120,44 +113,74 @@ export function Chat({ sessionId, onComplete }: ChatProps) {
         onComplete();
     }
 
-    // Early return for mobile - use separate mobile component
-    if (isMobile) {
-        return <MobileChatStudy sessionId={sessionId} onComplete={handleCompleteSession} />;
+    const handleExit = () => {
+        // Save before exiting
+        saveChatSession();
+        router.push("/study");
     }
 
     if (isComplete) {
         return (
-            <div className="text-center py-8 space-y-4">
-                <h3 className="text-xl font-bold">Session Complete!</h3>
-                <p className="text-muted-foreground">
-                    You've completed your language chat practice session.
-                </p>
-                <Button onClick={handleCompleteSession}>Finish Session</Button>
+            <div className="fixed inset-0 z-50 bg-background flex flex-col">
+                <div className="flex items-center justify-between px-4 py-2 border-b bg-background/95 backdrop-blur-sm">
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleExit}
+                        className="h-9 w-9 p-0 flex items-center justify-center"
+                    >
+                        <X className="h-5 w-5" />
+                    </Button>
+                </div>
+                <div className="flex-1 flex items-center justify-center p-8">
+                    <div className="text-center space-y-4">
+                        <h3 className="text-3xl font-bold">Session Complete!</h3>
+                        <p className="text-xl text-muted-foreground">
+                            You've completed your language chat practice session.
+                        </p>
+                        <Button onClick={handleCompleteSession} className="text-lg h-12 px-8">
+                            Finish Session
+                        </Button>
+                    </div>
+                </div>
             </div>
         )
     }
 
     return (
-        <div className="flex flex-col h-[calc(100vh-8rem)]">
-            <Card className="flex-1 glass-card flex flex-col h-full overflow-hidden border-0 shadow-lg bg-background/60 backdrop-blur-sm">
-                <CardContent className="flex-1 overflow-y-auto p-4 pt-6 pb-0">
-                    <ChatMessages messages={messages} isLoading={isLoading} />
-                </CardContent>
+        <div className="fixed inset-0 z-50 bg-background flex flex-col">
+            {/* Top Bar */}
+            <div className="flex items-center justify-between px-4 py-2 border-b bg-background/95 backdrop-blur-sm">
+                <h2 className="text-lg font-semibold">Chat Practice</h2>
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleExit}
+                    className="h-9 w-9 p-0 flex items-center justify-center"
+                >
+                    <X className="h-5 w-5" />
+                </Button>
+            </div>
 
-                <CardFooter className="border-t p-4 mt-auto">
-                    <ChatInput
-                        input={input}
-                        handleInputChange={handleInputChange}
-                        handleSubmit={handleSubmit}
-                        isLoading={isLoading}
-                        selectedModel={selectedModel}
-                        setSelectedModel={setSelectedModel}
-                        selectedPrompt={selectedPrompt}
-                        setSelectedPrompt={setSelectedPrompt}
-                    />
-                </CardFooter>
-            </Card>
+            {/* Messages Area */}
+            <div className="flex-1 overflow-y-auto p-4">
+                <ChatMessages messages={messages} isLoading={isLoading} />
+            </div>
 
+            {/* Input Area */}
+            <div className="border-t p-4 bg-background/95 backdrop-blur-sm">
+                <ChatInput
+                    input={input}
+                    handleInputChange={handleInputChange}
+                    handleSubmit={handleSubmit}
+                    isLoading={isLoading}
+                    selectedModel={selectedModel}
+                    setSelectedModel={setSelectedModel}
+                    selectedPrompt={selectedPrompt}
+                    setSelectedPrompt={setSelectedPrompt}
+                />
+            </div>
         </div>
     )
 }
+
