@@ -59,7 +59,7 @@ export default function WordBuilderPage() {
     }
 
     return (
-        <div className="space-y-5">
+        <div className="h-[calc(100vh-4rem)] overflow-hidden">
             <WordBuilderGame
                 sessionId={sessionData.session_id}
                 kanji={sessionData.kanji}

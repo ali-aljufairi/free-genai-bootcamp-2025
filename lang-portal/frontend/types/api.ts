@@ -346,6 +346,7 @@ export interface WordBuilderSession {
 
 export interface WordBuilderRefreshRequest {
   session_id: number
+  jlpt_level: number
   used_kanji_ids: number[]
 }
 

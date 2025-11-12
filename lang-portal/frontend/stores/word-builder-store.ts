@@ -40,6 +40,7 @@ interface WordBuilderStore {
   initSession: (sessionId: number, kanji: Kanji[], validWords: WordBuilderValidWord[], timeLimit: number) => void
   placeKanjiInSlot: (kanji: Kanji, slotIndex: number) => void
   removeKanjiFromSlot: (slotIndex: number) => void
+  swapSlots: (fromIndex: number, toIndex: number) => void
   clearSlots: () => void
   validateCurrentWord: () => WordBuilderValidWord | null
   addFormedWord: (word: WordBuilderValidWord) => void
@@ -117,6 +118,19 @@ export const useWordBuilderStore = create<WordBuilderStore>()(
         set((state) => {
           const newSlots = [...state.currentSlots]
           newSlots[slotIndex] = null
+          return { currentSlots: newSlots }
+        })
+      },
+      
+      swapSlots: (fromIndex, toIndex) => {
+        if (fromIndex < 0 || fromIndex >= 4 || toIndex < 0 || toIndex >= 4) return
+        if (fromIndex === toIndex) return
+        
+        set((state) => {
+          const newSlots = [...state.currentSlots]
+          const temp = newSlots[fromIndex]
+          newSlots[fromIndex] = newSlots[toIndex]
+          newSlots[toIndex] = temp
           return { currentSlots: newSlots }
         })
       },

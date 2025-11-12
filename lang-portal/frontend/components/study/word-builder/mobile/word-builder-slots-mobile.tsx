@@ -8,12 +8,12 @@ import { Button } from "@/components/ui/button"
 import type { Kanji } from "@/types/api"
 import { useWordBuilderStore } from "@/stores/word-builder-store"
 
-interface WordBuilderSlotsProps {
+interface WordBuilderSlotsMobileProps {
     slots: (Kanji | null)[]
     onValidate: () => void
 }
 
-export function WordBuilderSlots({ slots, onValidate }: WordBuilderSlotsProps) {
+export function WordBuilderSlotsMobile({ slots, onValidate }: WordBuilderSlotsMobileProps) {
     const { removeKanjiFromSlot, placeKanjiInSlot, swapSlots, kanjiPool, preferences } = useWordBuilderStore()
     const hasKanji = slots.some(s => s !== null)
     const showHints = preferences.show_hints
@@ -76,14 +76,14 @@ export function WordBuilderSlots({ slots, onValidate }: WordBuilderSlotsProps) {
                     </Button>
                 )}
             </div>
-            <div className="flex-1 min-h-0 grid grid-cols-4 gap-3">
+            <div className="flex-1 min-h-0 grid grid-cols-2 gap-2">
                 {slots.map((kanji, index) => (
                     <div
                         key={index}
                         className="relative h-full min-h-0"
                     >
                         <Card
-                            className={`glass-card h-full w-full flex items-center justify-center p-3 transition-colors ${kanji
+                            className={`glass-card h-full w-full flex items-center justify-center p-2 transition-colors ${kanji
                                 ? 'border-primary bg-primary/5'
                                 : 'border-dashed border-2 border-muted-foreground/30'
                                 } ${draggedSlotIndex === index ? 'opacity-50' : ''}`}
@@ -103,7 +103,7 @@ export function WordBuilderSlots({ slots, onValidate }: WordBuilderSlotsProps) {
                                             exit={{ scale: 0.8, opacity: 0 }}
                                             className="w-full h-full flex flex-col items-center justify-center"
                                         >
-                                            <div className="text-5xl font-bold mb-1">{kanji.character}</div>
+                                            <div className="text-4xl font-bold mb-1">{kanji.character}</div>
                                             {showHints && (
                                                 <div className="text-xs text-muted-foreground text-center space-y-0.5">
                                                     {kanji.meanings && kanji.meanings.length > 0 && (

@@ -6,11 +6,14 @@ import { toast } from "sonner"
 import { useWordBuilderStore } from "@/stores/word-builder-store"
 import { WordBuilderKanjiPool } from "./word-builder-kanji-pool"
 import { WordBuilderSlots } from "./word-builder-slots"
+import { WordBuilderKanjiPoolMobile } from "./mobile/word-builder-kanji-pool-mobile"
+import { WordBuilderSlotsMobile } from "./mobile/word-builder-slots-mobile"
 import { WordBuilderStats } from "./word-builder-stats"
 import { WordBuilderResults } from "./word-builder-results"
 import { useRefreshKanji, useSubmitWordBuilder } from "@/hooks/api/use-word-builder"
 import { Button } from "@/components/ui/button"
 import { RefreshCw } from "lucide-react"
+import { useIsMobile } from "@/hooks/use-mobile"
 
 interface WordBuilderGameProps {
     sessionId: number
@@ -31,6 +34,7 @@ export function WordBuilderGame({
     const [showResults, setShowResults] = useState(false)
     const [startTime, setStartTime] = useState<number | null>(null)
     const [timeSpent, setTimeSpent] = useState(0)
+    const isMobile = useIsMobile()
 
     const {
         initSession,
@@ -148,20 +152,33 @@ export function WordBuilderGame({
     }
 
     const handleRefreshKanji = async () => {
-        const usedKanjiIds = Array.from(useWordBuilderStore.getState().usedKanjiIds)
+        const storeState = useWordBuilderStore.getState()
+        const usedKanjiIds = Array.from(storeState.usedKanjiIds)
+        const storeSessionId = storeState.sessionId
+        const jlptLevel = storeState.preferences.jlpt_level
+
+        // Use sessionId from props (should match store, but props is source of truth)
+        const sessionIdToUse = sessionId || storeSessionId
 
         try {
             const response = await refreshKanjiMutation.mutateAsync({
-                session_id: sessionId,
+                session_id: sessionIdToUse || 0, // Optional - pass 0 if not available
+                jlpt_level: jlptLevel,
                 used_kanji_ids: usedKanjiIds,
             })
 
             refreshKanji(response.kanji, response.valid_words)
             toast.success("New kanji loaded!")
         } catch (error: any) {
-            console.error("Refresh error:", error)
+            console.error("Refresh error details:", {
+                error,
+                message: error?.message,
+                response: error?.response,
+                status: error?.response?.status,
+                data: error?.response?.data,
+            })
             const errorMessage = error?.response?.data?.error || error?.message || "Failed to refresh kanji"
-            toast.error(errorMessage)
+            toast.error(`Refresh failed: ${errorMessage}`)
         }
     }
 
@@ -212,29 +229,35 @@ export function WordBuilderGame({
     }
 
     return (
-        <div className="space-y-6" ref={containerRef}>
+        <div className="flex flex-col h-[calc(100vh-8rem)] overflow-hidden" ref={containerRef}>
             {/* Header */}
-            <div>
+            <div className="shrink-0">
                 <h2 className="text-2xl font-bold">Word Builder</h2>
             </div>
 
             {/* Stats */}
-            <WordBuilderStats
-                wordsFormed={formedWords.length}
-                totalAttempts={totalAttempts}
-                timeRemaining={timeRemaining}
-            />
+            <div className="shrink-0 mt-3">
+                <WordBuilderStats
+                    wordsFormed={formedWords.length}
+                    totalAttempts={totalAttempts}
+                    timeRemaining={timeRemaining}
+                />
+            </div>
 
-            {/* Main Game Area - Vertical Layout */}
-            <div className="space-y-6">
-                {/* Top: Word Builder */}
-                <div>
-                    <WordBuilderSlots slots={currentSlots} onValidate={handleValidate} />
+            {/* Main Game Area - Vertical Layout with flex */}
+            <div className="flex flex-col flex-1 min-h-0 mt-4 space-y-3">
+                {/* Top: Word Builder - Takes 60% of space (larger) */}
+                <div className="flex-[3] min-h-0 flex flex-col">
+                    {isMobile ? (
+                        <WordBuilderSlotsMobile slots={currentSlots} onValidate={handleValidate} />
+                    ) : (
+                        <WordBuilderSlots slots={currentSlots} onValidate={handleValidate} />
+                    )}
                 </div>
 
-                {/* Bottom: Kanji Pool with refresh button */}
-                <div className="space-y-2">
-                    <div className="flex items-center justify-between">
+                {/* Bottom: Kanji Pool - Takes 40% of space (smaller) */}
+                <div className="flex-[2] min-h-0 flex flex-col space-y-2">
+                    <div className="flex items-center justify-between shrink-0">
                         <h3 className="text-sm font-medium text-muted-foreground">Kanji Pool</h3>
                         <Button
                             variant="ghost"
@@ -247,7 +270,13 @@ export function WordBuilderGame({
                             <RefreshCw className={`h-4 w-4 ${refreshKanjiMutation.isPending ? 'animate-spin' : ''}`} />
                         </Button>
                     </div>
-                    <WordBuilderKanjiPool kanji={kanjiPool} />
+                    <div className="flex-1 min-h-0 overflow-hidden">
+                        {isMobile ? (
+                            <WordBuilderKanjiPoolMobile kanji={kanjiPool} />
+                        ) : (
+                            <WordBuilderKanjiPool kanji={kanjiPool} />
+                        )}
+                    </div>
                 </div>
             </div>
         </div>
