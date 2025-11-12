@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { toast } from "sonner"
+import { createSwapy } from "swapy"
+import type { Swapy, SwapEvent, SwapStartEvent, SwapEndEvent, BeforeSwapEvent } from "@/types/swapy"
 import { useWordBuilderStore } from "@/stores/word-builder-store"
 import { WordBuilderKanjiPool } from "./word-builder-kanji-pool"
 import { WordBuilderSlots } from "./word-builder-slots"
@@ -31,6 +33,7 @@ export function WordBuilderGame({
     onComplete,
 }: WordBuilderGameProps) {
     const containerRef = useRef<HTMLDivElement>(null)
+    const swapyInstance = useRef<Swapy | null>(null)
     const [showResults, setShowResults] = useState(false)
     const [startTime, setStartTime] = useState<number | null>(null)
     const [timeSpent, setTimeSpent] = useState(0)
@@ -48,6 +51,9 @@ export function WordBuilderGame({
         preferences,
         validateCurrentWord,
         refreshKanji,
+        placeKanjiInSlot,
+        removeKanjiFromSlot,
+        swapSlots,
         startTimer,
         updateTimer,
         stopTimer,
@@ -62,10 +68,178 @@ export function WordBuilderGame({
         initSession(sessionId, kanji, validWords, timeLimit)
     }, [sessionId, kanji, validWords, timeLimit])
 
-    // Note: We use native HTML5 drag-and-drop instead of Swapy
-    // because we're dragging from pool to slots (different containers),
-    // not swapping items within the same container
-    // Swapy is designed for swapping, not for drag-to-drop scenarios
+    // Initialize Swapy for drag-and-drop functionality
+    useEffect(() => {
+        if (!containerRef.current || kanjiPool.length === 0) return
+
+        const initializeSwapy = () => {
+            if (!containerRef.current) return
+
+            // Verify slots have items before initializing
+            const allSlots = containerRef.current.querySelectorAll('[data-swapy-slot]')
+            let allSlotsHaveItems = true
+            allSlots.forEach((slot) => {
+                const items = slot.querySelectorAll('[data-swapy-item]')
+                if (items.length === 0) {
+                    allSlotsHaveItems = false
+                }
+            })
+
+            if (!allSlotsHaveItems) {
+                // Retry after a short delay
+                setTimeout(initializeSwapy, 100)
+                return
+            }
+
+            // Destroy existing instance if any
+            if (swapyInstance.current) {
+                swapyInstance.current.destroy()
+                swapyInstance.current = null
+            }
+
+            // Create Swapy instance with smooth animations
+            swapyInstance.current = createSwapy(containerRef.current, {
+                animation: 'dynamic',
+                swapMode: 'drop',
+                dragAxis: 'both',
+            })
+
+            // Prevent swapping placeholders out of slots
+            swapyInstance.current.onBeforeSwap((event: BeforeSwapEvent) => {
+                const { draggingItem, fromSlot, toSlot } = event
+                
+                // Prevent dragging placeholders from slots
+                if (fromSlot.startsWith('slot-') && draggingItem.startsWith('placeholder-slot-')) {
+                    return false
+                }
+                
+                // Prevent swapping placeholders into pool
+                if (toSlot.startsWith('pool-kanji-') && draggingItem.startsWith('placeholder-slot-')) {
+                    return false
+                }
+                
+                return true
+            })
+
+            // Handle swap events to update store
+            swapyInstance.current.onSwap((event: SwapEvent) => {
+                const { fromSlot, toSlot, draggingItem, swappedWithItem } = event
+
+                // Case 1: Pool → Slot (placing kanji - kanji stays in pool, can be reused)
+                if (fromSlot.startsWith('pool-kanji-') && toSlot.startsWith('slot-')) {
+                    const kanjiId = parseInt(fromSlot.replace('pool-kanji-', ''))
+                    const slotIndex = parseInt(toSlot.replace('slot-', ''))
+                    const kanji = kanjiPool.find(k => k.id === kanjiId)
+                    if (kanji) {
+                        // Place kanji in slot (kanji remains in pool for reuse)
+                        placeKanjiInSlot(kanji, slotIndex)
+                        // Note: Swapy will move the DOM element, but we need to restore the pool item
+                        // We'll handle this in the update effect
+                    }
+                }
+                // Case 2: Slot → Slot (reordering)
+                else if (fromSlot.startsWith('slot-') && toSlot.startsWith('slot-')) {
+                    // Only swap if both are actual kanji (not placeholders)
+                    if (!draggingItem.startsWith('placeholder-') && !swappedWithItem.startsWith('placeholder-')) {
+                        const fromIndex = parseInt(fromSlot.replace('slot-', ''))
+                        const toIndex = parseInt(toSlot.replace('slot-', ''))
+                        swapSlots(fromIndex, toIndex)
+                    } else {
+                        // If one is a placeholder, treat it as placing kanji in empty slot
+                        if (draggingItem.startsWith('kanji-slot-')) {
+                            const kanjiIdMatch = draggingItem.match(/kanji-slot-(\d+)-\d+/)
+                            if (kanjiIdMatch) {
+                                const kanjiId = parseInt(kanjiIdMatch[1])
+                                const toIndex = parseInt(toSlot.replace('slot-', ''))
+                                const storeState = useWordBuilderStore.getState()
+                                const kanji = kanjiPool.find(k => k.id === kanjiId) || 
+                                              storeState.currentSlots.find(k => k?.id === kanjiId)
+                                if (kanji) {
+                                    placeKanjiInSlot(kanji, toIndex)
+                                }
+                            }
+                        }
+                    }
+                }
+                // Case 3: Slot → Pool (clearing slot - kanji was never removed from pool)
+                else if (fromSlot.startsWith('slot-') && toSlot.startsWith('pool-kanji-')) {
+                    const slotIndex = parseInt(fromSlot.replace('slot-', ''))
+                    // Just clear the slot, kanji remains in pool
+                    removeKanjiFromSlot(slotIndex)
+                }
+
+                // Update Swapy after state change
+                setTimeout(() => {
+                    if (swapyInstance.current) {
+                        swapyInstance.current.update()
+                    }
+                }, 0)
+            })
+
+            // Handle drag start for visual feedback
+            swapyInstance.current.onSwapStart((event: SwapStartEvent) => {
+                // Optional: Add visual feedback
+            })
+
+            // Handle drag end for cleanup
+            swapyInstance.current.onSwapEnd((event: SwapEndEvent) => {
+                // Optional: Cleanup or feedback
+            })
+        }
+
+        // Wait for DOM to be ready with all slots and items
+        const timer = setTimeout(() => {
+            if (!containerRef.current) return
+
+            // Verify that slots and items exist in DOM before initializing
+            const slots = containerRef.current.querySelectorAll('[data-swapy-slot]')
+            const items = containerRef.current.querySelectorAll('[data-swapy-item]')
+            
+            // Need at least 4 word builder slots + kanji pool slots (4 + 5 = 9 minimum)
+            // But we'll check that all slots have items instead
+            const allSlotsHaveItems = Array.from(slots).every((slot) => {
+                return slot.querySelectorAll('[data-swapy-item]').length > 0
+            })
+            
+            if (slots.length > 0 && items.length > 0 && allSlotsHaveItems) {
+                initializeSwapy()
+            } else {
+                // Retry after a bit more time
+                setTimeout(() => {
+                    if (containerRef.current) {
+                        const retrySlots = containerRef.current.querySelectorAll('[data-swapy-slot]')
+                        const retryItems = containerRef.current.querySelectorAll('[data-swapy-item]')
+                        const retryAllHaveItems = Array.from(retrySlots).every((slot) => {
+                            return slot.querySelectorAll('[data-swapy-item]').length > 0
+                        })
+                        if (retrySlots.length > 0 && retryItems.length > 0 && retryAllHaveItems) {
+                            initializeSwapy()
+                        }
+                    }
+                }, 200)
+            }
+        }, 200)
+
+        return () => {
+            clearTimeout(timer)
+            // Cleanup Swapy instance on unmount
+            if (swapyInstance.current) {
+                swapyInstance.current.destroy()
+                swapyInstance.current = null
+            }
+        }
+    }, [kanjiPool, placeKanjiInSlot, removeKanjiFromSlot, swapSlots])
+
+    // Update Swapy when slots or kanji pool changes
+    useEffect(() => {
+        if (swapyInstance.current) {
+            // Small delay to ensure DOM has updated
+            const timer = setTimeout(() => {
+                swapyInstance.current?.update()
+            }, 50)
+            return () => clearTimeout(timer)
+        }
+    }, [currentSlots, kanjiPool])
 
     // Timer logic
     useEffect(() => {
@@ -229,7 +403,7 @@ export function WordBuilderGame({
     }
 
     return (
-        <div className="flex flex-col h-[calc(100vh-8rem)] overflow-hidden" ref={containerRef}>
+        <div className="flex flex-col h-[calc(100vh-8rem)] overflow-hidden">
             {/* Header */}
             <div className="shrink-0">
                 <h2 className="text-2xl font-bold">Word Builder</h2>
@@ -244,38 +418,41 @@ export function WordBuilderGame({
                 />
             </div>
 
-            {/* Main Game Area - Vertical Layout with flex */}
+            {/* Main Game Area - Unified Swapy Container */}
             <div className="flex flex-col flex-1 min-h-0 mt-4 space-y-3">
-                {/* Top: Word Builder - Takes 60% of space (larger) */}
-                <div className="flex-[3] min-h-0 flex flex-col">
-                    {isMobile ? (
-                        <WordBuilderSlotsMobile slots={currentSlots} onValidate={handleValidate} />
-                    ) : (
-                        <WordBuilderSlots slots={currentSlots} onValidate={handleValidate} />
-                    )}
-                </div>
-
-                {/* Bottom: Kanji Pool - Takes 40% of space (smaller) */}
-                <div className="flex-[2] min-h-0 flex flex-col space-y-2">
-                    <div className="flex items-center justify-between shrink-0">
-                        <h3 className="text-sm font-medium text-muted-foreground">Kanji Pool</h3>
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={handleRefreshKanji}
-                            disabled={refreshKanjiMutation.isPending}
-                            className="h-8 w-8"
-                            title="Refresh Kanji Pool"
-                        >
-                            <RefreshCw className={`h-4 w-4 ${refreshKanjiMutation.isPending ? 'animate-spin' : ''}`} />
-                        </Button>
-                    </div>
-                    <div className="flex-1 min-h-0 overflow-hidden">
+                {/* Unified Swapy container that includes both slots and pool */}
+                <div ref={containerRef} className="flex flex-col flex-1 min-h-0 space-y-3">
+                    {/* Top: Word Builder - Takes 60% of space (larger) */}
+                    <div className="flex-[3] min-h-0 flex flex-col">
                         {isMobile ? (
-                            <WordBuilderKanjiPoolMobile kanji={kanjiPool} />
+                            <WordBuilderSlotsMobile slots={currentSlots} onValidate={handleValidate} />
                         ) : (
-                            <WordBuilderKanjiPool kanji={kanjiPool} />
+                            <WordBuilderSlots slots={currentSlots} onValidate={handleValidate} />
                         )}
+                    </div>
+
+                    {/* Bottom: Kanji Pool - Takes 40% of space (smaller) */}
+                    <div className="flex-[2] min-h-0 flex flex-col space-y-2">
+                        <div className="flex items-center justify-between shrink-0">
+                            <h3 className="text-sm font-medium text-muted-foreground">Kanji Pool</h3>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={handleRefreshKanji}
+                                disabled={refreshKanjiMutation.isPending}
+                                className="h-8 w-8"
+                                title="Refresh Kanji Pool"
+                            >
+                                <RefreshCw className={`h-4 w-4 ${refreshKanjiMutation.isPending ? 'animate-spin' : ''}`} />
+                            </Button>
+                        </div>
+                        <div className="flex-1 min-h-0 overflow-hidden">
+                            {isMobile ? (
+                                <WordBuilderKanjiPoolMobile kanji={kanjiPool} />
+                            ) : (
+                                <WordBuilderKanjiPool kanji={kanjiPool} />
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>
