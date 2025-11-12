@@ -10,6 +10,7 @@ import (
 	"lang-portal/internal/handlers/kanji"
 	"lang-portal/internal/handlers/session"
 	"lang-portal/internal/handlers/user"
+	"lang-portal/internal/handlers/word_builder"
 	"lang-portal/internal/handlers/words"
 	"lang-portal/internal/repositories"
 	"lang-portal/internal/services"
@@ -137,6 +138,12 @@ func (s *FiberServer) RegisterFiberRoutes() {
 	s.App.Post("/api/langportal/chat/sessions", chatHandler.SaveChatSession)
 	s.App.Get("/api/langportal/chat/sessions", chatHandler.GetChatHistory)
 	s.App.Post("/api/langportal/chat/sessions/:id/assessment", chatHandler.SaveSkillAssessment)
+
+	// Word Builder routes (reuse existing kanjiStore and wordsStore from above)
+	wordBuilderHandler := word_builder.NewWordBuilderHandler(kanjiStore, wordsStore, s.postgresDB)
+	s.App.Post("/api/langportal/word-builder/start", wordBuilderHandler.StartSession)
+	s.App.Post("/api/langportal/word-builder/refresh", wordBuilderHandler.RefreshKanji)
+	s.App.Post("/api/langportal/word-builder/submit", wordBuilderHandler.SubmitResults)
 
 	// Disabled routes during migration
 	s.App.All("/api/langportal/kanji/*/compounds", func(c *fiber.Ctx) error {

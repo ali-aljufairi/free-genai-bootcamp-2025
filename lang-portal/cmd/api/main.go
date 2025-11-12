@@ -7,7 +7,9 @@ import (
 	"lang-portal/internal/server"
 	"log"
 	"os"
+	"os/exec"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 	"github.com/joho/godotenv"
@@ -65,8 +67,28 @@ func run() error {
 		if port == "" {
 			port = "8080"
 		}
-		if err := fiberServer.Start(port); err != nil {
+		
+		// Retry logic for port binding (handles Air hot reload race condition)
+		maxRetries := 3
+		for i := 0; i < maxRetries; i++ {
+			err := fiberServer.Start(port)
+			if err == nil {
+				return // Success
+			}
+			
+			// Check if it's a port binding error
+			errStr := err.Error()
+			if i < maxRetries-1 && strings.Contains(errStr, "bind: address already in use") {
+				// Port still in use, kill it aggressively and retry immediately
+				log.Printf("Port %s in use, cleaning up... (attempt %d/%d)", port, i+1, maxRetries)
+				// Kill any process on the port immediately
+				exec.Command("sh", "-c", fmt.Sprintf("lsof -ti:%s | xargs kill -9 2>/dev/null || true", port)).Run()
+				// Retry immediately - kill -9 should release port instantly
+				continue
+			}
+			
 			log.Printf("Server error: %v", err)
+			return
 		}
 	}()
 

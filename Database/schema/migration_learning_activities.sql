@@ -14,7 +14,7 @@ CREATE TABLE learning_activities (
     -- Activity classification
     activity_type TEXT NOT NULL CHECK (activity_type IN (
         'flashcards', 'srs_review', 'jlpt_practice',
-        'kanji_study', 'grammar_study', 'vocabulary_review'
+        'kanji_study', 'grammar_study', 'vocabulary_review','word_builder'
     )),
     content_type TEXT NOT NULL CHECK (content_type IN (
         'word', 'kanji', 'grammar', 'jlpt_question', 'sentence'

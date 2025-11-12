@@ -120,8 +120,8 @@ export function StudySessionHub() {
         return
       }
 
-      // For word, kanji, and grammar flashcards, route directly with view transition
-      if (type === "words" || type === "kanji" || type === "grammar") {
+      // For word, kanji, grammar flashcards, and word-builder, route directly with view transition
+      if (type === "words" || type === "kanji" || type === "grammar" || type === "word-builder") {
         await navigateWithTransition(router, `/study/${type}`, {
           transitionName: 'page',  // Use page transition for smooth navigation
         })

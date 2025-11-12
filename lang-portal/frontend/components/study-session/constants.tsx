@@ -1,4 +1,4 @@
-import { Brain, Edit, ScrollText, Search, MessageSquare, Mic, CheckCircle, Languages, Lock } from "lucide-react"
+import { Brain, Edit, ScrollText, Search, MessageSquare, Mic, CheckCircle, Languages, Lock, Puzzle } from "lucide-react"
 
 // Image dimensions constants
 export const CARD_IMAGE_DIMENSIONS = {
@@ -20,7 +20,7 @@ export const studyImages = {
 
 // During the Postgres migration we only allow the new v2 flashcards (words & kanji).
 // All other features are temporarily disabled and hidden or marked as such.
-export const ENABLED_FEATURES = new Set(["words", "kanji", "grammar", "chat"]);
+export const ENABLED_FEATURES = new Set(["words", "kanji", "grammar", "chat", "word-builder"]);
 
 export type StudyOption = {
     title: string;
@@ -60,6 +60,13 @@ export const studyOptions: StudyOption[] = [
         icon: <MessageSquare className="h-4 w-4 sm:h-5 sm:w-5 text-purple-500" />,
         image: studyImages.chat,
         type: "chat"
+    },
+    {
+        title: "Word Builder",
+        description: "Build words from kanji in this fun timed game",
+        icon: <Puzzle className="h-4 w-4 sm:h-5 sm:w-5 text-amber-500" />,
+        image: studyImages.flashcards,
+        type: "word-builder"
     },
     {
         title: "Writing Practice",

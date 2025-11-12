@@ -322,3 +322,49 @@ export interface SaveChatSessionRequest {
 export interface SaveSkillAssessmentRequest {
   skill_summary: SkillAssessment
 }
+
+// Word Builder Types
+export interface WordBuilderConfig {
+  jlpt_level: number
+  time_limit: number // in seconds
+}
+
+export interface WordBuilderValidWord {
+  kanji: string
+  kana: string
+  english: string
+  word_id: number
+  kanji_ids: number[] // IDs of kanji used in order
+}
+
+export interface WordBuilderSession {
+  session_id: number
+  kanji: Kanji[]
+  valid_words: WordBuilderValidWord[]
+  time_limit: number
+}
+
+export interface WordBuilderRefreshRequest {
+  session_id: number
+  used_kanji_ids: number[]
+}
+
+export interface WordBuilderRefreshResponse {
+  kanji: Kanji[]
+  valid_words: WordBuilderValidWord[]
+}
+
+export interface WordBuilderResults {
+  session_id: number
+  formed_words: string[] // Array of kanji strings like ["日本", "本日"]
+  total_attempts: number
+  time_spent: number // in seconds
+  refresh_count: number
+}
+
+export interface WordBuilderSubmitResponse {
+  session_id: number
+  words_formed: number
+  accuracy: number
+  time_spent: number
+}

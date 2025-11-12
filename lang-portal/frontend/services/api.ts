@@ -24,7 +24,13 @@ import {
   GrammarResult,
   ChatSession,
   SaveChatSessionRequest,
-  SaveSkillAssessmentRequest
+  SaveSkillAssessmentRequest,
+  WordBuilderConfig,
+  WordBuilderSession,
+  WordBuilderRefreshRequest,
+  WordBuilderRefreshResponse,
+  WordBuilderResults,
+  WordBuilderSubmitResponse
 } from "@/types/api";
 
 import { getCachedToken } from '@/lib/token-cache';
@@ -390,6 +396,30 @@ export const chatApi = {
   },
 };
 
+// Word Builder API using langportal proxy
+export const wordBuilderApi = {
+  start: async (config: WordBuilderConfig): Promise<WordBuilderSession> => {
+    return fetchData<WordBuilderSession>('/word-builder/start', {
+      method: 'POST',
+      body: JSON.stringify(config),
+    });
+  },
+
+  refresh: async (request: WordBuilderRefreshRequest): Promise<WordBuilderRefreshResponse> => {
+    return fetchData<WordBuilderRefreshResponse>('/word-builder/refresh', {
+      method: 'POST',
+      body: JSON.stringify(request),
+    });
+  },
+
+  submit: async (results: WordBuilderResults): Promise<WordBuilderSubmitResponse> => {
+    return fetchData<WordBuilderSubmitResponse>('/word-builder/submit', {
+      method: 'POST',
+      body: JSON.stringify(results),
+    });
+  },
+};
+
 export const api = {
   // dashboard: dashboardApi,
   // studySession: studySessionApi,
@@ -401,6 +431,7 @@ export const api = {
   flashcardsV2: flashcardsV2Api,
   grammar: grammarApi,
   chat: chatApi,
+  wordBuilder: wordBuilderApi,
 };
 
 export default api;
