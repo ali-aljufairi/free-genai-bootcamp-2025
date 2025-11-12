@@ -1,8 +1,8 @@
 "use client";
 
 import { useFetch } from "./useFetch";
-import { groupApi } from "@/services/api";
-import { useState } from "react";
+import { groupApi, userApi } from "@/services/api";
+import { useState, useMemo } from "react";
 import { toast } from "sonner";
 
 export function useGroups() {
@@ -36,6 +36,55 @@ export function useCreateGroup() {
   };
 
   return { createGroup, isLoading };
+}
+
+/**
+ * Hook to get current user profile including favorite_group_id
+ */
+export function useUserProfile() {
+  const { data, loading, error, refetch } = useFetch<{ id: number; favorite_group_id?: number | null; [key: string]: any }>(
+    () => userApi.getMe(),
+    [],
+    { cacheKey: "userProfile", errorMessage: "Failed to load user profile" }
+  );
+
+  const favoriteGroupId = useMemo(() => {
+    return data?.favorite_group_id ?? null;
+  }, [data?.favorite_group_id]);
+
+  return { 
+    data, 
+    isLoading: loading, 
+    error, 
+    refetch,
+    favoriteGroupId
+  };
+}
+
+/**
+ * Hook to set favorite group
+ */
+export function useSetFavoriteGroup() {
+  const [isLoading, setIsLoading] = useState(false);
+  const { refetch: refetchProfile } = useUserProfile();
+  const { refetch: refetchGroups } = useGroups();
+
+  const setFavoriteGroup = async (groupId: number | null) => {
+    try {
+      setIsLoading(true);
+      await userApi.setFavoriteGroup(groupId);
+      toast.success("Favorite group updated");
+      // Refetch user profile and groups to update UI
+      await Promise.all([refetchProfile(), refetchGroups()]);
+    } catch (e: any) {
+      toast.error("Failed to set favorite group", { description: e?.message || "Unknown error" });
+      throw e;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return { setFavoriteGroup, isLoading };
 }
 
 /**

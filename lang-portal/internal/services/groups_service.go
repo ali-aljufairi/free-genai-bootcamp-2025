@@ -4,6 +4,7 @@ import (
 	"errors"
 	"lang-portal/internal/database/models"
 	"lang-portal/internal/repositories"
+
 	"gorm.io/gorm"
 )
 
@@ -40,6 +41,17 @@ func (s *GroupsService) AddWord(groupID, wordID, userID int64) error {
 		var word models.Word
 		if err := tx.First(&word, wordID).Error; err != nil {
 			return errors.New("word not found")
+		}
+
+		// Check if word is already in group
+		var existingCount int64
+		tx.Table("word_groups").
+			Where("group_id = ? AND word_id = ?", groupID, wordID).
+			Count(&existingCount)
+
+		if existingCount > 0 {
+			// Word already in group, return success (idempotent)
+			return nil
 		}
 
 		// Add to group
@@ -84,6 +96,17 @@ func (s *GroupsService) AddKanji(groupID, kanjiID, userID int64) error {
 			return errors.New("kanji not found")
 		}
 
+		// Check if kanji is already in group
+		var existingCount int64
+		tx.Table("kanji_groups").
+			Where("group_id = ? AND kanji_id = ?", groupID, kanjiID).
+			Count(&existingCount)
+
+		if existingCount > 0 {
+			// Kanji already in group, return success (idempotent)
+			return nil
+		}
+
 		// Add to group
 		return tx.Table("kanji_groups").Create(map[string]interface{}{
 			"group_id": groupID,
@@ -105,4 +128,3 @@ func (s *GroupsService) RemoveKanji(groupID, kanjiID, userID int64) error {
 
 	return s.Store.RemoveKanji(groupID, kanjiID)
 }
-

@@ -121,7 +121,7 @@ export function MobileKanjiFlashcard({
                                 <Button
                                     className={`w-full min-h-[65px] max-h-[120px] text-base font-medium transition-all duration-200 overflow-hidden ${selectedOption !== null
                                         ? isCorrectAnswer
-                                            ? "!bg-green-500/90 hover:!bg-green-500/95 !text-white !border-green-400/50 shadow-lg shadow-green-500/30 backdrop-blur-sm"
+                                            ? "bg-green-500/90! hover:bg-green-500/95! !text-white !border-green-400/50 shadow-lg shadow-green-500/30 backdrop-blur-sm"
                                             : isSelectedWrong
                                                 ? "!bg-red-500/90 hover:!bg-red-500/95 !text-white !border-red-400/50 shadow-lg shadow-red-500/30 backdrop-blur-sm"
                                                 : "opacity-40 bg-muted/10 border-muted/30 backdrop-blur-sm"

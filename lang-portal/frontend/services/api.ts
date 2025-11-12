@@ -247,7 +247,8 @@ export const groupApi = {
 
 // User API (favorite group)
 export const userApi = {
-  setFavoriteGroup: (groupId: number) => fetchData<{ success: boolean }>(`/users/me/favorite_group`, {
+  getMe: () => fetchData<{ id: number; favorite_group_id?: number | null; [key: string]: any }>(`/users/me`),
+  setFavoriteGroup: (groupId: number | null) => fetchData<{ success: boolean }>(`/users/me/favorite_group`, {
     method: 'PUT',
     body: JSON.stringify({ group_id: groupId }),
   }),

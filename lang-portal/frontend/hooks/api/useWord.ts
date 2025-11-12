@@ -16,7 +16,7 @@ export function useWords(params?: {
   level?: number;
   has_kanji?: boolean;
   correct_count?: number;
-  group_id?: number;
+  group_id?: number | string; // Support single ID or comma-separated IDs
   page?: number;
   useSearch?: boolean;
 }) {

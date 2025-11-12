@@ -98,6 +98,7 @@ func (s *FiberServer) RegisterFiberRoutes() {
 
 	// User routes (favorite group)
 	userHandler := user.NewUserHandler(s.postgresDB)
+	s.App.Get("/api/langportal/users/me", userHandler.GetMe)
 	s.App.Put("/api/langportal/users/me/favorite_group", userHandler.SetFavoriteGroup)
 
 	// Word routes (new handler structure)

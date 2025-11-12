@@ -12,6 +12,9 @@ interface VocabularyGridProps {
   onAddToGroup?: (groupId: number, itemId: number, type: 'word' | 'kanji') => void;
   onAddToFavorites?: (itemId: number, type: 'word' | 'kanji') => void;
   searchTerm?: string;
+  favoriteGroupId?: number | null;
+  currentFilterGroupId?: number | null;
+  favoritedItems?: Set<string>;
 }
 
 export function VocabularyGrid({
@@ -21,6 +24,9 @@ export function VocabularyGrid({
   onAddToGroup,
   onAddToFavorites,
   searchTerm,
+  favoriteGroupId,
+  currentFilterGroupId,
+  favoritedItems,
 }: VocabularyGridProps) {
   if (isLoading && items.length === 0) {
     return (
@@ -42,9 +48,13 @@ export function VocabularyGrid({
     return (
       <div className="flex flex-col items-center justify-center py-8 space-y-4">
         <div className="text-center space-y-2">
-          <p className="text-lg font-medium">No results found</p>
+          <p className="text-lg font-medium">No vocabulary found</p>
           <p className="text-sm text-muted-foreground">
-            {searchTerm ? "Try adjusting your search terms." : "Try changing filters to see content."}
+            {currentFilterGroupId 
+              ? "This group is empty. Add words or kanji to get started." 
+              : searchTerm 
+              ? "Try adjusting your search terms." 
+              : "Try changing filters to see content."}
           </p>
         </div>
       </div>
@@ -60,6 +70,9 @@ export function VocabularyGrid({
           groups={groups}
           onAddToGroup={onAddToGroup}
           onAddToFavorites={onAddToFavorites}
+          favoriteGroupId={favoriteGroupId}
+          currentFilterGroupId={currentFilterGroupId}
+          favoritedItems={favoritedItems}
         />
       ))}
     </div>

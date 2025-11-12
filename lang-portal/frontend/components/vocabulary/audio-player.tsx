@@ -171,3 +171,5 @@ export function AudioPlayer({ audioPath, text, className }: AudioPlayerProps) {
     );
 }
 
+// Explicit export for module resolution
+export { AudioPlayer };

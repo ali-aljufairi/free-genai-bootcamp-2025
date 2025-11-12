@@ -10,7 +10,6 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
-
 	"github.com/joho/godotenv"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -23,18 +22,15 @@ func main() {
 }
 
 func run() error {
-	// Load environment variables
 	if err := godotenv.Load(); err != nil {
 		log.Printf("Warning: .env file not found")
 	}
 
-	// Initialize Sentry
 	if err := config.InitSentry(); err != nil {
 		log.Printf("Failed to initialize Sentry: %v", err)
 	}
 	defer config.FlushSentry()
 
-	// Initialize PostgreSQL database
 	dbHost := os.Getenv("DB_HOST")
 	dbPort := os.Getenv("DB_PORT")
 	dbUser := os.Getenv("DB_USER")

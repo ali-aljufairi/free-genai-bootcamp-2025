@@ -1,10 +1,6 @@
-import type { Metadata } from "next"
-import { VocabularyBrowser } from "@/components/vocabulary/vocabulary-browser"
+"use client"
 
-export const metadata: Metadata = {
-  title: "Vocabulary | Sorami (空見)",
-  description: "Browse and learn vocabulary",
-}
+import { VocabularyBrowser } from "@/components/vocabulary/vocabulary-browser"
 
 export default function VocabularyPage() {
   return (

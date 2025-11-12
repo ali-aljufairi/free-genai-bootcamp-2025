@@ -7,7 +7,7 @@ import { useState } from "react";
 
 interface ChatInputProps {
     input: string;
-    handleInputChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
+    handleInputChange: (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
     handleSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
     isLoading: boolean;
     selectedModel: modelID;
@@ -32,9 +32,12 @@ export function ChatInput({
     // Guard against undefined input to prevent .trim() crashes
     const safeInput = input ?? "";
 
+    // Ensure onChange handler is always defined
+    const handleChange = handleInputChange || (() => { });
+
     // Get current model label
     const currentModelLabel = availableModels.find(m => m.id === selectedModel)?.label || selectedModel.split('-')[0].charAt(0).toUpperCase() + selectedModel.split('-')[0].slice(1);
-    
+
     // Get current prompt label
     const currentPromptLabel = availablePrompts.find(p => p.id === selectedPrompt)?.label || selectedPrompt;
 
@@ -46,8 +49,7 @@ export function ChatInput({
                     value={safeInput}
                     autoFocus
                     placeholder="Type your message..."
-                    // @ts-expect-error err
-                    onChange={handleInputChange}
+                    onChange={handleChange}
                     onKeyDown={(e) => {
                         if (e.key === "Enter" && !e.shiftKey) {
                             e.preventDefault();

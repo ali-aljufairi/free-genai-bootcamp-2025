@@ -14,6 +14,8 @@ type GroupResponse struct {
 	Name        string    `json:"name"`
 	Description *string   `json:"description"`
 	UserID      *int64    `json:"user_id"`
+	WordCount   int64     `json:"word_count"`
+	KanjiCount  int64     `json:"kanji_count"`
 	CreatedAt   time.Time `json:"created_at"`
 }
 

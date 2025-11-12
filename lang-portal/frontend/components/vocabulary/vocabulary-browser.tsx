@@ -1,17 +1,22 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Plus, X, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useVocabularyBrowser } from "@/hooks/api/useVocabularyBrowser";
 import type { UnifiedItem } from "@/hooks/api/useVocabularyBrowser";
 import { useVocabularyBrowserState } from "@/hooks/useVocabularyBrowserState";
 import { useAddToGroup, useAddToFavorites } from "@/hooks/api/useVocabularyActions";
-import { useGroups, useCreateGroup } from "@/hooks/api/useGroup";
+import { useGroups, useCreateGroup, useUserProfile } from "@/hooks/api/useGroup";
 import { VocabularyFilterSidebar } from "./vocabulary-filter-sidebar";
 import { VocabularyGrid } from "./vocabulary-grid";
 import { VocabularyImportSection } from "./vocabulary-import-section";
@@ -36,11 +41,14 @@ const appendUniqueItems = (current: UnifiedItem[], incoming: UnifiedItem[]) => {
 };
 
 export function VocabularyBrowser() {
+  const searchParams = useSearchParams();
   const [showImport, setShowImport] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [newGroupName, setNewGroupName] = useState("");
   const [newGroupDesc, setNewGroupDesc] = useState("");
   const [visibleItems, setVisibleItems] = useState<UnifiedItem[]>([]);
+  const [favoritedItems, setFavoritedItems] = useState<Set<string>>(new Set());
+  const [selectedGroups, setSelectedGroups] = useState<number[]>([]);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const filtersKeyRef = useRef<string | null>(null);
   const lastSyncedPageRef = useRef(0);
@@ -65,8 +73,43 @@ export function VocabularyBrowser() {
     setGroup,
   } = useVocabularyBrowserState();
 
+  // Read group from URL params on mount
+  useEffect(() => {
+    const groupParam = searchParams.get('group');
+    if (groupParam) {
+      const groupId = parseInt(groupParam, 10);
+      if (!isNaN(groupId)) {
+        setGroup(groupId);
+        setSelectedGroups([groupId]);
+      }
+    }
+  }, [searchParams, setGroup]);
+
+  // Toggle group selection
+  const handleToggleGroup = useCallback((groupId: number) => {
+    setSelectedGroups(prev => {
+      if (prev.includes(groupId)) {
+        return prev.filter(id => id !== groupId);
+      } else {
+        return [...prev, groupId];
+      }
+    });
+  }, []);
+
+  // Set selected groups directly (for multi-select component)
+  const handleSetSelectedGroups = useCallback((ids: number[]) => {
+    setSelectedGroups(ids);
+  }, []);
+
+  // Update filters to use selectedGroups
+  const filtersWithGroups = useMemo(() => ({
+    ...filters,
+    group: selectedGroups.length > 0 ? selectedGroups[0] : filters.group, // For backward compatibility
+    selectedGroups: selectedGroups.length > 0 ? selectedGroups : undefined,
+  }), [filters, selectedGroups]);
+
   // Data fetching
-  const { items, isLoading, total, hasMore } = useVocabularyBrowser(filters);
+  const { items, isLoading, total, hasMore } = useVocabularyBrowser(filtersWithGroups);
   const filterSignature = useMemo(
     () =>
       JSON.stringify({
@@ -80,6 +123,7 @@ export function VocabularyBrowser() {
         kunyomi: filters.kunyomi ?? null,
         sortBy: filters.sortBy ?? "default",
         group: filters.group ?? null,
+        selectedGroups: selectedGroups.sort((a, b) => a - b), // Sort for consistent comparison
       }),
     [
       filters.search,
@@ -92,6 +136,7 @@ export function VocabularyBrowser() {
       filters.kunyomi,
       filters.sortBy,
       filters.group,
+      selectedGroups,
     ]
   );
 
@@ -100,14 +145,35 @@ export function VocabularyBrowser() {
   const addToGroupMutation = useAddToGroup();
   const { data: groups } = useGroups();
   const { createGroup, isLoading: creatingGroup } = useCreateGroup();
+  const { favoriteGroupId } = useUserProfile();
+
+  // Track favorited items when they're added
+  const handleAddToFavorites = useCallback(async (itemId: number, type: 'word' | 'kanji') => {
+    const itemKey = `${type}-${itemId}`;
+    await addToFavorites(itemId, type);
+    // Mark as favorited
+    setFavoritedItems(prev => new Set(prev).add(itemKey));
+  }, [addToFavorites]);
+
+  // When viewing favorite group, mark all visible items as favorited
+  useEffect(() => {
+    if (favoriteGroupId && filters.group === favoriteGroupId && visibleItems.length > 0) {
+      const newFavoritedItems = new Set(favoritedItems);
+      visibleItems.forEach(item => {
+        const itemKey = `${item.kind}-${item.item.id}`;
+        newFavoritedItems.add(itemKey);
+      });
+      setFavoritedItems(newFavoritedItems);
+    }
+  }, [favoriteGroupId, filters.group, visibleItems, favoritedItems]);
 
   const handleCreateGroup = async () => {
     if (!newGroupName.trim()) return;
     try {
-    await createGroup({ name: newGroupName.trim(), description: newGroupDesc.trim() || undefined });
-    setIsCreateOpen(false);
-    setNewGroupName("");
-    setNewGroupDesc("");
+      await createGroup({ name: newGroupName.trim(), description: newGroupDesc.trim() || undefined });
+      setIsCreateOpen(false);
+      setNewGroupName("");
+      setNewGroupDesc("");
       // Groups will be refetched automatically via useGroups hook
     } catch (error) {
       // Error is already handled by useCreateGroup hook
@@ -202,6 +268,9 @@ export function VocabularyBrowser() {
           sortBy={filters.sortBy || 'default'}
           group={filters.group}
           groups={groups}
+          selectedGroups={selectedGroups}
+          onToggleGroup={handleToggleGroup}
+          onSetSelectedGroups={handleSetSelectedGroups}
           onContentTypeChange={setContentType}
           onHasKanjiChange={setHasKanji}
           onTogglePartOfSpeech={togglePartOfSpeech}
@@ -235,17 +304,17 @@ export function VocabularyBrowser() {
             </>
           )}
         </Button>
-        <Popover open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-          <PopoverTrigger asChild>
+        <DropdownMenu open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+          <DropdownMenuTrigger asChild>
             <Button size="sm">
               <Plus className="mr-2 h-4 w-4" />
               Create Group
             </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-80" align="end">
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="w-80 p-4" align="end">
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="gname">Name</Label>
+                <Label htmlFor="gname" className="text-sm font-medium">Name</Label>
                 <Input
                   id="gname"
                   value={newGroupName}
@@ -259,7 +328,7 @@ export function VocabularyBrowser() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="gdesc">Description</Label>
+                <Label htmlFor="gdesc" className="text-sm font-medium">Description</Label>
                 <Input
                   id="gdesc"
                   value={newGroupDesc}
@@ -280,8 +349,8 @@ export function VocabularyBrowser() {
                 {creatingGroup ? "Creating..." : "Create Group"}
               </Button>
             </div>
-          </PopoverContent>
-        </Popover>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </div>
   );
@@ -317,44 +386,16 @@ export function VocabularyBrowser() {
           isLoading={isLoading}
           groups={groups}
           onAddToGroup={handleAddToGroup}
-          onAddToFavorites={addToFavorites}
+          onAddToFavorites={handleAddToFavorites}
           searchTerm={filters.search}
+          favoriteGroupId={favoriteGroupId}
+          currentFilterGroupId={filters.group}
+          favoritedItems={favoritedItems}
         />
       </div>
 
       {/* Mobile: Standard layout */}
       <div className="md:hidden space-y-6">
-        <div className="flex items-center gap-2">
-          <VocabularyFilterSidebar
-            contentType={filters.contentType}
-            hasKanji={filters.hasKanji}
-            partOfSpeech={filters.partOfSpeech || []}
-            jlpt={filters.jlpt}
-            correctCountMin={filters.correctCountMin}
-            onyomi={filters.onyomi}
-            kunyomi={filters.kunyomi}
-            sortBy={filters.sortBy || 'default'}
-            group={filters.group}
-            groups={groups}
-            onContentTypeChange={setContentType}
-            onHasKanjiChange={setHasKanji}
-            onTogglePartOfSpeech={togglePartOfSpeech}
-            onSetPartOfSpeech={setPartOfSpeech}
-            onJlptChange={setJlpt}
-            onCorrectCountMinChange={setCorrectCountMin}
-            onOnyomiChange={setOnyomi}
-            onKunyomiChange={setKunyomi}
-            onSortByChange={setSortBy}
-            onGroupChange={setGroup}
-          />
-          <Input
-            type="search"
-            placeholder="Search vocabulary..."
-            className="flex-1"
-            value={filters.search || ""}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
         {headerContent}
         {showImport && <VocabularyImportSection />}
         <VocabularyGrid
@@ -362,8 +403,11 @@ export function VocabularyBrowser() {
           isLoading={isLoading}
           groups={groups}
           onAddToGroup={handleAddToGroup}
-          onAddToFavorites={addToFavorites}
+          onAddToFavorites={handleAddToFavorites}
           searchTerm={filters.search}
+          favoriteGroupId={favoriteGroupId}
+          currentFilterGroupId={filters.group}
+          favoritedItems={favoritedItems}
         />
       </div>
       {loadStatus}

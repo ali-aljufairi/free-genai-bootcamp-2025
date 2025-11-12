@@ -16,6 +16,7 @@ export interface VocabularyBrowserFilters {
   kunyomi?: boolean;
   sortBy?: 'frequency' | 'default';
   group?: number;
+  selectedGroups?: number[];
   page?: number;
 }
 
@@ -46,9 +47,14 @@ export function useVocabularyBrowser(filters: VocabularyBrowserFilters): UseVoca
     ? filters.partOfSpeech[0] 
     : undefined;
 
+  // Use selectedGroups if available, otherwise fall back to group
+  const groupIds = filters.selectedGroups && filters.selectedGroups.length > 0 
+    ? filters.selectedGroups 
+    : (filters.group ? [filters.group] : []);
+
   // Always use backend search endpoint when there are any filters or search term
   const hasFilters = !!(filters.search || filters.jlpt != null || filters.hasKanji != null || 
-    partOfSpeechForAPI || filters.correctCountMin != null || filters.group != null);
+    partOfSpeechForAPI || filters.correctCountMin != null || groupIds.length > 0);
 
   const {
     data: wordsData,
@@ -59,7 +65,7 @@ export function useVocabularyBrowser(filters: VocabularyBrowserFilters): UseVoca
     part_of_speech: partOfSpeechForAPI,
     jlpt: filters.jlpt,
     correct_count: filters.correctCountMin,
-    group_id: filters.group,
+    group_id: groupIds.length > 0 ? groupIds.join(',') : undefined,
     page: currentPage,
     useSearch: hasFilters, // Always use search endpoint when filters are present
   });
@@ -72,7 +78,7 @@ export function useVocabularyBrowser(filters: VocabularyBrowserFilters): UseVoca
     jlpt: filters.jlpt,
     onyomi: filters.onyomi,
     kunyomi: filters.kunyomi,
-    group_id: filters.group,
+    group_id: groupIds.length > 0 ? groupIds.join(',') : undefined,
     page: currentPage,
   });
 

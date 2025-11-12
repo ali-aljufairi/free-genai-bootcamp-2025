@@ -12,7 +12,7 @@ type KanjiSearchParams struct {
 	Onyomi       *bool   `json:"onyomi"`
 	Kunyomi      *bool   `json:"kunyomi"`
 	Components   *string `json:"components"`
-	GroupID      *int64  `json:"group_id"`
+	GroupID      []int64 `json:"group_id"`
 	Limit        *int    `json:"limit"`
 	Offset       *int    `json:"offset"`
 	Page         *int    `json:"page"`

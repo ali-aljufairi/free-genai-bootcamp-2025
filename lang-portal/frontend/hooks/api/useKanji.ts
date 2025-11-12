@@ -16,7 +16,7 @@ export interface KanjiSearchParams {
   onyomi?: boolean;
   kunyomi?: boolean;
   components?: string;
-  group_id?: number;
+  group_id?: number | string; // Support single ID or comma-separated IDs
   page?: number;
 }
 

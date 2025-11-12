@@ -11,7 +11,7 @@ func (h *GroupHandler) getGroupsFromStore(userID int64) ([]GroupResponse, error)
 		return nil, err
 	}
 
-	converted := convertModelsToGroupResponses(groups)
+	converted := convertModelsToGroupResponses(groups, h.Store.DB)
 	return converted, nil
 }
 
@@ -22,7 +22,7 @@ func (h *GroupHandler) createGroupInStore(name string, description *string, user
 		return nil, err
 	}
 
-	converted := convertModelToGroupResponse(*group)
+	converted := convertModelToGroupResponse(*group, h.Store.DB)
 	return &converted, nil
 }
 

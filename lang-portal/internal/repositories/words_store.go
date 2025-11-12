@@ -91,9 +91,16 @@ func (s *WordsStore) Search(params SearchWordsParams) ([]models.Word, int64, err
 		}
 	}
 
-	if params.GroupID != nil {
-		query = query.Joins("JOIN word_groups ON words.id = word_groups.word_id").
-			Where("word_groups.group_id = ?", *params.GroupID)
+	if params.GroupID != nil && len(params.GroupID) > 0 {
+		if len(params.GroupID) == 1 {
+			query = query.Joins("JOIN word_groups ON words.id = word_groups.word_id").
+				Where("word_groups.group_id = ?", params.GroupID[0])
+		} else {
+			// Multiple groups: find words that belong to ALL selected groups
+			query = query.Where("EXISTS (SELECT 1 FROM word_groups WHERE word_groups.word_id = words.id AND word_groups.group_id IN ?)", params.GroupID).
+				Group("words.id").
+				Having("COUNT(DISTINCT word_groups.group_id) = ?", len(params.GroupID))
+		}
 	}
 
 	var words []models.Word
@@ -116,7 +123,7 @@ type SearchWordsParams struct {
 	PartOfSpeech *string
 	Level        *int
 	HasKanji     *bool
-	GroupID      *int64
+	GroupID      []int64
 	Limit        *int
 	Offset       *int
 }

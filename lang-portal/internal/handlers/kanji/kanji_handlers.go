@@ -2,6 +2,7 @@ package kanji
 
 import (
 	"strconv"
+	"strings"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -79,11 +80,15 @@ func (h *KanjiHandler) SearchKanji(c *fiber.Ctx) error {
 		components = &componentsStr
 	}
 
-	var groupID *int64
+	var groupIDs []int64
 	if groupIDStr := c.Query("group_id"); groupIDStr != "" {
-		val, _ := strconv.ParseInt(groupIDStr, 10, 64)
-		if val > 0 {
-			groupID = &val
+		// Support comma-separated group IDs
+		ids := strings.Split(groupIDStr, ",")
+		for _, idStr := range ids {
+			val, _ := strconv.ParseInt(strings.TrimSpace(idStr), 10, 64)
+			if val > 0 {
+				groupIDs = append(groupIDs, val)
+			}
 		}
 	}
 
@@ -114,7 +119,7 @@ func (h *KanjiHandler) SearchKanji(c *fiber.Ctx) error {
 	}
 
 	params := buildSearchParams(queryStr, jlpt, strokesMin, strokesMax, hasSVG,
-		freqMin, freqMax, onyomi, kunyomi, components, groupID, limit, offset)
+		freqMin, freqMax, onyomi, kunyomi, components, groupIDs, limit, offset)
 
 	if err := h.validateSearchParams(&params); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{

@@ -1,21 +1,42 @@
 "use client";
 
+import { useState } from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Star, FolderPlus } from "lucide-react";
 import type { UnifiedItem } from "@/hooks/api/useVocabularyBrowser";
 import { AudioPlayer } from "./audio-player";
+import { GroupMultiSelect } from "@/components/ui/group-multi-select";
 
 interface VocabularyCardProps {
   item: UnifiedItem;
   groups?: Array<{ id: number; name: string }>;
   onAddToGroup?: (groupId: number, itemId: number, type: 'word' | 'kanji') => void;
   onAddToFavorites?: (itemId: number, type: 'word' | 'kanji') => void;
+  favoriteGroupId?: number | null;
+  currentFilterGroupId?: number | null;
+  favoritedItems?: Set<string>;
 }
 
-export function VocabularyCard({ item, groups = [], onAddToGroup, onAddToFavorites }: VocabularyCardProps) {
+export function VocabularyCard({ item, groups = [], onAddToGroup, onAddToFavorites, favoriteGroupId, currentFilterGroupId, favoritedItems }: VocabularyCardProps) {
+  const [selectedGroups, setSelectedGroups] = useState<number[]>([]);
+  
+  // Check if item is favorited
+  // 1. If we're viewing the favorite group, all items are favorited
+  // 2. If item was recently added to favorites (tracked in state)
+  const itemKey = `${item.kind}-${item.item.id}`;
+  const isFavorited = (favoriteGroupId && currentFilterGroupId === favoriteGroupId) || 
+                      (favoritedItems?.has(itemKey) ?? false);
+
+  const handleAddToSelectedGroups = () => {
+    if (!onAddToGroup || selectedGroups.length === 0) return;
+    selectedGroups.forEach((groupId) => {
+      onAddToGroup(groupId, item.item.id, item.kind);
+    });
+    setSelectedGroups([]); // Clear selection after adding
+  };
+  
   if (item.kind === 'word') {
     const word = item.item;
     const englishPreview = (word.english || "")
@@ -61,7 +82,7 @@ export function VocabularyCard({ item, groups = [], onAddToGroup, onAddToFavorit
           className="!absolute top-2 right-2 z-20 h-8 w-8"
           onClick={() => onAddToFavorites?.(word.id, 'word')}
         >
-          <Star className="h-5 w-5" />
+          <Star className={`h-5 w-5 ${isFavorited ? 'fill-yellow-400 text-yellow-400' : ''}`} />
         </Button>
         <CardContent className="flex-1">
           {englishPreview && <p className="text-base mb-2">{englishPreview}</p>}
@@ -71,28 +92,15 @@ export function VocabularyCard({ item, groups = [], onAddToGroup, onAddToFavorit
         </CardContent>
         <CardFooter className="flex gap-2">
           <div className="flex-1 min-w-0">
-            <Select
-              onValueChange={(val) => {
-                const groupId = Number(val);
-                if (!groupId || !onAddToGroup || val === "none") return;
-                onAddToGroup(groupId, word.id, 'word');
-              }}
-            >
-              <SelectTrigger className="w-full [&>span]:truncate">
-                <SelectValue placeholder="Add to Group" />
-              </SelectTrigger>
-              <SelectContent>
-                {groups.length === 0 ? (
-                  <SelectItem value="none" disabled>No groups available</SelectItem>
-                ) : (
-                  groups.map((g: any) => (
-                    <SelectItem key={g.id} value={String(g.id)}>
-                      {g.name}
-                    </SelectItem>
-                  ))
-                )}
-              </SelectContent>
-            </Select>
+            <GroupMultiSelect
+              groups={groups}
+              selectedGroups={selectedGroups}
+              onSelectionChange={setSelectedGroups}
+              placeholder="Add to Group"
+              variant="outline"
+              size="sm"
+              disabled={groups.length === 0}
+            />
           </div>
           <Button
             variant="secondary"
@@ -108,6 +116,17 @@ export function VocabularyCard({ item, groups = [], onAddToGroup, onAddToFavorit
           >
             Look up
           </Button>
+          {selectedGroups.length > 0 && (
+            <Button
+              variant="default"
+              size="sm"
+              onClick={handleAddToSelectedGroups}
+              className="shrink-0"
+            >
+              <FolderPlus className="h-4 w-4 mr-1" />
+              Add ({selectedGroups.length})
+            </Button>
+          )}
         </CardFooter>
       </Card>
     );
@@ -161,21 +180,43 @@ export function VocabularyCard({ item, groups = [], onAddToGroup, onAddToFavorit
         className="!absolute top-2 right-2 z-20 h-8 w-8"
         onClick={() => onAddToFavorites?.(kanji.id, 'kanji')}
       >
-        <Star className="h-5 w-5" />
+        <Star className={`h-5 w-5 ${isFavorited ? 'fill-yellow-400 text-yellow-400' : ''}`} />
       </Button>
       <CardContent className="flex-1">
         {meanings && <p className="text-base mb-2">{meanings}</p>}
       </CardContent>
       <CardFooter className="flex gap-2">
+        <div className="flex-1 min-w-0">
+          <GroupMultiSelect
+            groups={groups}
+            selectedGroups={selectedGroups}
+            onSelectionChange={setSelectedGroups}
+            placeholder="Add to Group"
+            variant="outline"
+            size="sm"
+            disabled={groups.length === 0}
+          />
+        </div>
         <Button
           variant="secondary"
-          className="flex-1"
+          className="flex-1 min-w-[100px] shrink-0"
           onClick={() =>
             window.open(`https://jisho.org/search/${encodeURIComponent(kanji.character)}`, '_blank')
           }
         >
           Look up
         </Button>
+        {selectedGroups.length > 0 && (
+          <Button
+            variant="default"
+            size="sm"
+            onClick={handleAddToSelectedGroups}
+            className="shrink-0"
+          >
+            <FolderPlus className="h-4 w-4 mr-1" />
+            Add ({selectedGroups.length})
+          </Button>
+        )}
       </CardFooter>
     </Card>
   );

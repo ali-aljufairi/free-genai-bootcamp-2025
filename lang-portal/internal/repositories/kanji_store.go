@@ -81,9 +81,16 @@ func (s *KanjiStore) Search(params kanji.KanjiSearchParams) ([]kanji.KanjiModel,
 		query = query.Where("components ILIKE ?", "%"+*params.Components+"%")
 	}
 
-	if params.GroupID != nil {
-		query = query.Joins("JOIN kanji_groups ON kanji.id = kanji_groups.kanji_id").
-			Where("kanji_groups.group_id = ?", *params.GroupID)
+	if params.GroupID != nil && len(params.GroupID) > 0 {
+		if len(params.GroupID) == 1 {
+			query = query.Joins("JOIN kanji_groups ON kanji.id = kanji_groups.kanji_id").
+				Where("kanji_groups.group_id = ?", params.GroupID[0])
+		} else {
+			// Multiple groups: find kanji that belong to ALL selected groups
+			query = query.Where("EXISTS (SELECT 1 FROM kanji_groups WHERE kanji_groups.kanji_id = kanji.id AND kanji_groups.group_id IN ?)", params.GroupID).
+				Group("kanji.id").
+				Having("COUNT(DISTINCT kanji_groups.group_id) = ?", len(params.GroupID))
+		}
 	}
 
 	var kanjiModels []kanji.KanjiModel

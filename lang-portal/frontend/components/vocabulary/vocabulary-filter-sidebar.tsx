@@ -9,6 +9,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Filter, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ContentType } from "@/hooks/api/useVocabularyBrowser";
+import { Badge } from "@/components/ui/badge";
+import { GroupMultiSelect } from "@/components/ui/group-multi-select";
 
 interface VocabularyFilterSidebarProps {
     contentType: ContentType;
@@ -31,6 +33,9 @@ interface VocabularyFilterSidebarProps {
     onKunyomiChange: (kunyomi: boolean | undefined) => void;
     onSortByChange: (sort: 'frequency' | 'default') => void;
     onGroupChange: (group: number | undefined) => void;
+    selectedGroups?: number[];
+    onToggleGroup: (groupId: number) => void;
+    onSetSelectedGroups?: (ids: number[]) => void;
 }
 
 const FilterContent = ({
@@ -54,6 +59,9 @@ const FilterContent = ({
     onKunyomiChange,
     onSortByChange,
     onGroupChange,
+    selectedGroups = [],
+    onToggleGroup,
+    onSetSelectedGroups,
 }: VocabularyFilterSidebarProps) => {
     const jlptLevels = [1, 2, 3, 4, 5];
 
@@ -127,23 +135,38 @@ const FilterContent = ({
             {/* Group Filter */}
             {groups.length > 0 && (
                 <div className="space-y-2">
-                    <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Group</h3>
-                    <Select
-                        value={group?.toString() || "all"}
-                        onValueChange={(v) => onGroupChange(v === "all" ? undefined : parseInt(v, 10))}
-                    >
-                        <SelectTrigger className="h-7 text-xs">
-                            <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">All Groups</SelectItem>
-                            {groups.map((g) => (
-                                <SelectItem key={g.id} value={g.id.toString()}>
-                                    {g.name}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+                    <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Groups</h3>
+                    <GroupMultiSelect
+                        groups={groups}
+                        selectedGroups={selectedGroups || []}
+                        onSelectionChange={(ids) => {
+                            // Use direct setter if available, otherwise fall back to toggling
+                            if (onSetSelectedGroups) {
+                                onSetSelectedGroups(ids);
+                            } else {
+                                // Fallback: toggle groups that changed
+                                const currentIds = new Set(selectedGroups || []);
+                                const newIds = new Set(ids);
+                                
+                                // Remove groups that are no longer selected
+                                currentIds.forEach(id => {
+                                    if (!newIds.has(id)) {
+                                        onToggleGroup(id);
+                                    }
+                                });
+                                
+                                // Add groups that are newly selected
+                                newIds.forEach(id => {
+                                    if (!currentIds.has(id)) {
+                                        onToggleGroup(id);
+                                    }
+                                });
+                            }
+                        }}
+                        placeholder="Filter by groups..."
+                        variant="outline"
+                        size="sm"
+                    />
                 </div>
             )}
 
@@ -311,6 +334,9 @@ export function VocabularyFilterSidebar({
     sortBy,
     group,
     groups,
+    selectedGroups,
+    onToggleGroup,
+    onSetSelectedGroups,
     onContentTypeChange,
     onHasKanjiChange,
     onTogglePartOfSpeech,
@@ -350,6 +376,9 @@ export function VocabularyFilterSidebar({
                             sortBy={sortBy}
                             group={group}
                             groups={groups}
+                            selectedGroups={selectedGroups}
+                            onToggleGroup={onToggleGroup}
+                            onSetSelectedGroups={onSetSelectedGroups}
                             onContentTypeChange={onContentTypeChange}
                             onHasKanjiChange={onHasKanjiChange}
                             onTogglePartOfSpeech={onTogglePartOfSpeech}
@@ -391,6 +420,9 @@ export function VocabularyFilterSidebar({
                             sortBy={sortBy}
                             group={group}
                             groups={groups}
+                            selectedGroups={selectedGroups}
+                            onToggleGroup={onToggleGroup}
+                            onSetSelectedGroups={onSetSelectedGroups}
                             onContentTypeChange={onContentTypeChange}
                             onHasKanjiChange={onHasKanjiChange}
                             onTogglePartOfSpeech={onTogglePartOfSpeech}

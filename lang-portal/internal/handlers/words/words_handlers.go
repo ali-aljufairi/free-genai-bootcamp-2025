@@ -3,6 +3,7 @@ package words
 import (
 	"lang-portal/internal/repositories"
 	"strconv"
+	"strings"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -76,11 +77,15 @@ func (h *WordsHandler) SearchWords(c *fiber.Ctx) error {
 		hasKanji = &val
 	}
 
-	var groupID *int64
+	var groupIDs []int64
 	if groupIDStr := c.Query("group_id"); groupIDStr != "" {
-		val, _ := strconv.ParseInt(groupIDStr, 10, 64)
-		if val > 0 {
-			groupID = &val
+		// Support comma-separated group IDs
+		ids := strings.Split(groupIDStr, ",")
+		for _, idStr := range ids {
+			val, _ := strconv.ParseInt(strings.TrimSpace(idStr), 10, 64)
+			if val > 0 {
+				groupIDs = append(groupIDs, val)
+			}
 		}
 	}
 
@@ -101,7 +106,7 @@ func (h *WordsHandler) SearchWords(c *fiber.Ctx) error {
 		queryStr = *q
 	}
 
-	params := buildSearchParams(queryStr, jlpt, pos, level, hasKanji, groupID, limit, offset)
+	params := buildSearchParams(queryStr, jlpt, pos, level, hasKanji, groupIDs, limit, offset)
 
 	if err := h.validateSearchParams(&params); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
