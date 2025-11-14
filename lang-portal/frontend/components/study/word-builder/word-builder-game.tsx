@@ -108,17 +108,17 @@ export function WordBuilderGame({
             // Prevent swapping placeholders out of slots
             swapyInstance.current.onBeforeSwap((event: BeforeSwapEvent) => {
                 const { draggingItem, fromSlot, toSlot } = event
-                
+
                 // Prevent dragging placeholders from slots
                 if (fromSlot.startsWith('slot-') && draggingItem.startsWith('placeholder-slot-')) {
                     return false
                 }
-                
+
                 // Prevent swapping placeholders into pool
                 if (toSlot.startsWith('pool-kanji-') && draggingItem.startsWith('placeholder-slot-')) {
                     return false
                 }
-                
+
                 return true
             })
 
@@ -153,8 +153,8 @@ export function WordBuilderGame({
                                 const kanjiId = parseInt(kanjiIdMatch[1])
                                 const toIndex = parseInt(toSlot.replace('slot-', ''))
                                 const storeState = useWordBuilderStore.getState()
-                                const kanji = kanjiPool.find(k => k.id === kanjiId) || 
-                                              storeState.currentSlots.find(k => k?.id === kanjiId)
+                                const kanji = kanjiPool.find(k => k.id === kanjiId) ||
+                                    storeState.currentSlots.find(k => k?.id === kanjiId)
                                 if (kanji) {
                                     placeKanjiInSlot(kanji, toIndex)
                                 }
@@ -195,13 +195,13 @@ export function WordBuilderGame({
             // Verify that slots and items exist in DOM before initializing
             const slots = containerRef.current.querySelectorAll('[data-swapy-slot]')
             const items = containerRef.current.querySelectorAll('[data-swapy-item]')
-            
+
             // Need at least 4 word builder slots + kanji pool slots (4 + 5 = 9 minimum)
             // But we'll check that all slots have items instead
             const allSlotsHaveItems = Array.from(slots).every((slot) => {
                 return slot.querySelectorAll('[data-swapy-item]').length > 0
             })
-            
+
             if (slots.length > 0 && items.length > 0 && allSlotsHaveItems) {
                 initializeSwapy()
             } else {

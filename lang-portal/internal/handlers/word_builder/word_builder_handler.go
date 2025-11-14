@@ -66,7 +66,11 @@ func (h *WordBuilderHandler) StartSession(c *fiber.Ctx) error {
 	kanji, err := h.getSmartKanji(req.JLPTLevel, 5, nil)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to get kanji",
+			"error":   "Failed to get kanji",
+			"details": err.Error(),
+			"debug": map[string]interface{}{
+				"jlpt_level": req.JLPTLevel,
+			},
 		})
 	}
 
@@ -74,7 +78,18 @@ func (h *WordBuilderHandler) StartSession(c *fiber.Ctx) error {
 	validWords, err := h.computeValidWords(kanji)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to compute valid words",
+			"error":   "Failed to compute valid words",
+			"details": err.Error(),
+			"debug": map[string]interface{}{
+				"kanji_count": len(kanji),
+				"kanji_ids": func() []int64 {
+					ids := make([]int64, len(kanji))
+					for i, k := range kanji {
+						ids[i] = k.ID
+					}
+					return ids
+				}(),
+			},
 		})
 	}
 
@@ -172,7 +187,12 @@ func (h *WordBuilderHandler) RefreshKanji(c *fiber.Ctx) error {
 	newKanji, err := h.getSmartKanji(req.JLPTLevel, 5, req.UsedKanjiIDs)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to get new kanji",
+			"error":   "Failed to get new kanji",
+			"details": err.Error(),
+			"debug": map[string]interface{}{
+				"jlpt_level":    req.JLPTLevel,
+				"used_kanji_ids": req.UsedKanjiIDs,
+			},
 		})
 	}
 
@@ -180,7 +200,18 @@ func (h *WordBuilderHandler) RefreshKanji(c *fiber.Ctx) error {
 	validWords, err := h.computeValidWords(newKanji)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to compute valid words",
+			"error":   "Failed to compute valid words",
+			"details": err.Error(),
+			"debug": map[string]interface{}{
+				"kanji_count": len(newKanji),
+				"kanji_ids": func() []int64 {
+					ids := make([]int64, len(newKanji))
+					for i, k := range newKanji {
+						ids[i] = k.ID
+					}
+					return ids
+				}(),
+			},
 		})
 	}
 

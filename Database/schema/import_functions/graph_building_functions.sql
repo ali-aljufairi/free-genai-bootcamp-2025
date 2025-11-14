@@ -5,7 +5,8 @@
 GRAPH RELATIONSHIP BUILDING FUNCTIONS
 ================================================================ */
 
--- Function to create kanji-word relationships (words that contain specific kanji)
+-- Function to create kanji-word relationships (multi-kanji words only)
+-- Only creates relations for words with 2-4 kanji characters
 CREATE OR REPLACE FUNCTION build_kanji_word_relations()
 RETURNS TABLE(
     relations_created INT,
@@ -15,14 +16,13 @@ DECLARE
     v_relations_created INT := 0;
     v_relationships_found INT := 0;
 BEGIN
-    -- Create USES_KANJI relationships: word -> kanji (word uses this kanji)
-    -- A word contains a kanji if the kanji character appears in the word
+    -- Create USES_KANJI relationships for multi-kanji words only
+    -- Skip single-kanji words as they're not needed for the use case
     WITH kanji_word_pairs AS (
         SELECT DISTINCT w.id as word_id, k.id as kanji_id
         FROM words w
         JOIN kanji k ON w.kanji LIKE '%' || k."character" || '%'
-        WHERE w.kanji IS NOT NULL
-          AND w.kanji != ''
+        WHERE w.kanji ~ '^[\u4E00-\u9FFF]{2,4}$'  -- Only 2-4 kanji words
           AND k."character" IS NOT NULL
     )
     INSERT INTO item_relations (from_type, from_id, rel_type, to_type, to_id)
