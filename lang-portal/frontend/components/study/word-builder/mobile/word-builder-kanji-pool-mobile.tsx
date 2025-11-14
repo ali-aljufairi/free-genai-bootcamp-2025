@@ -23,11 +23,9 @@ export function WordBuilderKanjiPoolMobile({ kanji }: WordBuilderKanjiPoolMobile
                 >
                     <motion.div
                         data-swapy-item={`kanji-pool-${k.id}`}
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
                         className="h-full w-full cursor-grab active:cursor-grabbing"
                     >
-                        <Card className="glass-card h-full w-full max-h-full max-w-full flex items-center justify-center p-1 hover:border-primary transition-colors">
+                        <Card className="glass-card h-full w-full max-h-full max-w-full flex items-center justify-center p-1 transition-colors [&:hover]:transform-none [&:hover]:scale-100">
                             <CardContent className="p-0 w-full h-full flex flex-col items-center justify-center min-h-0 overflow-hidden">
                                 <div className="text-xl font-bold mb-0.5 shrink-0">{k.character}</div>
                                 {showHints && (

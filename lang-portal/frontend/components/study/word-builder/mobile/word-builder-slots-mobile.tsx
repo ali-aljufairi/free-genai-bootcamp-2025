@@ -37,7 +37,7 @@ export function WordBuilderSlotsMobile({ slots, onValidate }: WordBuilderSlotsMo
                     <div
                         key={index}
                         data-swapy-slot={`slot-${index}`}
-                        className="relative h-full min-h-0"
+                        className="relative h-full min-h-0 [&:hover]:transform-none"
                     >
                         {/* data-swapy-item MUST be direct child of data-swapy-slot */}
                         {kanji ? (
@@ -45,7 +45,7 @@ export function WordBuilderSlotsMobile({ slots, onValidate }: WordBuilderSlotsMo
                                 data-swapy-item={`kanji-slot-${kanji.id}-${index}`}
                                 className="h-full w-full"
                             >
-                                <Card className="glass-card h-full w-full flex items-center justify-center p-2 transition-colors border-primary bg-primary/5">
+                                <Card className="glass-card h-full w-full flex items-center justify-center p-2 border-primary bg-primary/5 [&:hover]:transform-none [&:hover]:scale-100">
                                     <CardContent className="p-0 w-full h-full flex flex-col items-center justify-center relative">
                                         <motion.div
                                             key={kanji.id}
@@ -89,7 +89,7 @@ export function WordBuilderSlotsMobile({ slots, onValidate }: WordBuilderSlotsMo
                                 data-swapy-item={`placeholder-slot-${index}`}
                                 className="h-full w-full"
                             >
-                                <Card className="glass-card h-full w-full flex items-center justify-center p-2 transition-colors border-dashed border-2 border-muted-foreground/30">
+                                <Card className="glass-card h-full w-full flex items-center justify-center p-2 border-dashed border-2 border-muted-foreground/30 [&:hover]:transform-none [&:hover]:scale-100">
                                     <CardContent className="p-0 w-full h-full flex flex-col items-center justify-center">
                                         <motion.div
                                             key="empty"

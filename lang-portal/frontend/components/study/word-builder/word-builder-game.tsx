@@ -54,6 +54,7 @@ export function WordBuilderGame({
         placeKanjiInSlot,
         removeKanjiFromSlot,
         swapSlots,
+        clearSlots,
         startTimer,
         updateTimer,
         stopTimer,
@@ -308,8 +309,13 @@ export function WordBuilderGame({
             // Check if more words are possible
             checkIfMoreWordsPossible()
         } else {
-            // Invalid
+            // Invalid - clear slots so user can try again
             toast.error("Invalid word combination")
+            // Clear slots after a short delay to show the error
+            setTimeout(() => {
+                const { clearSlots } = useWordBuilderStore.getState()
+                clearSlots()
+            }, 1000) // 1 second delay to show the error message
         }
     }
 

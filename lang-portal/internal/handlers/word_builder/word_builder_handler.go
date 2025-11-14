@@ -62,8 +62,8 @@ func (h *WordBuilderHandler) StartSession(c *fiber.Ctx) error {
 		})
 	}
 
-	// Get 5 random kanji
-	kanji, err := h.getRandomKanji(req.JLPTLevel, 5, nil)
+	// Get 5 smart kanji (that can form words together)
+	kanji, err := h.getSmartKanji(req.JLPTLevel, 5, nil)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to get kanji",
@@ -168,8 +168,8 @@ func (h *WordBuilderHandler) RefreshKanji(c *fiber.Ctx) error {
 		})
 	}
 
-	// Get 5 new kanji, excluding used ones - use JLPT level from request directly
-	newKanji, err := h.getRandomKanji(req.JLPTLevel, 5, req.UsedKanjiIDs)
+	// Get 5 new smart kanji, excluding used ones - use JLPT level from request directly
+	newKanji, err := h.getSmartKanji(req.JLPTLevel, 5, req.UsedKanjiIDs)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to get new kanji",

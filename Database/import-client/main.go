@@ -126,6 +126,14 @@ func main() {
 		log.Fatal("Books and units import failed:", err)
 	}
 
+	// 4. Build graph relationships
+	log.Println("Building graph relationships...")
+	if err := buildGraphRelationships(db); err != nil {
+		log.Printf("Warning: Failed to build graph relationships: %v", err)
+	} else {
+		log.Println("Graph relationships built successfully!")
+	}
+
 	log.Println("Complete import finished successfully!")
 }
 
@@ -727,3 +735,48 @@ func importBooksAndUnits(db *sql.DB) error {
 
 	return nil
 }
+
+// buildGraphRelationships builds the complete graph of relationships between content
+func buildGraphRelationships(db *sql.DB) error {
+	log.Println("Building kanji-word relationships...")
+	rows, err := db.Query("SELECT * FROM build_complete_graph()")
+	if err != nil {
+		return fmt.Errorf("failed to build graph: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var stage string
+		var created, total int
+		if err := rows.Scan(&stage, &created, &total); err != nil {
+			return fmt.Errorf("failed to scan graph build result: %w", err)
+		}
+		log.Printf("  %s: Created %d relations, Total %d", stage, created, total)
+	}
+
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("error reading graph build results: %w", err)
+	}
+
+	// Get and display graph statistics
+	log.Println("\nGraph Statistics:")
+	statsRows, err := db.Query("SELECT * FROM get_graph_statistics()")
+	if err != nil {
+		log.Printf("Warning: Could not get graph statistics: %v", err)
+		return nil
+	}
+	defer statsRows.Close()
+
+	for statsRows.Next() {
+		var relType, fromBreakdown, toBreakdown string
+		var count int64
+		if err := statsRows.Scan(&relType, &count, &fromBreakdown, &toBreakdown); err != nil {
+			log.Printf("Warning: Could not scan statistics: %v", err)
+			continue
+		}
+		log.Printf("  %s: %d total (from: %s, to: %s)", relType, count, fromBreakdown, toBreakdown)
+	}
+
+	return nil
+}
+
