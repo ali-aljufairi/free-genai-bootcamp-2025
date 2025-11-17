@@ -7,9 +7,10 @@ import (
 	pq "github.com/lib/pq"
 )
 
-// computeValidWords finds all valid words that can be formed from the given kanji using graph relationships
+// ComputeValidWords finds all valid words that can be formed from the given kanji using graph relationships
 // Uses CTE-based query with array containment for efficient and correct filtering
-func (h *WordBuilderHandler) computeValidWords(kanji []KanjiData) ([]ValidWord, error) {
+// Made public for testing
+func (h *WordBuilderHandler) ComputeValidWords(kanji []KanjiData) ([]ValidWord, error) {
 	if len(kanji) == 0 {
 		return []ValidWord{}, nil
 	}
@@ -28,19 +29,40 @@ func (h *WordBuilderHandler) computeValidWords(kanji []KanjiData) ([]ValidWord, 
 		jlptLevel = *kanji[0].JLPT
 	}
 
-	// Build placeholder lists once and let GORM handle positional binding
-	kanjiPlaceholderList := buildQuestionPlaceholders(len(kanjiIDs))
+	// Get underlying *sql.DB connection to bypass GORM's placeholder parsing
+	sqlDB, err := h.DB.DB()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get database connection: %w", err)
+	}
 
-	args := make([]interface{}, 0, len(kanjiIDs)*2+3)
-	for _, id := range kanjiIDs {
-		args = append(args, id)
+	// Build PostgreSQL $N placeholders directly
+	// First array: for unnest(ARRAY[$1, $2, ...])
+	// Second array: for <@ ARRAY[$N+1, $N+2, ...]
+	// JLPT params: $2N+1, $2N+2, $2N+3
+	kanjiCount := len(kanjiIDs)
+	placeholders1 := make([]string, kanjiCount)
+	placeholders2 := make([]string, kanjiCount)
+	args := make([]interface{}, 0, kanjiCount*2+3)
+
+	// Build first set of placeholders and args for unnest
+	for i := 0; i < kanjiCount; i++ {
+		placeholders1[i] = fmt.Sprintf("$%d", i+1)
+		args = append(args, kanjiIDs[i])
 	}
-	for _, id := range kanjiIDs {
-		args = append(args, id)
+
+	// Build second set of placeholders and args for array containment
+	for i := 0; i < kanjiCount; i++ {
+		placeholders2[i] = fmt.Sprintf("$%d", kanjiCount+i+1)
+		args = append(args, kanjiIDs[i])
 	}
+
+	// Add JLPT parameters
+	jlptParam1 := kanjiCount*2 + 1
+	jlptParam2 := kanjiCount*2 + 2
+	jlptParam3 := kanjiCount*2 + 3
 	args = append(args, jlptLevel, jlptLevel-1, jlptLevel+1)
 
-	// Use ? placeholders so GORM rewrites them safely for PostgreSQL
+	// Build query with PostgreSQL $N placeholders
 	query := fmt.Sprintf(`
 WITH s AS (
 	SELECT unnest(ARRAY[%s]::int[]) AS kanji_id
@@ -56,11 +78,14 @@ words_for_s AS (
 word_kanji_sets AS (
 	SELECT ir.from_id AS word_id,
 		array_agg(ir.to_id ORDER BY COALESCE(ir.position, 999), ir.to_id) AS word_kanji_ids
-	FROM item_relations ir
-	JOIN words_for_s w ON w.word_id = ir.from_id
-	WHERE ir.from_type = 'word'
-		AND ir.rel_type = 'USES_KANJI'
-		AND ir.to_type = 'kanji'
+	FROM (
+		SELECT DISTINCT ir.from_id, ir.to_id, ir.position
+		FROM item_relations ir
+		JOIN words_for_s w ON w.word_id = ir.from_id
+		WHERE ir.from_type = 'word'
+			AND ir.rel_type = 'USES_KANJI'
+			AND ir.to_type = 'kanji'
+	) ir
 	GROUP BY ir.from_id
 )
 SELECT
@@ -75,21 +100,45 @@ WHERE wk.word_kanji_ids <@ ARRAY[%s]::int[]
 	AND w.kanji IS NOT NULL
 	AND w.kanji ~ '^[\u4E00-\u9FFF]+$'
 	AND LENGTH(w.kanji) BETWEEN 1 AND 4
-	AND (w.jlpt = ? OR w.jlpt IS NULL OR w.jlpt BETWEEN ? AND ?)
+	AND (w.jlpt = $%d OR w.jlpt IS NULL OR w.jlpt BETWEEN $%d AND $%d)
 	AND cardinality(wk.word_kanji_ids) >= 1
-ORDER BY cardinality(wk.word_kanji_ids) DESC, w.kanji`, kanjiPlaceholderList, kanjiPlaceholderList)
+ORDER BY cardinality(wk.word_kanji_ids) DESC, w.kanji`,
+		strings.Join(placeholders1, ","),
+		strings.Join(placeholders2, ","),
+		jlptParam1, jlptParam2, jlptParam3)
+
+	// Execute query using database/sql directly
+	rows, err := sqlDB.Query(query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query valid words: %w (kanji_ids: %v, jlpt_level: %d, args_count: %d)", err, kanjiIDs, jlptLevel, len(args))
+	}
+	defer rows.Close()
 
 	var results []struct {
-		WordID       int64         `gorm:"column:word_id"`
-		Kanji        string        `gorm:"column:kanji"`
-		Kana         string        `gorm:"column:kana"`
-		English      string        `gorm:"column:english"`
-		WordKanjiIDs pq.Int64Array `gorm:"column:word_kanji_ids;type:integer[]"`
+		WordID       int64
+		Kanji        string
+		Kana         string
+		English      string
+		WordKanjiIDs pq.Int64Array
 	}
 
-	err := h.DB.Raw(query, args...).Scan(&results).Error
-	if err != nil {
-		return nil, fmt.Errorf("failed to query valid words: %w (kanji_ids: %v, jlpt_level: %d, query: %s, args_count: %d)", err, kanjiIDs, jlptLevel, query, len(args))
+	// Scan results manually
+	for rows.Next() {
+		var r struct {
+			WordID       int64
+			Kanji        string
+			Kana         string
+			English      string
+			WordKanjiIDs pq.Int64Array
+		}
+		if err := rows.Scan(&r.WordID, &r.Kanji, &r.Kana, &r.English, &r.WordKanjiIDs); err != nil {
+			return nil, fmt.Errorf("failed to scan row: %w", err)
+		}
+		results = append(results, r)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating rows: %w", err)
 	}
 
 	// Convert results to ValidWord format

@@ -25,10 +25,10 @@ BEGIN
         WHERE w.kanji ~ '^[\u4E00-\u9FFF]{2,4}$'  -- Only 2-4 kanji words
           AND k."character" IS NOT NULL
     )
-    INSERT INTO item_relations (from_type, from_id, rel_type, to_type, to_id)
-    SELECT 'word'::TEXT, word_id, 'USES_KANJI'::relation_enum, 'kanji'::TEXT, kanji_id
+    INSERT INTO item_relations (from_type, from_id, rel_type, to_type, to_id, position)
+    SELECT 'word'::TEXT, word_id, 'USES_KANJI'::relation_enum, 'kanji'::TEXT, kanji_id, 0
     FROM kanji_word_pairs
-    ON CONFLICT (from_type, from_id, rel_type, to_type, to_id) DO NOTHING;
+    ON CONFLICT (from_type, from_id, rel_type, to_type, to_id, position) DO NOTHING;
 
     GET DIAGNOSTICS v_relations_created = ROW_COUNT;
 
@@ -67,10 +67,10 @@ BEGIN
           AND w1.jlpt > 0
           AND w2.jlpt > 0
     )
-    INSERT INTO item_relations (from_type, from_id, rel_type, to_type, to_id)
-    SELECT 'word'::TEXT, word1_id, 'SIMILAR_TO'::relation_enum, 'word'::TEXT, word2_id
+    INSERT INTO item_relations (from_type, from_id, rel_type, to_type, to_id, position)
+    SELECT 'word'::TEXT, word1_id, 'SIMILAR_TO'::relation_enum, 'word'::TEXT, word2_id, 0
     FROM similar_words
-    ON CONFLICT (from_type, from_id, rel_type, to_type, to_id) DO NOTHING;
+    ON CONFLICT (from_type, from_id, rel_type, to_type, to_id, position) DO NOTHING;
 
     GET DIAGNOSTICS v_relations_created = ROW_COUNT;
 
@@ -107,10 +107,10 @@ BEGIN
             AND k1.components LIKE '%' || k2."character" || '%'
             AND k1.id < k2.id  -- Prevent duplicates
     )
-    INSERT INTO item_relations (from_type, from_id, rel_type, to_type, to_id)
-    SELECT 'kanji'::TEXT, kanji1_id, 'SIMILAR_TO'::relation_enum, 'kanji'::TEXT, kanji2_id
+    INSERT INTO item_relations (from_type, from_id, rel_type, to_type, to_id, position)
+    SELECT 'kanji'::TEXT, kanji1_id, 'SIMILAR_TO'::relation_enum, 'kanji'::TEXT, kanji2_id, 0
     FROM component_matches
-    ON CONFLICT (from_type, from_id, rel_type, to_type, to_id) DO NOTHING;
+    ON CONFLICT (from_type, from_id, rel_type, to_type, to_id, position) DO NOTHING;
 
     GET DIAGNOSTICS v_relations_created = ROW_COUNT;
 
@@ -154,10 +154,10 @@ BEGIN
         WHERE w.jlpt > 0
           AND gp.level IS NOT NULL
     )
-    INSERT INTO item_relations (from_type, from_id, rel_type, to_type, to_id)
-    SELECT 'word'::TEXT, word_id, 'APPEARS_IN'::relation_enum, 'grammar'::TEXT, grammar_id
+    INSERT INTO item_relations (from_type, from_id, rel_type, to_type, to_id, position)
+    SELECT 'word'::TEXT, word_id, 'APPEARS_IN'::relation_enum, 'grammar'::TEXT, grammar_id, 0
     FROM word_grammar_pairs
-    ON CONFLICT (from_type, from_id, rel_type, to_type, to_id) DO NOTHING;
+    ON CONFLICT (from_type, from_id, rel_type, to_type, to_id, position) DO NOTHING;
 
     GET DIAGNOSTICS v_relations_created = ROW_COUNT;
 

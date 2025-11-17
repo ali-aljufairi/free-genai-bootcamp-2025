@@ -16,46 +16,77 @@ DECLARE
     v_created INT := 0;
     v_total INT := 0;
 BEGIN
-    -- Generate 2-4 kanji compounds from existing kanji
     WITH kanji_list AS (
-        SELECT id, "character", jlpt 
-        FROM kanji 
+        SELECT
+            id,
+            "character",
+            jlpt,
+            ROW_NUMBER() OVER (ORDER BY id) AS rn
+        FROM kanji
         WHERE "character" ~ '[\u4E00-\u9FFF]'
           AND "character" IS NOT NULL
     ),
-    compound_pairs AS (
-        SELECT DISTINCT
-            k1."character" as char1,
-            k2."character" as char2,
-            CASE 
-                WHEN k1.jlpt IS NOT NULL AND k2.jlpt IS NOT NULL 
-                THEN LEAST(k1.jlpt, k2.jlpt)
-                ELSE COALESCE(k1.jlpt, k2.jlpt, 0)
-            END as compound_jlpt
-        FROM kanji_list k1
-        CROSS JOIN kanji_list k2
-        WHERE k1.id < k2.id
+    kanji_stats AS (
+        SELECT COUNT(*) AS total_kanji FROM kanji_list
+    ),
+    sample_requests AS (
+        SELECT
+            gs AS sample_id,
+            CASE (gs % 3)
+                WHEN 1 THEN 2
+                WHEN 2 THEN 3
+                ELSE 4
+            END AS compound_length
+        FROM generate_series(1, 1000) gs
+    ),
+    expanded_samples AS (
+        SELECT
+            sr.sample_id,
+            sr.compound_length,
+            pos,
+            ((sr.sample_id * 37 + pos * 11) % GREATEST(ks.total_kanji, 1)) + 1 AS target_rn
+        FROM sample_requests sr
+        CROSS JOIN kanji_stats ks
+        CROSS JOIN LATERAL generate_series(1, sr.compound_length) AS pos
+    ),
+    sample_characters AS (
+        SELECT
+            es.sample_id,
+            es.pos,
+            kl."character",
+            kl.jlpt
+        FROM expanded_samples es
+        JOIN kanji_list kl ON kl.rn = es.target_rn
+    ),
+    candidate_compounds AS (
+        SELECT
+            sc.sample_id,
+            array_agg(sc."character" ORDER BY sc.pos) AS chars,
+            COALESCE(MIN(sc.jlpt) FILTER (WHERE sc.jlpt IS NOT NULL), 0) AS jlpt_level
+        FROM sample_characters sc
+        GROUP BY sc.sample_id
+    ),
+    formatted_compounds AS (
+        SELECT
+            array_to_string(chars, '') AS kanji,
+            array_to_string(chars, 'の') AS kana,
+            'compound: ' || array_to_string(chars, ' + ') AS english,
+            jlpt_level
+        FROM candidate_compounds
     ),
     new_compounds AS (
-        SELECT DISTINCT
-            cp.char1 || cp.char2 as kanji,
-            cp.char1 || 'の' || cp.char2 as kana,
-            'compound: ' || cp.char1 || ' + ' || cp.char2 as english,
-            'expression'::pos_enum as pos,
-            cp.compound_jlpt as jlpt_level
-        FROM compound_pairs cp
-        LEFT JOIN words w ON w.kanji = cp.char1 || cp.char2
-        WHERE w.id IS NULL  -- Only insert if not already exists
-        LIMIT 1000  -- Limit to prevent excessive generation
+        SELECT fc.*
+        FROM formatted_compounds fc
+        LEFT JOIN words w ON w.kanji = fc.kanji
+        WHERE w.id IS NULL
     )
     INSERT INTO words (kanji, kana, english, part_of_speech, jlpt)
-    SELECT kanji, kana, english, pos, jlpt_level
+    SELECT kanji, kana, english, 'expression'::pos_enum, jlpt_level
     FROM new_compounds
     ON CONFLICT DO NOTHING;
 
     GET DIAGNOSTICS v_created = ROW_COUNT;
 
-    -- Count total compounds
     SELECT COUNT(*) INTO v_total
     FROM words
     WHERE kanji ~ '^[\u4E00-\u9FFF]{2,4}$';
@@ -106,7 +137,7 @@ BEGIN
         kanji_id,
         position
     FROM word_kanji_positions
-    ON CONFLICT (from_type, from_id, rel_type, to_type, to_id) DO NOTHING;
+    ON CONFLICT (from_type, from_id, rel_type, to_type, to_id, position) DO NOTHING;
 
     GET DIAGNOSTICS v_created = ROW_COUNT;
 
@@ -141,27 +172,42 @@ RETURNS TABLE(
 BEGIN
     RETURN QUERY
     WITH multi_kanji_words AS (
-        SELECT id, kanji
+        SELECT id, kanji, char_length(kanji) AS expected_relations
         FROM words
         WHERE kanji ~ '^[\u4E00-\u9FFF]{2,4}$'
     ),
-    words_with_rels AS (
-        SELECT DISTINCT m.id
-        FROM multi_kanji_words m
-        JOIN item_relations ir ON ir.from_id = m.id 
-          AND ir.from_type = 'word'
+    relation_counts AS (
+        SELECT
+            ir.from_id AS word_id,
+            COUNT(*) AS relation_count
+        FROM item_relations ir
+        WHERE ir.from_type = 'word'
           AND ir.rel_type = 'USES_KANJI'
+        GROUP BY ir.from_id
+    ),
+    summary AS (
+        SELECT
+            COUNT(*) AS total_words,
+            COUNT(*) FILTER (
+                WHERE COALESCE(rc.relation_count, 0) = mw.expected_relations
+            ) AS complete_words,
+            COUNT(*) FILTER (
+                WHERE COALESCE(rc.relation_count, 0) <> mw.expected_relations
+            ) AS incomplete_words
+        FROM multi_kanji_words mw
+        LEFT JOIN relation_counts rc ON rc.word_id = mw.id
     ),
     sample_word AS (
-        SELECT m.kanji
-        FROM multi_kanji_words m
-        JOIN words_with_rels w ON m.id = w.id
+        SELECT mw.kanji
+        FROM multi_kanji_words mw
+        JOIN relation_counts rc ON rc.word_id = mw.id
+        WHERE rc.relation_count = mw.expected_relations
         LIMIT 1
     )
     SELECT
-        (SELECT COUNT(*) FROM multi_kanji_words)::INT,
-        (SELECT COUNT(*) FROM words_with_rels)::INT,
-        ((SELECT COUNT(*) FROM multi_kanji_words) - (SELECT COUNT(*) FROM words_with_rels))::INT,
+        COALESCE((SELECT total_words FROM summary), 0)::INT,
+        COALESCE((SELECT complete_words FROM summary), 0)::INT,
+        COALESCE((SELECT incomplete_words FROM summary), 0)::INT,
         (SELECT kanji FROM sample_word LIMIT 1)::TEXT;
 END;
 $$ LANGUAGE plpgsql;

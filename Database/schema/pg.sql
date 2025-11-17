@@ -164,6 +164,8 @@ CREATE INDEX idx_words_romaji_gin ON words USING gin (romaji gin_trgm_ops);
 
 CREATE INDEX idx_words_english_gin ON words USING gin (english gin_trgm_ops);
 
+CREATE INDEX idx_words_kanji ON words (kanji);
+
 CREATE TABLE grammar_points (
     id SERIAL PRIMARY KEY,
     key TEXT NOT NULL,
@@ -268,13 +270,14 @@ CREATE TABLE item_relations (
     rel_type relation_enum NOT NULL,
     to_type TEXT NOT NULL,
     to_id INT NOT NULL,
-    position INT,
+    position INT NOT NULL DEFAULT 0,
     UNIQUE (
         from_type,
         from_id,
         rel_type,
         to_type,
-        to_id
+        to_id,
+        position
     )
 );
 

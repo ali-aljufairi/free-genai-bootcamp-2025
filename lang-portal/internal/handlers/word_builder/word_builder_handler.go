@@ -75,7 +75,7 @@ func (h *WordBuilderHandler) StartSession(c *fiber.Ctx) error {
 	}
 
 	// Pre-compute all valid words
-	validWords, err := h.computeValidWords(kanji)
+	validWords, err := h.ComputeValidWords(kanji)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error":   "Failed to compute valid words",
@@ -197,7 +197,7 @@ func (h *WordBuilderHandler) RefreshKanji(c *fiber.Ctx) error {
 	}
 
 	// Pre-compute valid words from new kanji
-	validWords, err := h.computeValidWords(newKanji)
+	validWords, err := h.ComputeValidWords(newKanji)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error":   "Failed to compute valid words",

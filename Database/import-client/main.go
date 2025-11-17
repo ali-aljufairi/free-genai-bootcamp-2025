@@ -69,36 +69,8 @@ func main() {
 		log.Fatal("Example sentences import failed:", err)
 	}
 
-	// Generate multi-kanji compounds from existing kanji
-	log.Println("Generating multi-kanji compounds...")
-	var compoundsCreated int
-	var compoundsTotal int
-	err = db.QueryRow("SELECT * FROM generate_multi_kanji_compounds()").Scan(&compoundsCreated, &compoundsTotal)
-	if err != nil {
-		log.Printf("Warning: Failed to generate multi-kanji compounds: %v", err)
-	} else {
-		log.Printf("Generated %d multi-kanji compound words (Total: %d)", compoundsCreated, compoundsTotal)
-	}
-
-	// Wire item_relations for multi-kanji words only
-	log.Println("Wiring word-kanji relationships...")
-	var relationsCreated int
-	var relationsTotal int
-	err = db.QueryRow("SELECT * FROM wire_word_kanji_relations()").Scan(&relationsCreated, &relationsTotal)
-	if err != nil {
-		log.Printf("Warning: Failed to wire word-kanji relationships: %v", err)
-	} else {
-		log.Printf("Created %d word-kanji relationships (Total: %d)", relationsCreated, relationsTotal)
-	}
-
-	// Verify word-kanji relations
-	var totalMulti, withRels, withoutRels int
-	var sampleWord string
-	err = db.QueryRow("SELECT * FROM verify_word_kanji_relations()").Scan(&totalMulti, &withRels, &withoutRels, &sampleWord)
-	if err != nil {
-		log.Printf("Warning: Could not verify word-kanji relations: %v", err)
-	} else {
-		log.Printf("Verification: %d multi-kanji words, %d with relations, %d without (sample: %s)", totalMulti, withRels, withoutRels, sampleWord)
+	if err := generateAndWireCompounds(db); err != nil {
+		log.Fatal("Multi-kanji compound generation failed:", err)
 	}
 
 	// 2. Import JLPT questions
@@ -121,7 +93,3 @@ func main() {
 
 	log.Println("Complete import finished successfully!")
 }
-
-
-
-
