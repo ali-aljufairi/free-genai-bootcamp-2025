@@ -2,6 +2,7 @@ package word_builder
 
 import (
 	"fmt"
+	"log"
 	"strings"
 
 	pq "github.com/lib/pq"
@@ -35,51 +36,45 @@ func (h *WordBuilderHandler) ComputeValidWords(kanji []KanjiData) ([]ValidWord, 
 		return nil, fmt.Errorf("failed to get database connection: %w", err)
 	}
 
-	// Build PostgreSQL $N placeholders directly
-	// First array: for unnest(ARRAY[$1, $2, ...])
-	// Second array: for <@ ARRAY[$N+1, $N+2, ...]
-	// JLPT params: $2N+1, $2N+2, $2N+3
+	// Build PostgreSQL $N placeholders
+	// Use pq.Array for the containment check to ensure proper type handling
 	kanjiCount := len(kanjiIDs)
 	placeholders1 := make([]string, kanjiCount)
-	placeholders2 := make([]string, kanjiCount)
-	args := make([]interface{}, 0, kanjiCount*2+3)
+	args := make([]interface{}, 0, kanjiCount+4)
 
-	// Build first set of placeholders and args for unnest
+	// Build placeholders and args for unnest
 	for i := 0; i < kanjiCount; i++ {
 		placeholders1[i] = fmt.Sprintf("$%d", i+1)
 		args = append(args, kanjiIDs[i])
 	}
 
-	// Build second set of placeholders and args for array containment
-	for i := 0; i < kanjiCount; i++ {
-		placeholders2[i] = fmt.Sprintf("$%d", kanjiCount+i+1)
-		args = append(args, kanjiIDs[i])
-	}
-
+	// Add kanji array parameter for containment check (using pq.Array for proper type)
+	kanjiArrayParam := kanjiCount + 1
+	args = append(args, pq.Array(kanjiIDs))
+	
 	// Add JLPT parameters
-	jlptParam1 := kanjiCount*2 + 1
-	jlptParam2 := kanjiCount*2 + 2
-	jlptParam3 := kanjiCount*2 + 3
+	jlptParam1 := kanjiCount + 2
+	jlptParam2 := kanjiCount + 3
+	jlptParam3 := kanjiCount + 4
 	args = append(args, jlptLevel, jlptLevel-1, jlptLevel+1)
-
-	// Build query with PostgreSQL $N placeholders
+	
 	query := fmt.Sprintf(`
 WITH s AS (
-	SELECT unnest(ARRAY[%s]::int[]) AS kanji_id
+	SELECT unnest(ARRAY[%s]::BIGINT[]) AS kanji_id
 ),
 words_for_s AS (
 	SELECT DISTINCT ir.from_id AS word_id
 	FROM item_relations ir
-	JOIN s ON s.kanji_id = ir.to_id
+	JOIN s ON s.kanji_id = ir.to_id::BIGINT
 	WHERE ir.from_type = 'word'
 		AND ir.rel_type = 'USES_KANJI'
 		AND ir.to_type = 'kanji'
 ),
 word_kanji_sets AS (
 	SELECT ir.from_id AS word_id,
-		array_agg(ir.to_id ORDER BY COALESCE(ir.position, 999), ir.to_id) AS word_kanji_ids
+		array_agg(DISTINCT ir.to_id::BIGINT ORDER BY ir.to_id::BIGINT) AS word_kanji_ids
 	FROM (
-		SELECT DISTINCT ir.from_id, ir.to_id, ir.position
+		SELECT DISTINCT ir.from_id, ir.to_id
 		FROM item_relations ir
 		JOIN words_for_s w ON w.word_id = ir.from_id
 		WHERE ir.from_type = 'word'
@@ -96,7 +91,7 @@ SELECT
 	wk.word_kanji_ids
 FROM word_kanji_sets wk
 JOIN words w ON w.id = wk.word_id
-WHERE wk.word_kanji_ids <@ ARRAY[%s]::int[]
+WHERE wk.word_kanji_ids <@ $%d::BIGINT[]
 	AND w.kanji IS NOT NULL
 	AND w.kanji ~ '^[\u4E00-\u9FFF]+$'
 	AND LENGTH(w.kanji) BETWEEN 1 AND 4
@@ -104,12 +99,18 @@ WHERE wk.word_kanji_ids <@ ARRAY[%s]::int[]
 	AND cardinality(wk.word_kanji_ids) >= 1
 ORDER BY cardinality(wk.word_kanji_ids) DESC, w.kanji`,
 		strings.Join(placeholders1, ","),
-		strings.Join(placeholders2, ","),
+		kanjiArrayParam,
 		jlptParam1, jlptParam2, jlptParam3)
+
+	// Log the query for debugging
+	log.Printf("[ComputeValidWords] Querying with %d kanji IDs: %v (JLPT: %d)", len(kanjiIDs), kanjiIDs, jlptLevel)
+	log.Printf("[ComputeValidWords] Query: %s", query)
+	log.Printf("[ComputeValidWords] Args count: %d", len(args))
 
 	// Execute query using database/sql directly
 	rows, err := sqlDB.Query(query, args...)
 	if err != nil {
+		log.Printf("[ComputeValidWords] Query error: %v", err)
 		return nil, fmt.Errorf("failed to query valid words: %w (kanji_ids: %v, jlpt_level: %d, args_count: %d)", err, kanjiIDs, jlptLevel, len(args))
 	}
 	defer rows.Close()
@@ -141,6 +142,8 @@ ORDER BY cardinality(wk.word_kanji_ids) DESC, w.kanji`,
 		return nil, fmt.Errorf("error iterating rows: %w", err)
 	}
 
+	log.Printf("[ComputeValidWords] Found %d candidate words from database", len(results))
+
 	// Convert results to ValidWord format
 	validWords := make([]ValidWord, 0, len(results))
 	for _, r := range results {
@@ -162,6 +165,11 @@ ORDER BY cardinality(wk.word_kanji_ids) DESC, w.kanji`,
 				KanjiIDs: filteredKanjiIDs,
 			})
 		}
+	}
+
+	log.Printf("[ComputeValidWords] Returning %d valid words after filtering", len(validWords))
+	if len(validWords) == 0 && len(kanji) > 0 {
+		log.Printf("[ComputeValidWords] WARNING: No valid words found for kanji IDs: %v", kanjiIDs)
 	}
 
 	return validWords, nil

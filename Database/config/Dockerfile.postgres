@@ -38,6 +38,7 @@ COPY ../indexes/user_management_indexes.sql /docker-entrypoint-initdb.d/16-user-
 COPY ../indexes/graph_indexes.sql /docker-entrypoint-initdb.d/17-graph-indexes.sql
 COPY ../functions/srs.sql /docker-entrypoint-initdb.d/18-srs.sql
 COPY ../schema/study_activities_init.sql /docker-entrypoint-initdb.d/19-study-activities-init.sql
+COPY ../schema/import_functions/word_builder_functions.sql /docker-entrypoint-initdb.d/20-word-builder-functions.sql
 
 
 # Set proper permissions

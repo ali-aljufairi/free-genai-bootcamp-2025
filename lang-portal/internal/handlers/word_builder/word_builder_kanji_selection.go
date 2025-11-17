@@ -2,12 +2,16 @@ package word_builder
 
 import (
 	"fmt"
+	"log"
 	"math/rand"
 	"strings"
+
+	pq "github.com/lib/pq"
 )
 
-// getSmartKanji selects kanji that actually form words together for the given JLPT level
-// This ensures users always get kanji that can form valid words, making the game more engaging
+// getSmartKanji builds a chain of kanji by traversing word relationships
+// Uses PostgreSQL function build_kanji_chain() to leverage graph traversal
+// Returns exactly the requested count (default 6) of connected kanji
 func (h *WordBuilderHandler) getSmartKanji(jlptLevel int, count int, excludeIDs []int64) ([]KanjiData, error) {
 	// Get underlying database connection
 	sqlDB, err := h.DB.DB()
@@ -15,95 +19,82 @@ func (h *WordBuilderHandler) getSmartKanji(jlptLevel int, count int, excludeIDs 
 		return nil, fmt.Errorf("failed to get database connection: %w", err)
 	}
 
-	// Build exclude clause if needed
-	excludeClause := ""
-	args := []interface{}{jlptLevel}
-	argNum := 2
-
+	// Convert excludeIDs to PostgreSQL array format
+	var excludeArray interface{}
 	if len(excludeIDs) > 0 {
-		excludePlaceholders := make([]string, len(excludeIDs))
-		for i, id := range excludeIDs {
-			excludePlaceholders[i] = fmt.Sprintf("$%d", argNum)
-			args = append(args, id)
-			argNum++
-		}
-		excludeClause = fmt.Sprintf("AND k.id NOT IN (%s)", strings.Join(excludePlaceholders, ","))
+		excludeArray = pq.Array(excludeIDs)
+	} else {
+		excludeArray = pq.Array([]int64{})
 	}
 
-	// Add JLPT range parameters
-	jlptMin := jlptLevel - 1
-	if jlptMin < 1 {
-		jlptMin = 1
-	}
-	jlptMax := jlptLevel + 1
-	if jlptMax > 5 {
-		jlptMax = 5
-	}
+	// Call PostgreSQL function to build kanji chain
+	// The function handles seed selection, traversal, and dead-end handling
+	query := `
+		SELECT unnest(build_kanji_chain($1, $2, $3)) AS kanji_id
+	`
 
-	// Query to find kanji groups that form words together
-	// Strategy: Find words that use 2-5 kanji from the target JLPT level, then select a random group
-	query := fmt.Sprintf(`
-WITH shared_words AS (
-	-- Find words that use 2-5 kanji from target JLPT level
-	SELECT 
-		w.id as word_id,
-		array_agg(DISTINCT ir.to_id) as kanji_ids
-	FROM words w
-	JOIN item_relations ir ON ir.from_id = w.id
-	JOIN kanji k ON k.id = ir.to_id
-	WHERE ir.from_type = 'word'
-		AND ir.rel_type = 'USES_KANJI'
-		AND ir.to_type = 'kanji'
-		AND k.jlpt = $1
-		AND k.frequency IS NOT NULL
-		%s
-		AND w.kanji IS NOT NULL
-		AND w.kanji ~ '^[\u4E00-\u9FFF]+$'
-		AND LENGTH(w.kanji) BETWEEN 2 AND 4
-		AND (w.jlpt = $1 OR w.jlpt IS NULL OR w.jlpt BETWEEN $%d AND $%d)
-	GROUP BY w.id
-	HAVING COUNT(DISTINCT ir.to_id) BETWEEN 2 AND 5
-		AND array_length(array_agg(DISTINCT ir.to_id), 1) <= $%d
-),
-kanji_groups AS (
-	-- Group by kanji combination and count words
-	-- Prefer groups with more kanji (closer to requested count)
-	SELECT 
-		kanji_ids,
-		COUNT(*) as word_count
-	FROM shared_words
-	WHERE array_length(kanji_ids, 1) >= 2
-	GROUP BY kanji_ids
-	HAVING COUNT(*) >= 1
-	ORDER BY 
-		CASE WHEN array_length(kanji_ids, 1) >= $%d THEN 0 ELSE 1 END,  -- Prefer groups with enough kanji
-		array_length(kanji_ids, 1) DESC,  -- Then prefer larger groups
-		RANDOM()
-	LIMIT 1
-)
--- Select kanji from the chosen group (up to requested count)
-SELECT DISTINCT
-	k.id,
-	k.character,
-	k.onyomi,
-	k.kunyomi,
-	k.jlpt,
-	k.heisig_en,
-	k.frequency
-FROM kanji_groups kg
-CROSS JOIN LATERAL unnest(kg.kanji_ids[1:$%d]) as kanji_id
-JOIN kanji k ON k.id = kanji_id
-ORDER BY k.frequency DESC NULLS LAST
-LIMIT $%d
-	`, excludeClause, argNum, argNum+1, argNum+2, argNum+3, argNum+4, argNum+5)
-	
-	args = append(args, jlptMin, jlptMax, count, count, count, count)
-
-	rows, err := sqlDB.Query(query, args...)
+	log.Printf("[getSmartKanji] Calling build_kanji_chain(jlpt=%d, count=%d, exclude=%v)", jlptLevel, count, excludeIDs)
+	var kanjiIDs []int64
+	rows, err := sqlDB.Query(query, jlptLevel, count, excludeArray)
 	if err != nil {
-		return nil, fmt.Errorf("failed to query smart kanji: %w", err)
+		log.Printf("[getSmartKanji] PostgreSQL function error: %v, falling back to simple selection", err)
+		// If PostgreSQL function fails, fall back to simple selection
+		return h.getSmartKanjiFallback(jlptLevel, count, excludeIDs)
 	}
 	defer rows.Close()
+
+	for rows.Next() {
+		var kanjiID int64
+		if err := rows.Scan(&kanjiID); err != nil {
+			return nil, fmt.Errorf("failed to scan kanji ID: %w", err)
+		}
+		kanjiIDs = append(kanjiIDs, kanjiID)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating rows: %w", err)
+	}
+
+	log.Printf("[getSmartKanji] PostgreSQL function returned %d kanji IDs: %v", len(kanjiIDs), kanjiIDs)
+
+	// If we got no kanji or fewer than requested, fall back
+	if len(kanjiIDs) == 0 {
+		log.Printf("[getSmartKanji] No kanji returned, falling back to simple selection")
+		return h.getSmartKanjiFallback(jlptLevel, count, excludeIDs)
+	}
+
+	// If we got fewer than requested (but at least 1), still use what we got
+	// The PostgreSQL function tries multiple times, so if it returns fewer,
+	// it means it couldn't find enough connected kanji
+
+	// Build placeholders for IN clause to get full kanji details
+	placeholders := make([]string, len(kanjiIDs))
+	args := make([]interface{}, len(kanjiIDs))
+	for i, id := range kanjiIDs {
+		placeholders[i] = fmt.Sprintf("$%d", i+1)
+		args[i] = id
+	}
+
+	// Get full kanji details
+	detailQuery := fmt.Sprintf(`
+		SELECT 
+			k.id,
+			k.character,
+			k.onyomi,
+			k.kunyomi,
+			k.jlpt,
+			k.heisig_en,
+			k.frequency
+		FROM kanji k
+		WHERE k.id IN (%s)
+		ORDER BY k.frequency DESC NULLS LAST
+	`, strings.Join(placeholders, ","))
+
+	detailRows, err := sqlDB.Query(detailQuery, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query kanji details: %w", err)
+	}
+	defer detailRows.Close()
 
 	var kanjiList []struct {
 		ID        int64
@@ -115,7 +106,7 @@ LIMIT $%d
 		Frequency *int
 	}
 
-	for rows.Next() {
+	for detailRows.Next() {
 		var k struct {
 			ID        int64
 			Character string
@@ -125,26 +116,14 @@ LIMIT $%d
 			HeisigEn  *string
 			Frequency *int
 		}
-		if err := rows.Scan(&k.ID, &k.Character, &k.Onyomi, &k.Kunyomi, &k.JLPT, &k.HeisigEn, &k.Frequency); err != nil {
+		if err := detailRows.Scan(&k.ID, &k.Character, &k.Onyomi, &k.Kunyomi, &k.JLPT, &k.HeisigEn, &k.Frequency); err != nil {
 			return nil, fmt.Errorf("failed to scan kanji: %w", err)
 		}
 		kanjiList = append(kanjiList, k)
 	}
 
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("error iterating rows: %w", err)
-	}
-
-	// If we didn't find a group that forms words, or got fewer than requested, fall back to simple selection
-	// But if we got at least 2 kanji that form words, that's acceptable (better than random)
-	if len(kanjiList) == 0 {
-		return h.getSmartKanjiFallback(jlptLevel, count, excludeIDs)
-	}
-	
-	// If we got fewer than requested but at least 2, we can keep it (they form words together)
-	// But if we only got 1, fall back
-	if len(kanjiList) == 1 {
-		return h.getSmartKanjiFallback(jlptLevel, count, excludeIDs)
+	if err := detailRows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating detail rows: %w", err)
 	}
 
 	// Shuffle for additional variety

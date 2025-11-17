@@ -4,11 +4,28 @@ import (
 	"encoding/json"
 	"fmt"
 	"lang-portal/internal/repositories"
+	"log"
+	"os"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
 )
+
+// wordBuilderLogger writes to a dedicated log file for Word Builder debugging
+var wordBuilderLogger *log.Logger
+
+func init() {
+	// Create or open log file
+	logFile, err := os.OpenFile("word_builder_debug.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	if err != nil {
+		// Fallback to stderr if file can't be opened
+		wordBuilderLogger = log.New(os.Stderr, "[WORD_BUILDER] ", log.LstdFlags|log.Lmicroseconds)
+		wordBuilderLogger.Printf("Warning: Could not open log file, using stderr: %v", err)
+	} else {
+		wordBuilderLogger = log.New(logFile, "[WORD_BUILDER] ", log.LstdFlags|log.Lmicroseconds)
+	}
+}
 
 type WordBuilderHandler struct {
 	KanjiStore *repositories.KanjiStore
@@ -62,9 +79,11 @@ func (h *WordBuilderHandler) StartSession(c *fiber.Ctx) error {
 		})
 	}
 
-	// Get 5 smart kanji (that can form words together)
-	kanji, err := h.getSmartKanji(req.JLPTLevel, 5, nil)
+	// Get 6 smart kanji (that can form words together via chain traversal)
+	wordBuilderLogger.Printf("StartSession: Requesting kanji for JLPT level %d", req.JLPTLevel)
+	kanji, err := h.getSmartKanji(req.JLPTLevel, 6, nil)
 	if err != nil {
+		wordBuilderLogger.Printf("StartSession: Failed to get kanji: %v", err)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error":   "Failed to get kanji",
 			"details": err.Error(),
@@ -74,8 +93,43 @@ func (h *WordBuilderHandler) StartSession(c *fiber.Ctx) error {
 		})
 	}
 
+	wordBuilderLogger.Printf("StartSession: Got %d kanji: %v", len(kanji), func() []string {
+		chars := make([]string, len(kanji))
+		for i, k := range kanji {
+			chars[i] = fmt.Sprintf("%s(id:%d)", k.Character, k.ID)
+		}
+		return chars
+	}())
+
 	// Pre-compute all valid words
+	wordBuilderLogger.Printf("StartSession: Computing valid words for %d kanji", len(kanji))
 	validWords, err := h.ComputeValidWords(kanji)
+	if err != nil {
+		wordBuilderLogger.Printf("StartSession: Failed to compute valid words: %v", err)
+	} else {
+		wordBuilderLogger.Printf("StartSession: Found %d valid words", len(validWords))
+		if len(validWords) > 0 {
+			wordBuilderLogger.Printf("StartSession: Sample words: %v", func() []string {
+				words := make([]string, 0, 5)
+				max := 5
+				if len(validWords) < max {
+					max = len(validWords)
+				}
+				for i := 0; i < max; i++ {
+					words = append(words, validWords[i].Kanji)
+				}
+				return words
+			}())
+		} else {
+			wordBuilderLogger.Printf("StartSession: WARNING - No valid words found for kanji: %v", func() []int64 {
+				ids := make([]int64, len(kanji))
+				for i, k := range kanji {
+					ids[i] = k.ID
+				}
+				return ids
+			}())
+		}
+	}
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error":   "Failed to compute valid words",
@@ -183,8 +237,8 @@ func (h *WordBuilderHandler) RefreshKanji(c *fiber.Ctx) error {
 		})
 	}
 
-	// Get 5 new smart kanji, excluding used ones - use JLPT level from request directly
-	newKanji, err := h.getSmartKanji(req.JLPTLevel, 5, req.UsedKanjiIDs)
+	// Get 6 new smart kanji, excluding used ones - use JLPT level from request directly
+	newKanji, err := h.getSmartKanji(req.JLPTLevel, 6, req.UsedKanjiIDs)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error":   "Failed to get new kanji",
