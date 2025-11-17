@@ -2,7 +2,6 @@ package word_builder
 
 import (
 	"fmt"
-	"log"
 	"strings"
 
 	pq "github.com/lib/pq"
@@ -102,16 +101,10 @@ ORDER BY cardinality(wk.word_kanji_ids) DESC, w.kanji`,
 		kanjiArrayParam,
 		jlptParam1, jlptParam2, jlptParam3)
 
-	// Log the query for debugging
-	log.Printf("[ComputeValidWords] Querying with %d kanji IDs: %v (JLPT: %d)", len(kanjiIDs), kanjiIDs, jlptLevel)
-	log.Printf("[ComputeValidWords] Query: %s", query)
-	log.Printf("[ComputeValidWords] Args count: %d", len(args))
-
 	// Execute query using database/sql directly
 	rows, err := sqlDB.Query(query, args...)
 	if err != nil {
-		log.Printf("[ComputeValidWords] Query error: %v", err)
-		return nil, fmt.Errorf("failed to query valid words: %w (kanji_ids: %v, jlpt_level: %d, args_count: %d)", err, kanjiIDs, jlptLevel, len(args))
+		return nil, fmt.Errorf("failed to query valid words: %w", err)
 	}
 	defer rows.Close()
 
@@ -142,8 +135,6 @@ ORDER BY cardinality(wk.word_kanji_ids) DESC, w.kanji`,
 		return nil, fmt.Errorf("error iterating rows: %w", err)
 	}
 
-	log.Printf("[ComputeValidWords] Found %d candidate words from database", len(results))
-
 	// Convert results to ValidWord format
 	validWords := make([]ValidWord, 0, len(results))
 	for _, r := range results {
@@ -165,11 +156,6 @@ ORDER BY cardinality(wk.word_kanji_ids) DESC, w.kanji`,
 				KanjiIDs: filteredKanjiIDs,
 			})
 		}
-	}
-
-	log.Printf("[ComputeValidWords] Returning %d valid words after filtering", len(validWords))
-	if len(validWords) == 0 && len(kanji) > 0 {
-		log.Printf("[ComputeValidWords] WARNING: No valid words found for kanji IDs: %v", kanjiIDs)
 	}
 
 	return validWords, nil
