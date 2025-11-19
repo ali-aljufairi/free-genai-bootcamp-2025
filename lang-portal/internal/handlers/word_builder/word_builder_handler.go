@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"lang-portal/internal/repositories"
+	"log"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -35,6 +36,8 @@ func (h *WordBuilderHandler) getUserID(c *fiber.Ctx) (int64, error) {
 
 // StartSession starts a new word builder session
 func (h *WordBuilderHandler) StartSession(c *fiber.Ctx) error {
+	startTime := time.Now()
+	
 	var req StartSessionRequest
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -63,7 +66,9 @@ func (h *WordBuilderHandler) StartSession(c *fiber.Ctx) error {
 	}
 
 	// Get 6 kanji using fast iterative selection
+	kanjiStartTime := time.Now()
 	kanji, err := h.getSimpleKanji(req.JLPTLevel, 6, nil)
+	kanjiDuration := time.Since(kanjiStartTime)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error":   "Failed to get kanji",
@@ -72,7 +77,9 @@ func (h *WordBuilderHandler) StartSession(c *fiber.Ctx) error {
 	}
 
 	// Pre-compute all valid words
+	wordsStartTime := time.Now()
 	validWords, err := h.ComputeValidWords(kanji)
+	wordsDuration := time.Since(wordsStartTime)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error":   "Failed to compute valid words",
@@ -91,6 +98,7 @@ func (h *WordBuilderHandler) StartSession(c *fiber.Ctx) error {
 	}
 
 	// Create session in learning_activities
+	dbStartTime := time.Now()
 	kanjiIDs := make([]int64, len(kanji))
 	for i, k := range kanji {
 		kanjiIDs[i] = k.ID
@@ -118,6 +126,7 @@ func (h *WordBuilderHandler) StartSession(c *fiber.Ctx) error {
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), $9::jsonb)
 		RETURNING id
 	`, userID, "word_builder", "kanji", req.JLPTLevel, kanjiIDs, 0, 0, 0, string(configJSON)).Scan(&sessionID).Error
+	dbDuration := time.Since(dbStartTime)
 
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -146,11 +155,17 @@ func (h *WordBuilderHandler) StartSession(c *fiber.Ctx) error {
 		TimeLimit:  req.TimeLimit,
 	}
 
+	totalDuration := time.Since(startTime)
+	log.Printf("[StartSession] TIMING - Total: %v | Kanji selection: %v | Word computation: %v | DB insert: %v | Valid words: %d | Kanji count: %d",
+		totalDuration, kanjiDuration, wordsDuration, dbDuration, len(validWords), len(kanji))
+
 	return c.JSON(response)
 }
 
 // RefreshKanji refreshes the kanji pool
 func (h *WordBuilderHandler) RefreshKanji(c *fiber.Ctx) error {
+	startTime := time.Now()
+	
 	var req RefreshRequest
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -173,7 +188,9 @@ func (h *WordBuilderHandler) RefreshKanji(c *fiber.Ctx) error {
 	}
 
 	// Get 6 new kanji, excluding used ones
+	kanjiStartTime := time.Now()
 	newKanji, err := h.getSimpleKanji(req.JLPTLevel, 6, req.UsedKanjiIDs)
+	kanjiDuration := time.Since(kanjiStartTime)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error":   "Failed to get new kanji",
@@ -186,7 +203,9 @@ func (h *WordBuilderHandler) RefreshKanji(c *fiber.Ctx) error {
 	}
 
 	// Pre-compute valid words from new kanji
+	wordsStartTime := time.Now()
 	validWords, err := h.ComputeValidWords(newKanji)
+	wordsDuration := time.Since(wordsStartTime)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error":   "Failed to compute valid words",
@@ -206,6 +225,7 @@ func (h *WordBuilderHandler) RefreshKanji(c *fiber.Ctx) error {
 
 	// Optionally update session if session_id is provided (for tracking purposes)
 	// But don't fail if session doesn't exist - refresh should work regardless
+	dbStartTime := time.Now()
 	if req.SessionID > 0 {
 		var activity LearningActivity
 		result := h.DB.Table("learning_activities").
@@ -252,6 +272,7 @@ func (h *WordBuilderHandler) RefreshKanji(c *fiber.Ctx) error {
 		}
 		// If session doesn't exist, that's fine - just continue without updating
 	}
+	dbDuration := time.Since(dbStartTime)
 
 	// Convert kanji to response format
 	kanjiData := make([]KanjiData, len(newKanji))
@@ -270,6 +291,10 @@ func (h *WordBuilderHandler) RefreshKanji(c *fiber.Ctx) error {
 		Kanji:      kanjiData,
 		ValidWords: validWords,
 	}
+
+	totalDuration := time.Since(startTime)
+	log.Printf("[RefreshKanji] TIMING - Total: %v | Kanji selection: %v | Word computation: %v | DB update: %v | Valid words: %d",
+		totalDuration, kanjiDuration, wordsDuration, dbDuration, len(validWords))
 
 	return c.JSON(response)
 }

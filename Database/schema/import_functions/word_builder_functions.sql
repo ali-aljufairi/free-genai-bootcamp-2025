@@ -30,7 +30,7 @@ WITH
             AND w.kanji IS NOT NULL
             AND w.kanji ~ '^[\u4E00-\u9FFF]+$'
             AND LENGTH(w.kanji) BETWEEN 2 AND 4
-            AND k.frequency IS NOT NULL
+            -- Removed frequency requirement to include all kanji used in words
         GROUP BY
             ir.to_id,
             ir.from_id,
@@ -55,11 +55,54 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_kanji_adjacency_unique ON kanji_adjacency_
 
 -- Function to refresh the materialized view
 -- Should be called after data imports or periodically
+-- Drops and recreates the view to ensure it uses the latest definition
 CREATE OR REPLACE FUNCTION refresh_kanji_adjacency_map()
 RETURNS void AS $$
 BEGIN
-    REFRESH MATERIALIZED VIEW CONCURRENTLY kanji_adjacency_map;
-    RAISE NOTICE 'Kanji adjacency map refreshed';
+    -- Drop existing view and recreate with latest definition
+    DROP MATERIALIZED VIEW IF EXISTS kanji_adjacency_map CASCADE;
+    
+    CREATE MATERIALIZED VIEW kanji_adjacency_map AS
+    WITH
+        kanji_words AS (
+            SELECT
+                ir.to_id AS kanji_id,
+                ir.from_id AS word_id,
+                array_agg(DISTINCT ir2.to_id) AS neighbor_kanji_ids,
+                k.jlpt AS kanji_jlpt
+            FROM
+                item_relations ir
+                JOIN item_relations ir2 ON ir2.from_id = ir.from_id
+                AND ir2.rel_type = 'USES_KANJI'
+                AND ir2.to_type = 'kanji'
+                JOIN words w ON w.id = ir.from_id
+                JOIN kanji k ON k.id = ir.to_id
+            WHERE
+                ir.rel_type = 'USES_KANJI'
+                AND ir.to_type = 'kanji'
+                AND ir2.to_type = 'kanji'
+                AND w.kanji IS NOT NULL
+                AND w.kanji ~ '^[\u4E00-\u9FFF]+$'
+                AND LENGTH(w.kanji) BETWEEN 2 AND 4
+            GROUP BY
+                ir.to_id,
+                ir.from_id,
+                k.jlpt
+        )
+    SELECT
+        kanji_id,
+        word_id,
+        neighbor_kanji_ids,
+        kanji_jlpt
+    FROM kanji_words;
+    
+    -- Recreate indexes
+    CREATE INDEX idx_kanji_adjacency_kanji_id ON kanji_adjacency_map (kanji_id);
+    CREATE INDEX idx_kanji_adjacency_jlpt ON kanji_adjacency_map (kanji_jlpt);
+    CREATE INDEX idx_kanji_adjacency_kanji_jlpt ON kanji_adjacency_map (kanji_id, kanji_jlpt);
+    CREATE UNIQUE INDEX idx_kanji_adjacency_unique ON kanji_adjacency_map (kanji_id, word_id);
+    
+    RAISE NOTICE 'Kanji adjacency map refreshed (recreated with latest definition)';
 END;
 $$ LANGUAGE plpgsql;
 
