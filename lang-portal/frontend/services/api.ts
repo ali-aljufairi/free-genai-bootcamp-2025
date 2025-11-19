@@ -373,6 +373,49 @@ export const grammarApi = {
   history: async (page: number = 1, pageSize: number = 10) => {
     return fetchData<{ sessions: GrammarQuizSession[], total: number, page: number, pageSize: number, totalPages: number }>(`/grammar/history?page=${page}&pageSize=${pageSize}`);
   },
+
+  // Grammar browsing API
+  list: async () => {
+    return fetchData<Array<{
+      id: number;
+      key: string;
+      base_form: string;
+      level: string;
+      structure?: string;
+    }>>('/grammar');
+  },
+
+  getDetail: async (id: number) => {
+    return fetchData<{
+      id: number;
+      key: string;
+      base_form: string;
+      level: string;
+      structure?: string;
+      examples: Array<{
+        id: number;
+        japanese: string;
+        english: string;
+      }>;
+      details?: {
+        meaning?: string;
+        notes?: string;
+        caution?: string[];
+        fun_fact?: string;
+      };
+      readings: Array<{
+        kanji: string;
+        reading: string;
+        position: number;
+      }>;
+    }>(`/grammar/${id}`);
+  },
+
+  markAsLearned: async (id: number) => {
+    return fetchData<{ message: string; grammar_id: number }>(`/grammar/${id}/learned`, {
+      method: 'POST',
+    });
+  },
 };
 
 // Chat API using langportal proxy

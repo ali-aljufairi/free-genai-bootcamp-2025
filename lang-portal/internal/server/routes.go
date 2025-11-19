@@ -133,6 +133,14 @@ func (s *FiberServer) RegisterFiberRoutes() {
 	s.App.Post("/api/langportal/grammar/submit", grammarHandler.SubmitGrammarQuiz)
 	s.App.Get("/api/langportal/grammar/history", grammarHandler.GetGrammarQuizHistory)
 
+	// Grammar browsing routes
+	grammarStore := repositories.NewGrammarStore(s.postgresDB)
+	grammarBrowseHandler := grammar.NewGrammarBrowseHandler(grammarStore)
+	s.App.Get("/api/langportal/grammar", grammarBrowseHandler.ListGrammarPoints)
+	s.App.Get("/api/langportal/grammar/:id", grammarBrowseHandler.GetGrammarPointDetail)
+	s.App.Get("/api/langportal/grammar/recent", grammarBrowseHandler.GetRecentGrammarProgress)
+	s.App.Post("/api/langportal/grammar/:id/learned", grammarBrowseHandler.MarkGrammarAsLearned)
+
 	// Chat routes
 	chatHandler := chat.NewChatHandler(s.postgresDB)
 	s.App.Post("/api/langportal/chat/sessions", chatHandler.SaveChatSession)

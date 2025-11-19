@@ -81,3 +81,7 @@ type QuestionResult struct {
 	IsCorrect    bool   `json:"is_correct"`
 }
 
+// Note: GrammarPoint, GrammarPointDetail, GrammarExample, GrammarDetails, and GrammarReading
+// are defined in internal/repositories/grammar_store.go to avoid import cycles.
+// Import them from repositories when needed.
+

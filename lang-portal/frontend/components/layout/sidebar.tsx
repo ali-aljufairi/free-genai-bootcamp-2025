@@ -3,7 +3,7 @@
 import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { BookOpen, GraduationCap, LayoutDashboard, Menu, Settings, X, ChevronLeft, ChevronRight, Users } from "lucide-react"
+import { BookOpen, GraduationCap, LayoutDashboard, Menu, Settings, X, ChevronLeft, ChevronRight, Users, FileText } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { cn } from "@/lib/utils"
@@ -33,6 +33,11 @@ export default function Sidebar() {
       name: "Vocabulary",
       path: "/vocabulary",
       icon: <BookOpen className="h-5 w-5" />,
+    },
+    {
+      name: "Grammar",
+      path: "/grammar",
+      icon: <FileText className="h-5 w-5" />,
     },
     {
       name: "Groups",

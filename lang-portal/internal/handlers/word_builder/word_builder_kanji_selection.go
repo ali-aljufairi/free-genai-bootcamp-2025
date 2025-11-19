@@ -304,3 +304,5 @@ func (h *WordBuilderHandler) getKanjiDetails(kanjiIDs []int64) ([]KanjiData, err
 
 	return result, nil
 }
+
+

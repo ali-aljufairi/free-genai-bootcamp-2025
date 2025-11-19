@@ -68,3 +68,5 @@ func (h *WordBuilderHandler) getKanjiMeanings(kanjiID int64) ([]string, error) {
 	return nil, fmt.Errorf("no meanings found for kanji id %d", kanjiID)
 }
 
+
+
