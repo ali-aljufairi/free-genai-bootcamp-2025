@@ -64,15 +64,10 @@ export function WordBuilderGame({
     const refreshKanjiMutation = useRefreshKanji()
     const submitMutation = useSubmitWordBuilder()
 
-    // Track previous formed words count for auto-refresh detection
-    const previousFormedWordsCount = useRef(0)
-
     // Initialize session
     useEffect(() => {
         initSession(sessionId, kanji, validWords, timeLimit)
-        // Reset the previous count when session changes
-        previousFormedWordsCount.current = 0
-    }, [sessionId, kanji, validWords, timeLimit, initSession])
+    }, [sessionId, kanji, validWords, timeLimit])
 
     // Initialize Swapy for drag-and-drop functionality
     useEffect(() => {
@@ -124,11 +119,6 @@ export function WordBuilderGame({
                     return false
                 }
 
-                // Prevent dragging kanji from slots back to pool (pool is read-only)
-                if (fromSlot.startsWith('slot-') && toSlot.startsWith('pool-kanji-')) {
-                    return false
-                }
-
                 return true
             })
 
@@ -172,8 +162,12 @@ export function WordBuilderGame({
                         }
                     }
                 }
-                // Case 3: Slot → Pool removed - kanji cannot be dragged back to pool
-                // Users can only remove kanji from slots using the X button
+                // Case 3: Slot → Pool (clearing slot - kanji was never removed from pool)
+                else if (fromSlot.startsWith('slot-') && toSlot.startsWith('pool-kanji-')) {
+                    const slotIndex = parseInt(fromSlot.replace('slot-', ''))
+                    // Just clear the slot, kanji remains in pool
+                    removeKanjiFromSlot(slotIndex)
+                }
 
                 // Update Swapy after state change
                 setTimeout(() => {
@@ -285,10 +279,10 @@ export function WordBuilderGame({
         if (filledSlots.length < 2) return // Need at least 2 kanji for a word
 
         const kanjiChars = filledSlots.map(k => k!.character).join('')
-        const storeValidWords = useWordBuilderStore.getState().validWords
+        const validWords = useWordBuilderStore.getState().validWords
 
         // Check if current combination matches any valid word of this length
-        const matchedWord = storeValidWords.find(w => w.kanji === kanjiChars)
+        const matchedWord = validWords.find(w => w.kanji === kanjiChars)
 
         if (matchedWord) {
             // Found a valid word! Auto-validate immediately
@@ -304,31 +298,6 @@ export function WordBuilderGame({
             return () => clearTimeout(timer)
         }
     }, [currentSlots, preferences.auto_validate, isPlaying])
-
-    // Auto-refresh when all valid words are found
-    useEffect(() => {
-        const storeValidWords = useWordBuilderStore.getState().validWords
-        if (!isPlaying || storeValidWords.length === 0) return
-
-        // Check if all valid words have been found
-        if (formedWords.length === storeValidWords.length && formedWords.length > 0) {
-            // Only trigger if this is a new completion (not already processed)
-            if (previousFormedWordsCount.current < formedWords.length) {
-                previousFormedWordsCount.current = formedWords.length
-                
-                // Auto-refresh after a short delay to show success
-                const timer = setTimeout(() => {
-                    toast.success("All words found! Refreshing kanji pool...")
-                    handleRefreshKanji()
-                }, 300) // 0.5 second delay to show completion message
-                
-                return () => clearTimeout(timer)
-            }
-        } else {
-            // Update the ref when words are found but not all yet
-            previousFormedWordsCount.current = formedWords.length
-        }
-    }, [formedWords.length, isPlaying, handleRefreshKanji])
 
     const handleValidate = () => {
         const result = validateCurrentWord()
