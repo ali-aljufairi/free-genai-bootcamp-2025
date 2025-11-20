@@ -9,6 +9,7 @@ export interface GrammarPoint {
   base_form: string;
   level: string;
   structure?: string;
+  is_learned?: boolean;
 }
 
 export interface GrammarExample {

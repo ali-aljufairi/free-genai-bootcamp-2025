@@ -192,7 +192,7 @@ export function AgentStudy({ sessionId, onComplete }: AgentStudyProps) {
                 })
                 .catch(err => {
                     toast({
-                        variant: "destructive", 
+                        variant: "destructive",
                         title: "Copy failed",
                         description: "Could not copy text to clipboard"
                     })

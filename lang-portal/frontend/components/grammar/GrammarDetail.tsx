@@ -8,17 +8,28 @@ import { Separator } from "@/components/ui/separator";
 import { GrammarExampleList } from "./GrammarExampleList";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Info, AlertTriangle, Sparkles, CheckCircle2, Loader2 } from "lucide-react";
+import { Info, AlertTriangle, Sparkles, CheckCircle2, Loader2, Award } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 interface GrammarDetailProps {
   grammarPoint: GrammarPointDetail;
 }
 
+// Color mapping for JLPT levels
+const levelColors: Record<string, string> = {
+  N5: "bg-blue-500/10 text-blue-600 border-blue-500/20 dark:bg-blue-500/20 dark:text-blue-400",
+  N4: "bg-green-500/10 text-green-600 border-green-500/20 dark:bg-green-500/20 dark:text-green-400",
+  N3: "bg-yellow-500/10 text-yellow-600 border-yellow-500/20 dark:bg-yellow-500/20 dark:text-yellow-400",
+  N2: "bg-orange-500/10 text-orange-600 border-orange-500/20 dark:bg-orange-500/20 dark:text-orange-400",
+  N1: "bg-red-500/10 text-red-600 border-red-500/20 dark:bg-red-500/20 dark:text-red-400",
+};
+
 export function GrammarDetail({ grammarPoint }: GrammarDetailProps) {
   const [isMarking, setIsMarking] = useState(false);
   const [isMarked, setIsMarked] = useState(grammarPoint.is_learned || false);
   const { markAsLearned } = useMarkGrammarAsLearned();
+  const levelColor = levelColors[grammarPoint.level] || levelColors.N5;
 
   const handleMarkAsLearned = async () => {
     setIsMarking(true);
@@ -48,7 +59,14 @@ export function GrammarDetail({ grammarPoint }: GrammarDetailProps) {
                 ({grammarPoint.base_form})
               </span>
             )}
-            <Badge variant="secondary" className="text-base px-3 py-1">
+            <Badge 
+              variant="outline" 
+              className={cn(
+                "inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium border rounded-full shrink-0",
+                levelColor
+              )}
+            >
+              <Award className="h-3 w-3" />
               {grammarPoint.level}
             </Badge>
           </div>

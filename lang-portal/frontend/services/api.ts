@@ -11,6 +11,9 @@ import {
   QuickStats,
   StudyProgress,
   StudyActivity,
+  RecentActivity,
+  RecentActivitiesResponse,
+  ActivityDatesResponse,
   WordsResponse,
   FlashcardConfig,
   FlashcardSession,
@@ -119,13 +122,14 @@ async function fetchData<T>(
   }
 }
 
-// TEMPORARILY DISABLED DUE TO DATABASE MIGRATION ISSUES
 // Dashboard API calls
-// export const dashboardApi = {
-//   getLastStudySession: () => fetchData<StudySession>('/dashboard/last_study_session'),
-//   getStudyProgress: () => fetchData<StudyProgress>('/dashboard/study_progress'),
-//   getQuickStats: () => fetchData<QuickStats>('/dashboard/quick-stats'),
-// };
+export const dashboardApi = {
+  getLastStudySession: () => fetchData<StudySession>('/dashboard/last_study_session'),
+  getStudyProgress: () => fetchData<StudyProgress>('/dashboard/study_progress'),
+  getQuickStats: () => fetchData<QuickStats>('/dashboard/quick-stats'),
+  getActivityDates: () => fetchData<ActivityDatesResponse>('/dashboard/activity_dates'),
+  getRecentActivities: (limit?: number) => fetchData<RecentActivitiesResponse>(`/dashboard/recent_activities${limit ? `?limit=${limit}` : ''}`),
+};
 
 // Study Session API calls
 // export const studySessionApi = {
@@ -152,16 +156,16 @@ async function fetchData<T>(
 // };
 
 // Study Activity API calls
-// export const studyActivityApi = {
-//   getStudyActivities: (page: number = 1, pageSize: number = 20) => 
-//     fetchData<{ items: StudyActivity[], total: number, page: number }>(`/study_activities?page=${page}&per_page=${pageSize}`),
-//   getStudyActivity: (id: string) => fetchData<StudyActivity>(`/study_activities/${id}`),
-//   getStudyActivitySessions: (id: string) => fetchData<StudySession[]>(`/study_activities/${id}/sessions`),
-//   createStudyActivity: (data: Partial<StudyActivity>) => fetchData<StudyActivity>('/study_activities', {
-//     method: 'POST',
-//     body: JSON.stringify(data),
-//   }),
-// };
+export const studyActivityApi = {
+  getStudyActivities: (page: number = 1, pageSize: number = 20) => 
+    fetchData<{ items: StudyActivity[], total: number, page: number }>(`/study_activities?page=${page}&per_page=${pageSize}`),
+  getStudyActivity: (id: string) => fetchData<StudyActivity>(`/study_activities/${id}`),
+  getStudyActivitySessions: (id: string) => fetchData<StudySession[]>(`/study_activities/${id}/sessions`),
+  createStudyActivity: (data: Partial<StudyActivity>) => fetchData<StudyActivity>('/study_activities', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }),
+};
 
 // Word API calls (via unified /api/langportal proxy)
 export const wordApi = {
@@ -253,7 +257,7 @@ export const groupApi = {
 
 // User API (favorite group)
 export const userApi = {
-  getMe: () => fetchData<{ id: number; favorite_group_id?: number | null; [key: string]: any }>(`/users/me`),
+  getMe: () => fetchData<any>(`/users/me`), // Return type is UserProfile but defined in useGroup.ts
   setFavoriteGroup: (groupId: number | null) => fetchData<{ success: boolean }>(`/users/me/favorite_group`, {
     method: 'PUT',
     body: JSON.stringify({ group_id: groupId }),
@@ -382,6 +386,7 @@ export const grammarApi = {
       base_form: string;
       level: string;
       structure?: string;
+      is_learned?: boolean;
     }>>('/grammar');
   },
 
@@ -464,10 +469,10 @@ export const wordBuilderApi = {
 };
 
 export const api = {
-  // dashboard: dashboardApi,
+  dashboard: dashboardApi,
   // studySession: studySessionApi,
   group: groupApi,
-  // studyActivity: studyActivityApi,
+  studyActivity: studyActivityApi,
   word: wordApi,
   kanji: kanjiApi,
   user: userApi,

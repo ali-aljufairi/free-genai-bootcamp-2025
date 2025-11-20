@@ -44,6 +44,8 @@ export interface QuickStats {
   total_study_sessions: number;
   total_active_groups: number;
   study_streak_days: number;
+  total_sessions_completed?: number;
+  items_in_review?: number;
 }
 
 export interface StudyProgress {
@@ -54,12 +56,31 @@ export interface StudyProgress {
     sessionCount: number;
     wordsStudied: number;
   }[];
+  total_words_studied?: number;
+  total_available_words?: number;
+}
+
+export interface RecentActivity {
+  id: number;
+  type: 'quiz' | 'flashcards' | 'chat' | 'drawing' | 'speech' | 'agent' | 'word_builder' | 'achievement';
+  name: string;
+  description: string;
+  created_at: string;
+}
+
+export interface RecentActivitiesResponse {
+  items: RecentActivity[];
+  total: number;
+}
+
+export interface ActivityDatesResponse {
+  dates: string[];
 }
 
 // Study Activity Types
 export interface StudyActivity {
   id: string;
-  type: 'flashcards' | 'quiz' | 'chat' | 'drawing' | 'agent' | 'speech';
+  type: 'flashcards' | 'quiz' | 'chat' | 'drawing' | 'agent' | 'speech' | 'word_builder';
   name: string;
   description: string;
   study_session_id: string;

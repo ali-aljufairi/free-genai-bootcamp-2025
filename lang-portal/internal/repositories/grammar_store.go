@@ -95,20 +95,38 @@ type GrammarReading struct {
 	Position int    `json:"position"`
 }
 
+// GrammarPointWithStatus represents a grammar point with learned status
+type GrammarPointWithStatus struct {
+	GrammarPoint
+	IsLearned bool `json:"is_learned"`
+}
+
 // ListGrammarPoints lists grammar points for user's JLPT level (and below)
-func (s *GrammarStore) ListGrammarPoints(userID int64) ([]GrammarPoint, error) {
+func (s *GrammarStore) ListGrammarPoints(userID int64) ([]GrammarPointWithStatus, error) {
 	levels, err := s.GetGrammarLevelsForUser(userID)
 	if err != nil {
 		return nil, err
 	}
 
-	var grammarPoints []GrammarPoint
+	var grammarPoints []GrammarPointWithStatus
 
-	// Build query with level filter
+	// Build query with level filter and LEFT JOIN to check learned status
 	query := s.DB.Table("grammar_points").
-		Select("id, key, base_form, level, structure").
-		Where("level IN ?", levels).
-		Order("CASE level WHEN 'N5' THEN 5 WHEN 'N4' THEN 4 WHEN 'N3' THEN 3 WHEN 'N2' THEN 2 WHEN 'N1' THEN 1 END DESC, key")
+		Select(`
+			grammar_points.id,
+			grammar_points.key,
+			grammar_points.base_form,
+			grammar_points.level,
+			grammar_points.structure,
+			CASE WHEN progress.user_id IS NOT NULL THEN true ELSE false END as is_learned
+		`).
+		Joins(`
+			LEFT JOIN progress ON progress.user_id = ? 
+				AND progress.item_type = 'grammar' 
+				AND progress.item_id = grammar_points.id
+		`, userID).
+		Where("grammar_points.level IN ?", levels).
+		Order("CASE grammar_points.level WHEN 'N5' THEN 5 WHEN 'N4' THEN 4 WHEN 'N3' THEN 3 WHEN 'N2' THEN 2 WHEN 'N1' THEN 1 END DESC, grammar_points.key")
 
 	err = query.Find(&grammarPoints).Error
 	if err != nil {

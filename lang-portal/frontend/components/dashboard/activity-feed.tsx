@@ -1,9 +1,8 @@
 "use client"
 
-import { CheckCircle2, Clock, Star, Brain, MessageSquare, Edit, Mic, Search } from "lucide-react"
-import { useState } from "react"
-import { useStudyActivities } from "@/hooks/api/useStudyActivity"
-import { StudyActivity } from "@/types/api"
+import { CheckCircle2, Clock, Star, Brain, MessageSquare, Edit, Mic, Search, Puzzle } from "lucide-react"
+import { useRecentActivities } from "@/hooks/api/useDashboard"
+import { RecentActivity } from "@/types/api"
 
 // Map activity types to their respective icons
 const activityIcons: Record<string, JSX.Element> = {
@@ -14,17 +13,19 @@ const activityIcons: Record<string, JSX.Element> = {
   "speech": <Mic className="h-5 w-5 text-red-500" />,
   "agent": <Search className="h-5 w-5 text-teal-500" />,
   "achievement": <Star className="h-5 w-5 text-yellow-500" />,
+  "word_builder": <Puzzle className="h-5 w-5 text-indigo-500" />,
 }
 
 // Map activity types to human-readable titles
 const activityTitles: Record<string, string> = {
-  "quiz": "Completed Quiz",
+  "quiz": "Grammar Quiz",
   "flashcards": "Studied Flashcards",
-  "chat": "Practiced Conversation",
+  "chat": "Chat Practice",
   "drawing": "Practiced Writing",
   "speech": "Speech Practice",
   "agent": "Learning Resources",
   "achievement": "Earned Achievement",
+  "word_builder": "Word Builder",
 }
 
 // Default activities to show when loading or if there's an error
@@ -125,19 +126,26 @@ function formatRelativeTime(dateString: string): string {
   return date.toLocaleDateString(undefined, options);
 }
 
-export function ActivityFeed() {
-  // Use our hook to fetch study activities
-  const { data, isLoading, error } = useStudyActivities(1, 10);
+interface ActivityDisplayItem {
+  id: number;
+  type: string;
+  title: string;
+  description: string;
+  time: string;
+  icon: JSX.Element;
+}
 
-  // Transform fetched activities into the format expected by the component
-  const activities = data?.items?.map((activity: StudyActivity) => {
-    // Ensure we have a valid activity type, default to flashcards if missing
+export function ActivityFeed() {
+  const { data, isLoading, error } = useRecentActivities(10);
+
+  // Transform API data to display format
+  const activities: ActivityDisplayItem[] = data?.items?.map((activity: RecentActivity) => {
     const activityType = activity.type || "flashcards";
     return {
       id: activity.id,
       type: activityType,
       title: activityTitles[activityType] || "Study Session",
-      description: activity.description || activity.name,
+      description: activity.description || activity.name || "",
       time: formatRelativeTime(activity.created_at),
       icon: activityIcons[activityType] || activityIcons.flashcards,
     };
@@ -186,4 +194,3 @@ export function ActivityFeed() {
     </div>
   )
 }
-

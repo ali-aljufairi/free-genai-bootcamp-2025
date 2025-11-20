@@ -1,133 +1,119 @@
 "use client"
 import { useTheme } from "next-themes"
-import { useState, useEffect } from "react"
-import { api } from "@/services/api"
+import { useActivityDates } from "@/hooks/api/useDashboard"
+import { useMemo } from "react"
 
 export function StreakCalendar() {
   const { theme } = useTheme()
   const isDark = theme === "dark"
-  const [activityData, setActivityData] = useState<{ [key: string]: boolean }>({})
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<Error | null>(null)
+  const { data, isLoading, error } = useActivityDates()
+
+  // Convert activity dates to a map for quick lookup
+  const activityData = useMemo(() => {
+    const activityMap: { [key: string]: boolean } = {}
+
+    if (data?.dates && Array.isArray(data.dates)) {
+      data.dates.forEach((dateStr: string) => {
+        // Ensure date is in correct format (YYYY-MM-DD)
+        let normalizedDate = dateStr;
+        if (normalizedDate.includes('T')) {
+          normalizedDate = normalizedDate.split('T')[0];
+        }
+        activityMap[normalizedDate] = true;
+      });
+    }
+
+    return activityMap;
+  }, [data?.dates]);
 
   // Generate last 28 days (4 weeks)
-  const days = Array.from({ length: 28 }, (_, i) => {
-    const date = new Date()
-    date.setDate(date.getDate() - 27 + i)
-    const dateKey = date.toISOString().split('T')[0] // YYYY-MM-DD format
-    return {
-      date,
-      dateKey,
-      hasActivity: activityData[dateKey] || false,
-    }
-  })
-
-  useEffect(() => {
-    async function fetchActivityData() {
-      try {
-        setIsLoading(true)
-        setError(null)
-        
-        // Fetch activity data from all sources
-        const [progressData, studyActivities] = await Promise.all([
-          api.dashboard.getStudyProgress(),
-          api.studyActivity.getStudyActivities(1, 100)
-        ]);
-
-        // Convert the API responses into a map of dates with activity
-        const activityMap: { [key: string]: boolean } = {}
-        
-        // Process activity dates from study progress
-        if (progressData && progressData.dailyActivity && Array.isArray(progressData.dailyActivity)) {
-          progressData.dailyActivity.forEach((activity) => {
-            if (activity && activity.date) {
-              // Ensure date is in correct format (YYYY-MM-DD)
-              let dateStr = activity.date;
-              if (dateStr.includes('T')) {
-                dateStr = dateStr.split('T')[0];
-              }
-              activityMap[dateStr] = true;
-            }
-          });
-        }
-
-        // Add activity dates from study activities
-        if (studyActivities && studyActivities.items && Array.isArray(studyActivities.items)) {
-          studyActivities.items.forEach(activity => {
-            if (activity && activity.created_at) {
-              const dateStr = new Date(activity.created_at).toISOString().split('T')[0];
-              activityMap[dateStr] = true;
-            }
-          });
-        }
-
-        setActivityData(activityMap)
-      } catch (err) {
-        console.error("Failed to fetch activity data:", err)
-        setError(err instanceof Error ? err : new Error('Unknown error'))
-        
-        // Use dummy data if API fails
-        generateDummyData()
-      } finally {
-        setIsLoading(false)
+  const days = useMemo(() => {
+    return Array.from({ length: 28 }, (_, i) => {
+      const date = new Date()
+      date.setDate(date.getDate() - 27 + i)
+      const dateKey = date.toISOString().split('T')[0] // YYYY-MM-DD format
+      return {
+        date,
+        dateKey,
+        hasActivity: activityData[dateKey] || false,
       }
-    }
-
-    function generateDummyData() {
-      // Create dummy activity data for demonstration purposes
-      const dummyData: { [key: string]: boolean } = {}
-      
-      // Create a realistic pattern for the last 28 days
-      for (let i = 0; i < 28; i++) {
-        const date = new Date()
-        date.setDate(date.getDate() - i)
-        const dateKey = date.toISOString().split('T')[0]
-        
-        if (i < 7) {
-          // Recent days have higher chance of activity
-          dummyData[dateKey] = Math.random() > 0.3
-        } else {
-          // Older days have lower chance of activity
-          dummyData[dateKey] = Math.random() > 0.6
-        }
-      }
-      
-      setActivityData(dummyData)
-    }
-
-    fetchActivityData()
-  }, [])
+    })
+  }, [activityData])
 
   // Group days by week
-  const weeks = []
-  for (let i = 0; i < days.length; i += 7) {
-    weeks.push(days.slice(i, i + 7))
-  }
+  const weeks = useMemo(() => {
+    const result = []
+    for (let i = 0; i < days.length; i += 7) {
+      result.push(days.slice(i, i + 7))
+    }
+    return result
+  }, [days])
 
   // Get day names for the header
   const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
 
+  // Generate dummy data for fallback
+  const generateDummyData = () => {
+    const dummyData: { [key: string]: boolean } = {}
+    for (let i = 0; i < 28; i++) {
+      const date = new Date()
+      date.setDate(date.getDate() - i)
+      const dateKey = date.toISOString().split('T')[0]
+      if (i < 7) {
+        dummyData[dateKey] = Math.random() > 0.3
+      } else {
+        dummyData[dateKey] = Math.random() > 0.6
+      }
+    }
+    return dummyData
+  }
+
+  // Use dummy data if there's an error
+  const displayData = error ? generateDummyData() : activityData
+  const displayDays = error
+    ? Array.from({ length: 28 }, (_, i) => {
+      const date = new Date()
+      date.setDate(date.getDate() - 27 + i)
+      const dateKey = date.toISOString().split('T')[0]
+      return {
+        date,
+        dateKey,
+        hasActivity: displayData[dateKey] || false,
+      }
+    })
+    : days
+
+  const displayWeeks = error
+    ? (() => {
+      const result = []
+      for (let i = 0; i < displayDays.length; i += 7) {
+        result.push(displayDays.slice(i, i + 7))
+      }
+      return result
+    })()
+    : weeks
+
   return (
-    <div className="w-full">
-      <div className="flex justify-between items-center mb-3">
+    <div className="w-full px-1">
+      <div className="flex justify-between items-center mb-2">
         <h3 className="text-sm font-medium">Activity Calendar</h3>
       </div>
-      
-      <div className="grid grid-cols-7 gap-1 mb-2">
+
+      <div className="grid grid-cols-7 gap-1 mb-1.5">
         {dayNames.map((day) => (
-          <div key={day} className="text-xs text-center text-muted-foreground font-medium">
+          <div key={day} className="text-xs text-center text-muted-foreground font-medium py-0.5">
             {day}
           </div>
         ))}
       </div>
-      
+
       {isLoading ? (
         <div className="h-[140px] flex items-center justify-center">
           <p className="text-sm text-muted-foreground">Loading calendar data...</p>
         </div>
       ) : (
         <div className="space-y-1">
-          {weeks.map((week, weekIndex) => (
+          {displayWeeks.map((week, weekIndex) => (
             <div key={weekIndex} className="grid grid-cols-7 gap-1">
               {week.map((day, dayIndex) => {
                 const isToday = new Date().toDateString() === day.date.toDateString()
@@ -158,4 +144,3 @@ export function StreakCalendar() {
     </div>
   )
 }
-

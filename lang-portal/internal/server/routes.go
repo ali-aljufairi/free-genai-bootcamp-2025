@@ -72,6 +72,8 @@ func (s *FiberServer) RegisterFiberRoutes() {
 	s.App.Get("/api/langportal/dashboard/last_study_session", dashboardHandler.GetLastStudySession)
 	s.App.Get("/api/langportal/dashboard/study_progress", dashboardHandler.GetStudyProgress)
 	s.App.Get("/api/langportal/dashboard/quick-stats", dashboardHandler.GetQuickStats)
+	s.App.Get("/api/langportal/dashboard/activity_dates", dashboardHandler.GetActivityDates)
+	s.App.Get("/api/langportal/dashboard/recent_activities", dashboardHandler.GetRecentActivities)
 
 	// Study session routes
 	studySessionHandler := session.NewStudySessionHandler(s.postgresDB)
