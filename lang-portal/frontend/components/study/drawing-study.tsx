@@ -47,7 +47,7 @@ export function DrawingStudy() {
     const [kanji, setKanji] = useState<Kanji | null>(null)
     const [feedback, setFeedback] = useState<string>('')
     const [isEraseMode, setIsEraseMode] = useState(false)
-    const [studyMode, setStudyMode] = useState<'word' | 'sentence' | 'kanji'>('word')
+    const [studyMode, setStudyMode] = useState<'word' | 'sentence' | 'kanji'>('kanji')
     const [isLoading, setIsLoading] = useState(false)
     const [showKanjiGuide, setShowKanjiGuide] = useState(true)
     const canvasRef = useRef<ReactSketchCanvasRef | null>(null)
@@ -277,9 +277,9 @@ export function DrawingStudy() {
             <Card className="glass-card overflow-hidden rounded-xl border border-blue-100/80 dark:border-blue-900/70 shadow-xl p-6">
                 <Tabs value={studyMode} onValueChange={(value) => setStudyMode(value as 'word' | 'sentence' | 'kanji')} className="mb-6">
                     <TabsList className="grid w-full grid-cols-3">
+                        <TabsTrigger value="kanji">Kanji Practice</TabsTrigger>
                         <TabsTrigger value="word">Word Practice</TabsTrigger>
                         <TabsTrigger value="sentence">Sentence Practice</TabsTrigger>
-                        <TabsTrigger value="kanji">Kanji Practice</TabsTrigger>
                     </TabsList>
                 </Tabs>
 
@@ -457,7 +457,7 @@ export function DrawingStudy() {
                         </div>
                         <Button
                             onClick={handleSubmit}
-                            className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white border-0"
+                            className="bg-blue-600 hover:bg-blue-700 text-white"
                             size="sm"
                         >
                             <Send className="h-4 w-4 mr-2" />

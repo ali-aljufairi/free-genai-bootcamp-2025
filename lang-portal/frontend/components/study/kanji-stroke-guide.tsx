@@ -13,12 +13,12 @@ interface KanjiStrokeGuideProps {
 }
 
 export function KanjiStrokeGuide({ svgData, strokeCount, onStrokeComplete, showGuide: externalShowGuide, onToggleGuide }: KanjiStrokeGuideProps) {
-    const [currentStroke, setCurrentStroke] = useState(0)
-    const [isPlaying, setIsPlaying] = useState(false)
+    const [currentStroke, setCurrentStroke] = useState(0) // Start at 0 for first stroke
+    const [isPlaying, setIsPlaying] = useState(true) // Auto-play by default
     const [internalShowGuide, setInternalShowGuide] = useState(true)
     const [displayedStrokes, setDisplayedStrokes] = useState<string[]>([])
     const animationRef = useRef<NodeJS.Timeout | null>(null)
-    
+
     // Use external state if provided, otherwise use internal
     const showGuide = externalShowGuide !== undefined ? externalShowGuide : internalShowGuide
     const setShowGuide = onToggleGuide || setInternalShowGuide
@@ -65,7 +65,8 @@ export function KanjiStrokeGuide({ svgData, strokeCount, onStrokeComplete, showG
                                 return pathClone.outerHTML
                             })
                             setDisplayedStrokes(strokePaths)
-                            setCurrentStroke(0)
+                            setCurrentStroke(0) // Start at first stroke
+                            setIsPlaying(true) // Auto-play by default
                             return
                         }
                     }
@@ -93,22 +94,27 @@ export function KanjiStrokeGuide({ svgData, strokeCount, onStrokeComplete, showG
             })
 
             setDisplayedStrokes(strokePaths)
+            // Reset to 0 and auto-start animation when new SVG data is loaded
             setCurrentStroke(0)
+            setIsPlaying(true) // Auto-play by default
         } catch (error) {
             console.error('Error parsing SVG:', error, 'SVG data:', svgData?.substring(0, 200))
             setDisplayedStrokes([])
         }
     }, [svgData])
 
-    // Animation effect
+    // Animation effect - loops continuously until stopped, then user can step manually
     useEffect(() => {
         if (isPlaying && displayedStrokes.length > 0) {
             animationRef.current = setInterval(() => {
                 setCurrentStroke(prev => {
                     const next = prev + 1
                     if (next >= displayedStrokes.length) {
-                        setIsPlaying(false)
-                        return prev
+                        // Loop back to the beginning instead of stopping
+                        if (onStrokeComplete) {
+                            onStrokeComplete(0)
+                        }
+                        return 0
                     }
                     if (onStrokeComplete) {
                         onStrokeComplete(next)
@@ -121,6 +127,7 @@ export function KanjiStrokeGuide({ svgData, strokeCount, onStrokeComplete, showG
                 clearInterval(animationRef.current)
                 animationRef.current = null
             }
+            // When paused, stay at current stroke (user can step manually)
         }
 
         return () => {
@@ -131,10 +138,7 @@ export function KanjiStrokeGuide({ svgData, strokeCount, onStrokeComplete, showG
     }, [isPlaying, displayedStrokes.length, onStrokeComplete])
 
     const handlePlay = () => {
-        if (currentStroke >= displayedStrokes.length - 1) {
-            // Reset to beginning
-            setCurrentStroke(0)
-        }
+        // Resume continuous looping from current position
         setIsPlaying(true)
     }
 
@@ -227,6 +231,7 @@ export function KanjiStrokeGuide({ svgData, strokeCount, onStrokeComplete, showG
 
             paths.forEach((path, index) => {
                 const pathElement = path as SVGPathElement
+                // Show strokes up to currentStroke
                 if (index <= currentStroke) {
                     // Highlight current stroke, dim previous ones
                     if (index === currentStroke) {
