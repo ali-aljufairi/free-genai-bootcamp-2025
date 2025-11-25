@@ -9,6 +9,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Eraser, Pencil, RotateCcw, Send, Trash2, RefreshCw } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { KanjiStrokeGuide } from './kanji-stroke-guide'
+import { Eye, EyeOff } from 'lucide-react'
 import { getCachedToken } from '@/lib/token-cache'
 
 interface Word {
@@ -48,6 +49,7 @@ export function DrawingStudy() {
     const [isEraseMode, setIsEraseMode] = useState(false)
     const [studyMode, setStudyMode] = useState<'word' | 'sentence' | 'kanji'>('word')
     const [isLoading, setIsLoading] = useState(false)
+    const [showKanjiGuide, setShowKanjiGuide] = useState(true)
     const canvasRef = useRef<ReactSketchCanvasRef | null>(null)
 
     const getAuthHeaders = async () => {
@@ -293,18 +295,25 @@ export function DrawingStudy() {
                             <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
                             New {studyMode === 'word' ? 'Word' : studyMode === 'sentence' ? 'Sentence' : 'Kanji'}
                         </Button>
-                        <Button
-                            onClick={() => {
-                                canvasRef.current?.clearCanvas();
-                                setFeedback('');
-                            }}
-                            variant="outline"
-                            size="sm"
-                            className="flex gap-2"
-                        >
-                            <Trash2 className="h-4 w-4" />
-                            Clear Canvas
-                        </Button>
+                        {studyMode === 'kanji' && (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setShowKanjiGuide(!showKanjiGuide)}
+                            >
+                                {showKanjiGuide ? (
+                                    <>
+                                        <EyeOff className="h-4 w-4 mr-2" />
+                                        Hide Guide
+                                    </>
+                                ) : (
+                                    <>
+                                        <Eye className="h-4 w-4 mr-2" />
+                                        Show Guide
+                                    </>
+                                )}
+                            </Button>
+                        )}
                     </div>
                     {studyMode === 'word' && word && (
                         <>
@@ -328,15 +337,17 @@ export function DrawingStudy() {
                         </>
                     )}
                     {studyMode === 'kanji' && kanji && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
-                            <div className="space-y-4">
-                                <h2 className="text-6xl md:text-7xl font-bold">{kanji.character}</h2>
-                                <div className="space-y-2">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+                            <div className="flex flex-col items-center justify-center space-y-4">
+                                <div className="flex items-center justify-center h-[300px]">
+                                    <h2 className="text-8xl md:text-9xl font-bold text-center">{kanji.character}</h2>
+                                </div>
+                                <div className="space-y-2 text-center">
                                     <p className="text-lg font-medium text-foreground">
                                         {kanji.meanings?.join(', ')}
                                     </p>
                                     {(kanji.onyomi || kanji.kunyomi) && (
-                                        <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+                                        <div className="flex flex-wrap items-center justify-center gap-3 text-sm text-muted-foreground">
                                             {kanji.onyomi && (
                                                 <span className="px-2 py-1 rounded bg-blue-50 dark:bg-blue-950/30">
                                                     音読み: <span className="font-medium">{kanji.onyomi}</span>
@@ -349,7 +360,7 @@ export function DrawingStudy() {
                                             )}
                                         </div>
                                     )}
-                                    <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                                    <div className="flex flex-wrap gap-2 text-xs text-muted-foreground justify-center">
                                         {kanji.jlpt && (
                                             <span>JLPT N{kanji.jlpt}</span>
                                         )}
@@ -361,10 +372,12 @@ export function DrawingStudy() {
                             </div>
 
                             {kanji.strokes_svg && (
-                                <div className="flex flex-col">
+                                <div className="flex flex-col items-center justify-center">
                                     <KanjiStrokeGuide
                                         svgData={kanji.strokes_svg}
                                         strokeCount={kanji.stroke_count}
+                                        showGuide={showKanjiGuide}
+                                        onToggleGuide={setShowKanjiGuide}
                                     />
                                 </div>
                             )}

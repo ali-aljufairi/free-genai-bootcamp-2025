@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Play, Pause, SkipForward, RotateCcw, Eye, EyeOff } from 'lucide-react'
 
@@ -8,14 +8,20 @@ interface KanjiStrokeGuideProps {
     svgData: string | null
     strokeCount?: number
     onStrokeComplete?: (strokeIndex: number) => void
+    showGuide?: boolean
+    onToggleGuide?: (show: boolean) => void
 }
 
-export function KanjiStrokeGuide({ svgData, strokeCount, onStrokeComplete }: KanjiStrokeGuideProps) {
+export function KanjiStrokeGuide({ svgData, strokeCount, onStrokeComplete, showGuide: externalShowGuide, onToggleGuide }: KanjiStrokeGuideProps) {
     const [currentStroke, setCurrentStroke] = useState(0)
     const [isPlaying, setIsPlaying] = useState(false)
-    const [showGuide, setShowGuide] = useState(true)
+    const [internalShowGuide, setInternalShowGuide] = useState(true)
     const [displayedStrokes, setDisplayedStrokes] = useState<string[]>([])
     const animationRef = useRef<NodeJS.Timeout | null>(null)
+    
+    // Use external state if provided, otherwise use internal
+    const showGuide = externalShowGuide !== undefined ? externalShowGuide : internalShowGuide
+    const setShowGuide = onToggleGuide || setInternalShowGuide
 
     // Parse SVG and extract individual strokes
     useEffect(() => {
@@ -211,8 +217,9 @@ export function KanjiStrokeGuide({ svgData, strokeCount, onStrokeComplete }: Kan
                 const height = svgElement.getAttribute('height') || '109'
                 svgElement.setAttribute('viewBox', `0 0 ${width} ${height}`)
             }
-            svgElement.setAttribute('width', '100%')
-            svgElement.setAttribute('height', '100%')
+            // Set SVG to match the kanji character size (300px height container)
+            svgElement.setAttribute('width', '300')
+            svgElement.setAttribute('height', '300')
             svgElement.setAttribute('preserveAspectRatio', 'xMidYMid meet')
             svgElement.setAttribute('style', 'display: block;')
 
@@ -247,25 +254,6 @@ export function KanjiStrokeGuide({ svgData, strokeCount, onStrokeComplete }: Kan
     return (
         <div className="space-y-4">
             <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setShowGuide(!showGuide)}
-                    >
-                        {showGuide ? (
-                            <>
-                                <EyeOff className="h-4 w-4 mr-2" />
-                                Hide Guide
-                            </>
-                        ) : (
-                            <>
-                                <Eye className="h-4 w-4 mr-2" />
-                                Show Guide
-                            </>
-                        )}
-                    </Button>
-                </div>
                 {showGuide && (
                     <div className="flex items-center gap-2">
                         <span className="text-sm text-muted-foreground">
@@ -303,10 +291,10 @@ export function KanjiStrokeGuide({ svgData, strokeCount, onStrokeComplete }: Kan
             </div>
 
             {showGuide && (
-                <div className="w-full h-[300px] border-2 border-blue-200 dark:border-blue-800 rounded-lg overflow-hidden flex items-center justify-center p-4 bg-white dark:bg-gray-900">
+                <div className="w-full h-[300px] flex items-center justify-center">
                     <div
                         dangerouslySetInnerHTML={{ __html: modifiedSvg }}
-                        className="w-full h-full flex items-center justify-center [&_svg]:max-w-full [&_svg]:max-h-full [&_svg]:object-contain [&_svg]:w-auto [&_svg]:h-auto"
+                        className="w-full h-full flex items-center justify-center [&_svg]:w-full [&_svg]:h-full [&_svg]:max-w-full [&_svg]:max-h-full"
                         style={{ maxWidth: '100%', maxHeight: '100%' }}
                     />
                 </div>
