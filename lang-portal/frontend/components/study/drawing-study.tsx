@@ -1,12 +1,15 @@
 "use client"
 
 import { useState, useEffect, useRef } from 'react'
+import { useAuth } from "@clerk/nextjs"
 import { ReactSketchCanvas, ReactSketchCanvasRef } from 'react-sketch-canvas'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Eraser, Pencil, RotateCcw, Send, Trash2, RefreshCw } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { KanjiStrokeGuide } from './kanji-stroke-guide'
+import { getCachedToken } from '@/lib/token-cache'
 
 interface Word {
     id: number
@@ -25,13 +28,77 @@ interface Sentence {
     word: string
 }
 
+interface Kanji {
+    id: number
+    character: string
+    meanings: string[]
+    onyomi?: string
+    kunyomi?: string
+    jlpt?: number
+    stroke_count?: number
+    strokes_svg?: string
+}
+
 export function DrawingStudy() {
+    const { getToken } = useAuth()
     const [word, setWord] = useState<Word | null>(null)
     const [sentence, setSentence] = useState<Sentence | null>(null)
+    const [kanji, setKanji] = useState<Kanji | null>(null)
     const [feedback, setFeedback] = useState<string>('')
     const [isEraseMode, setIsEraseMode] = useState(false)
-    const [studyMode, setStudyMode] = useState<'word' | 'sentence'>('word')
+    const [studyMode, setStudyMode] = useState<'word' | 'sentence' | 'kanji'>('word')
+    const [isLoading, setIsLoading] = useState(false)
     const canvasRef = useRef<ReactSketchCanvasRef | null>(null)
+
+    const getAuthHeaders = async () => {
+        const headers: HeadersInit = {
+            "Content-Type": "application/json",
+        }
+
+        // Get token from Clerk using useAuth hook
+        try {
+            const token = await getToken();
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            } else {
+                console.warn('No token available from Clerk');
+                // Fallback to window.Clerk if useAuth fails
+                if (typeof window !== 'undefined') {
+                    try {
+                        const clerk: any = (window as any).Clerk;
+                        const session = clerk?.session;
+                        if (session) {
+                            const fallbackToken = await getCachedToken(session);
+                            if (fallbackToken) {
+                                headers['Authorization'] = `Bearer ${fallbackToken}`;
+                            }
+                        }
+                    } catch (fallbackError) {
+                        console.error('Fallback token retrieval also failed:', fallbackError);
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Failed to get auth token:', error);
+            // Fallback to window.Clerk if useAuth fails
+            if (typeof window !== 'undefined') {
+                try {
+                    const clerk: any = (window as any).Clerk;
+                    const session = clerk?.session;
+                    if (session) {
+                        const fallbackToken = await getCachedToken(session);
+                        if (fallbackToken) {
+                            headers['Authorization'] = `Bearer ${fallbackToken}`;
+                        }
+                    }
+                } catch (fallbackError) {
+                    console.error('Fallback token retrieval also failed:', fallbackError);
+                }
+            }
+        }
+
+        return headers
+    }
 
     const fetchRandomWord = async () => {
         try {
@@ -45,12 +112,52 @@ export function DrawingStudy() {
 
     const fetchRandomSentence = async () => {
         try {
-            const response = await fetch(`/api/writing/random-sentence`)
+            const headers = await getAuthHeaders()
+            const response = await fetch(`/api/writing/random-sentence`, {
+                headers
+            })
+            if (!response.ok) {
+                const errorText = await response.text()
+                let errorMessage = `Failed to fetch sentence: ${response.status}`
+                try {
+                    const errorData = JSON.parse(errorText)
+                    errorMessage = errorData.error || errorData.detail || errorMessage
+                } catch {
+                    errorMessage = errorText || errorMessage
+                }
+                throw new Error(errorMessage)
+            }
             const data = await response.json()
-            console.log(data)
             setSentence(data)
         } catch (error) {
             console.error('Error fetching sentence:', error)
+        }
+    }
+
+    const fetchRandomKanji = async () => {
+        try {
+            setIsLoading(true)
+            const headers = await getAuthHeaders()
+            const response = await fetch(`/api/writing/kanji/random`, {
+                headers
+            })
+            if (!response.ok) {
+                const errorText = await response.text()
+                let errorMessage = `Failed to fetch kanji: ${response.status}`
+                try {
+                    const errorData = JSON.parse(errorText)
+                    errorMessage = errorData.error || errorData.detail || errorMessage
+                } catch {
+                    errorMessage = errorText || errorMessage
+                }
+                throw new Error(errorMessage)
+            }
+            const data = await response.json()
+            setKanji(data)
+        } catch (error) {
+            console.error('Error fetching kanji:', error)
+        } finally {
+            setIsLoading(false)
         }
     }
 
@@ -61,60 +168,116 @@ export function DrawingStudy() {
             const canvas = canvasRef.current as any
             const base64Image = await canvas.exportImage('base64')
 
-            const endpoint = studyMode === 'word'
-                ? `/api/writing/feedback-word`
-                : `/api/writing/feedback-sentence`;
+            let endpoint: string
+            let requestBody: any
 
-            // Create appropriate request body based on study mode
-            const requestBody = studyMode === 'word'
-                ? {
+            if (studyMode === 'word') {
+                endpoint = `/api/writing/feedback-word`
+                requestBody = {
                     image: base64Image.split(',')[1],
                     target_word: word?.japanese
                 }
-                : {
+            } else if (studyMode === 'sentence') {
+                endpoint = `/api/writing/feedback-sentence`
+                requestBody = {
                     image: base64Image.split(',')[1],
                     target_sentence: sentence?.sentence
-                };
+                }
+            } else {
+                // Kanji mode
+                endpoint = `/api/writing/kanji/feedback`
+                requestBody = {
+                    image: base64Image.split(',')[1],
+                    kanji_id: kanji?.id,
+                    character: kanji?.character
+                }
+            }
 
+            const headers = await getAuthHeaders()
             const response = await fetch(endpoint, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers,
                 body: JSON.stringify(requestBody)
             })
 
+            if (!response.ok) {
+                const errorText = await response.text()
+                let errorMessage = `Failed to submit drawing: ${response.status}`
+                try {
+                    const errorData = JSON.parse(errorText)
+                    errorMessage = errorData.error || errorData.detail || errorMessage
+                } catch {
+                    errorMessage = errorText || errorMessage
+                }
+                throw new Error(errorMessage)
+            }
+
             const data = await response.json()
-            setFeedback(data.feedback)
+            if (studyMode === 'kanji') {
+                setFeedback(`Accuracy: ${data.accuracy.toFixed(1)}% - Grade: ${data.grade}\n${data.feedback}`)
+            } else {
+                setFeedback(data.feedback)
+            }
         } catch (error) {
             console.error('Error submitting drawing:', error)
+            setFeedback('Error submitting drawing. Please try again.')
         }
     }
 
-    const handleRefresh = () => {
-        if (studyMode === 'word') {
-            fetchRandomWord();
-        } else {
-            fetchRandomSentence();
-        }
+    const handleRefresh = async () => {
         canvasRef.current?.clearCanvas();
         setFeedback('');
+        setIsLoading(true)
+
+        try {
+            if (studyMode === 'word') {
+                await fetchRandomWord();
+            } else if (studyMode === 'sentence') {
+                await fetchRandomSentence();
+            } else {
+                await fetchRandomKanji();
+            }
+        } finally {
+            setIsLoading(false)
+        }
     }
 
     useEffect(() => {
         fetchRandomWord()
         fetchRandomSentence()
+        fetchRandomKanji()
     }, [])
 
-    if (!word || !sentence) return <div>Loading...</div>
+    useEffect(() => {
+        // Fetch new content when mode changes
+        if (studyMode === 'word' && !word) {
+            fetchRandomWord()
+        } else if (studyMode === 'sentence' && !sentence) {
+            fetchRandomSentence()
+        } else if (studyMode === 'kanji' && !kanji) {
+            fetchRandomKanji()
+        }
+    }, [studyMode])
+
+    if ((studyMode === 'word' && !word) || (studyMode === 'sentence' && !sentence) || (studyMode === 'kanji' && !kanji)) {
+        return (
+            <div className="flex items-center justify-center p-8">
+                <div className="text-center space-y-2">
+                    <RefreshCw className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
+                    <p className="text-sm text-muted-foreground">Loading...</p>
+                </div>
+            </div>
+        )
+    }
 
     return (
         <div className="space-y-6 p-4">
-            <Card className="p-6">
-                <Tabs value={studyMode} onValueChange={(value) => setStudyMode(value as 'word' | 'sentence')} className="mb-6">
-                    <TabsList className="grid w-full grid-cols-2">
+            <Card className="glass-card overflow-hidden rounded-xl border border-blue-100/80 dark:border-blue-900/70 shadow-xl p-6">
+                <Tabs value={studyMode} onValueChange={(value) => setStudyMode(value as 'word' | 'sentence' | 'kanji')} className="mb-6">
+                    <TabsList className="grid w-full grid-cols-3">
                         <TabsTrigger value="word">Word Practice</TabsTrigger>
                         <TabsTrigger value="sentence">Sentence Practice</TabsTrigger>
+                        <TabsTrigger value="kanji">Kanji Practice</TabsTrigger>
                     </TabsList>
                 </Tabs>
 
@@ -125,9 +288,10 @@ export function DrawingStudy() {
                             variant="outline"
                             size="sm"
                             className="flex gap-2"
+                            disabled={isLoading}
                         >
-                            <RefreshCw className="h-4 w-4" />
-                            New {studyMode === 'word' ? 'Word' : 'Sentence'}
+                            <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+                            New {studyMode === 'word' ? 'Word' : studyMode === 'sentence' ? 'Sentence' : 'Kanji'}
                         </Button>
                         <Button
                             onClick={() => {
@@ -139,84 +303,161 @@ export function DrawingStudy() {
                             className="flex gap-2"
                         >
                             <Trash2 className="h-4 w-4" />
-                            Clear All
+                            Clear Canvas
                         </Button>
                     </div>
-                    {studyMode === 'word' ? (
+                    {studyMode === 'word' && word && (
                         <>
-                            <h2 className="text-3xl font-bold mb-2">{word.japanese}</h2>
-                            <p className="text-gray-600 dark:text-gray-400">{word.romaji} - {word.english}</p>
-                        </>
-                    ) : (
-                        <>
-                            <h2 className="text-2xl font-bold mb-2">{sentence.sentence}</h2>
-                            <p className="text-gray-600 dark:text-gray-400 mb-1">{sentence.romaji}</p>
-                            <p className="text-gray-600 dark:text-gray-400">{sentence.english}</p>
-                            <div className="mt-2 bg-secondary px-3 py-1 rounded-full inline-block">
-                                <span className="text-sm font-medium">Focus word: {sentence.word}</span>
+                            <h2 className="text-4xl md:text-5xl font-bold mb-3">{word.japanese}</h2>
+                            <div className="space-y-1">
+                                <p className="text-lg text-muted-foreground">{word.romaji}</p>
+                                <p className="text-base text-foreground">{word.english}</p>
                             </div>
                         </>
                     )}
-                </div>
+                    {studyMode === 'sentence' && sentence && (
+                        <>
+                            <h2 className="text-2xl md:text-3xl font-bold mb-3">{sentence.sentence}</h2>
+                            <div className="space-y-1">
+                                <p className="text-base text-muted-foreground">{sentence.romaji}</p>
+                                <p className="text-base text-foreground">{sentence.english}</p>
+                                <div className="mt-2 inline-block px-3 py-1 rounded-full bg-blue-100/50 dark:bg-blue-900/30 border border-blue-200/50 dark:border-blue-800/50">
+                                    <span className="text-sm font-medium text-blue-700 dark:text-blue-300">Focus: {sentence.word}</span>
+                                </div>
+                            </div>
+                        </>
+                    )}
+                    {studyMode === 'kanji' && kanji && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+                            <div className="space-y-4">
+                                <h2 className="text-6xl md:text-7xl font-bold">{kanji.character}</h2>
+                                <div className="space-y-2">
+                                    <p className="text-lg font-medium text-foreground">
+                                        {kanji.meanings?.join(', ')}
+                                    </p>
+                                    {(kanji.onyomi || kanji.kunyomi) && (
+                                        <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+                                            {kanji.onyomi && (
+                                                <span className="px-2 py-1 rounded bg-blue-50 dark:bg-blue-950/30">
+                                                    音読み: <span className="font-medium">{kanji.onyomi}</span>
+                                                </span>
+                                            )}
+                                            {kanji.kunyomi && (
+                                                <span className="px-2 py-1 rounded bg-indigo-50 dark:bg-indigo-950/30">
+                                                    訓読み: <span className="font-medium">{kanji.kunyomi}</span>
+                                                </span>
+                                            )}
+                                        </div>
+                                    )}
+                                    <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                                        {kanji.jlpt && (
+                                            <span>JLPT N{kanji.jlpt}</span>
+                                        )}
+                                        {kanji.stroke_count && (
+                                            <span>{kanji.stroke_count} strokes</span>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
 
-                <div className="w-full h-[400px] border border-border rounded-lg overflow-hidden bg-muted">
-                    <ReactSketchCanvas
-                        ref={canvasRef}
-                        strokeWidth={4}
-                        strokeColor="red"
-                        canvasColor="transparent"
-                        className="w-full h-full"
-                        style={{
-                            border: 'none',
-                        }}
-                    />
-                </div>
-
-                <div className="flex gap-2 mt-4">
-                    <div className="flex gap-2">
-                        <Button
-                            onClick={() => canvasRef.current?.clearCanvas()}
-                            variant="outline"
-                            size="icon"
-                        >
-                            <RotateCcw className="h-4 w-4" />
-                        </Button>
-                        <Button
-                            onClick={() => canvasRef.current?.undo()}
-                            variant="outline"
-                            size="icon"
-                        >
-                            <RotateCcw className="h-4 w-4 scale-x-[-1]" />
-                        </Button>
-                        <Button
-                            onClick={() => {
-                                setIsEraseMode(!isEraseMode);
-                                canvasRef.current?.eraseMode(!isEraseMode);
-                            }}
-                            variant={isEraseMode ? "secondary" : "outline"}
-                            size="icon"
-                        >
-                            {isEraseMode ? (
-                                <Pencil className="h-4 w-4" />
-                            ) : (
-                                <Eraser className="h-4 w-4" />
+                            {kanji.strokes_svg && (
+                                <div className="flex flex-col">
+                                    <KanjiStrokeGuide
+                                        svgData={kanji.strokes_svg}
+                                        strokeCount={kanji.stroke_count}
+                                    />
+                                </div>
                             )}
+                        </div>
+                    )}
+                </div>
+
+                <div className="border-t border-border pt-6 space-y-4">
+                    <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                            <h3 className="text-lg font-semibold text-foreground">
+                                {studyMode === 'kanji' ? 'Draw the Kanji' : studyMode === 'sentence' ? 'Write the Sentence' : 'Write the Word'}
+                            </h3>
+                            <p className="text-sm text-muted-foreground">Use your mouse or touch to draw</p>
+                        </div>
+                        <div className="w-full h-[400px] border-2 border-dashed border-blue-300 dark:border-blue-700 rounded-lg overflow-hidden bg-gradient-to-br from-blue-50/50 to-indigo-50/50 dark:from-gray-900 dark:to-gray-950 relative shadow-inner">
+                            <div className="absolute inset-0 bg-[linear-gradient(to_right,#e5e7eb_1px,transparent_1px),linear-gradient(to_bottom,#e5e7eb_1px,transparent_1px)] bg-[size:20px_20px] opacity-20 dark:opacity-10 pointer-events-none" />
+                            <ReactSketchCanvas
+                                ref={canvasRef}
+                                strokeWidth={4}
+                                strokeColor="#3b82f6"
+                                canvasColor="transparent"
+                                className="w-full h-full relative z-10"
+                                style={{
+                                    border: 'none',
+                                }}
+                            />
+                            {!canvasRef.current && (
+                                <div className="absolute inset-0 flex items-center justify-center z-0 pointer-events-none">
+                                    <p className="text-muted-foreground/50 text-sm">Start drawing here...</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="flex gap-2 items-center justify-between">
+                        <div className="flex gap-2">
+                            <Button
+                                onClick={() => canvasRef.current?.clearCanvas()}
+                                variant="outline"
+                                size="sm"
+                                className="gap-2"
+                            >
+                                <RotateCcw className="h-4 w-4" />
+                                Clear
+                            </Button>
+                            <Button
+                                onClick={() => canvasRef.current?.undo()}
+                                variant="outline"
+                                size="sm"
+                                className="gap-2"
+                            >
+                                <RotateCcw className="h-4 w-4 scale-x-[-1]" />
+                                Undo
+                            </Button>
+                            <Button
+                                onClick={() => {
+                                    setIsEraseMode(!isEraseMode);
+                                    canvasRef.current?.eraseMode(!isEraseMode);
+                                }}
+                                variant={isEraseMode ? "secondary" : "outline"}
+                                size="sm"
+                                className="gap-2"
+                            >
+                                {isEraseMode ? (
+                                    <>
+                                        <Pencil className="h-4 w-4" />
+                                        Draw
+                                    </>
+                                ) : (
+                                    <>
+                                        <Eraser className="h-4 w-4" />
+                                        Erase
+                                    </>
+                                )}
+                            </Button>
+                        </div>
+                        <Button
+                            onClick={handleSubmit}
+                            className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white border-0"
+                            size="sm"
+                        >
+                            <Send className="h-4 w-4 mr-2" />
+                            Submit
                         </Button>
                     </div>
-                    <Button
-                        onClick={handleSubmit}
-                        className="ml-auto"
-                        size="icon"
-                    >
-                        <Send className="h-4 w-4" />
-                    </Button>
-                </div>
 
-                {feedback && (
-                    <Alert className="mt-4">
-                        <AlertDescription>{feedback}</AlertDescription>
-                    </Alert>
-                )}
+                    {feedback && (
+                        <Alert className="mt-4 border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/30">
+                            <AlertDescription className="whitespace-pre-wrap">{feedback}</AlertDescription>
+                        </Alert>
+                    )}
+                </div>
             </Card>
         </div>
     )

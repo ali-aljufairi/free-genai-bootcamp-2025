@@ -17,7 +17,6 @@ import (
 	"log"
 	"os"
 	"strings"
-
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 )
@@ -87,6 +86,7 @@ func (s *FiberServer) RegisterFiberRoutes() {
 	kanjiStore := repositories.NewKanjiStore(s.postgresDB)
 	kanjiHandler := kanji.NewKanjiHandler(kanjiStore)
 	s.App.Get("/api/langportal/kanji", kanjiHandler.SearchKanji)
+	s.App.Get("/api/langportal/kanji/random", kanjiHandler.GetRandomKanji)
 
 	// Group routes (new handler structure with services)
 	groupsStore := repositories.NewGroupsStore(s.postgresDB)
@@ -108,6 +108,7 @@ func (s *FiberServer) RegisterFiberRoutes() {
 	wordsStore := repositories.NewWordsStore(s.postgresDB)
 	wordsHandler := words.NewWordsHandler(wordsStore)
 	s.App.Get("/api/langportal/words", wordsHandler.GetWords)
+	s.App.Get("/api/langportal/words/random", wordsHandler.GetRandomWord)
 	s.App.Get("/api/langportal/words/search", wordsHandler.SearchWords)
 
 	// Unified vocabulary search route (server-side merge of kanji+words)

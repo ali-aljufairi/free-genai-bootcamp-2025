@@ -148,6 +148,16 @@ export function StudySessionHub() {
         return
       }
 
+      // For drawing (Writing Practice), generate a session ID and route to drawing page
+      if (type === "drawing") {
+        // Generate a unique session ID (using timestamp + random for uniqueness)
+        const sessionId = `drawing-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
+        await navigateWithTransition(router, `/study/drawing/${sessionId}`, {
+          transitionName: 'page',
+        })
+        return
+      }
+
       // TEMPORARILY DISABLED DUE TO DATABASE MIGRATION ISSUES
       // For other features, show disabled message
       toast.error("This feature is temporarily disabled due to database migration")

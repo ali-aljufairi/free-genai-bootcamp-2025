@@ -128,3 +128,32 @@ func (h *WordsHandler) SearchWords(c *fiber.Ctx) error {
 
 	return c.JSON(response)
 }
+
+// GetRandomWord returns a single random word
+func (h *WordsHandler) GetRandomWord(c *fiber.Ctx) error {
+	word, err := h.Store.GetRandom()
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to get random word",
+		})
+	}
+
+	// Use Kanji if available, otherwise use Kana
+	japanese := word.Kana
+	if word.Kanji != nil && *word.Kanji != "" {
+		japanese = *word.Kanji
+	}
+
+	// Convert to response format expected by Python service
+	response := fiber.Map{
+		"id":       word.ID,
+		"japanese": japanese,
+		"romaji":   word.Romaji,
+		"english":  word.English,
+		"parts": fiber.Map{
+			"type": word.PartOfSpeech,
+		},
+	}
+
+	return c.JSON(response)
+}

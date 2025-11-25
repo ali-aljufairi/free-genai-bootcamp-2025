@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import base64
@@ -6,9 +6,10 @@ from PIL import Image
 import io
 import logging
 from core import JapaneseApp
-from models import WordFeedback, SentenceFeedback
+from models import WordFeedback, SentenceFeedback, KanjiResponse, KanjiFeedback
 import uvicorn
-from auth import verify_bearer
+from auth import verify_bearer, get_user_id_from_claims
+from utils.go_backend_client import get_random_kanji, save_kanji_trace
 
 # Setup logging
 logger = logging.getLogger("fastapi_app")
@@ -61,11 +62,19 @@ async def root():
 
 
 @api.get("/api/writing/random-sentence", response_model=RandomSentenceResponse)
-async def get_random_sentence(claims=Depends(verify_bearer)):
+async def get_random_sentence(
+    authorization: str = Header(None),
+    claims=Depends(verify_bearer),
+):
     """Generate a random sentence using a random Japanese word"""
     try:
+        # Extract token for Go backend calls
+        token = None
+        if authorization and authorization.lower().startswith("bearer "):
+            token = authorization.split(" ", 1)[1]
+
         # First get a random word
-        japanese, english, romaji, _ = japanese_app.get_random_word()
+        japanese, english, romaji, _ = japanese_app.get_random_word(token)
 
         if not japanese:
             logger.error("Failed to get random word")
@@ -106,11 +115,19 @@ async def get_random_sentence(claims=Depends(verify_bearer)):
 
 
 @api.get("/api/writing/random-word-sentence", response_model=RandomSentenceResponse)
-async def get_random_word_sentence(claims=Depends(verify_bearer)):
+async def get_random_word_sentence(
+    authorization: str = Header(None),
+    claims=Depends(verify_bearer),
+):
     """Get a random word and generate a sentence using that word"""
     try:
+        # Extract token for Go backend calls
+        token = None
+        if authorization and authorization.lower().startswith("bearer "):
+            token = authorization.split(" ", 1)[1]
+
         # First get a random word
-        japanese, english, romaji, _ = japanese_app.get_random_word()
+        japanese, english, romaji, _ = japanese_app.get_random_word(token)
 
         if not japanese:
             logger.error("Failed to get random word")
@@ -151,9 +168,18 @@ async def get_random_word_sentence(claims=Depends(verify_bearer)):
 
 
 @api.post("/api/writing/feedback-word", response_model=FeedbackResponse)
-async def get_word_feedback(submission: ImageSubmission, claims=Depends(verify_bearer)):
+async def get_word_feedback(
+    submission: ImageSubmission,
+    authorization: str = Header(None),
+    claims=Depends(verify_bearer),
+):
     """Get feedback on a word writing submission"""
     try:
+        # Extract token for Go backend calls (if needed in future)
+        token = None
+        if authorization and authorization.lower().startswith("bearer "):
+            token = authorization.split(" ", 1)[1]
+
         # Decode base64 image
         image_data = base64.b64decode(submission.image)
         image = Image.open(io.BytesIO(image_data))
@@ -175,10 +201,20 @@ async def get_word_feedback(submission: ImageSubmission, claims=Depends(verify_b
 
 @api.post("/api/writing/feedback-sentence", response_model=FeedbackResponse)
 async def get_sentence_feedback(
-    submission: ImageSubmission, claims=Depends(verify_bearer)
+    submission: ImageSubmission,
+    authorization: str = Header(None),
+    claims=Depends(verify_bearer),
 ):
     """Get feedback on a sentence writing submission"""
     try:
+        # Extract token for Go backend calls
+        token = None
+        if authorization and authorization.lower().startswith("bearer "):
+            token = authorization.split(" ", 1)[1]
+
+        # Get user_id from Go backend
+        user_id = get_user_id_from_claims(claims, token) if token else None
+
         # Decode base64 image
         image_data = base64.b64decode(submission.image)
         image = Image.open(io.BytesIO(image_data))
@@ -204,6 +240,137 @@ async def get_sentence_feedback(
         )
     except Exception as e:
         logger.error(f"Error processing sentence submission: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Error processing submission: {str(e)}"
+        )
+
+
+@api.get("/api/writing/kanji/random", response_model=KanjiResponse)
+async def get_random_kanji_for_practice(
+    authorization: str = Header(None),
+    claims=Depends(verify_bearer),
+):
+    """Get a random kanji with SVG stroke data for practice"""
+    try:
+        # Extract token for Go backend calls
+        token = None
+        if authorization and authorization.lower().startswith("bearer "):
+            token = authorization.split(" ", 1)[1]
+
+        if not token:
+            raise HTTPException(status_code=401, detail="Missing bearer token")
+
+        # Get user_id from Go backend (to potentially filter by user level)
+        # This is optional - if Go backend is unavailable, we'll proceed without user filtering
+        user_id = None
+        jlpt_level = None
+
+        try:
+            user_id = get_user_id_from_claims(claims, token)
+
+            # Get user profile to determine JLPT level (optional)
+            from utils.go_backend_client import get_user_profile
+
+            user_profile = get_user_profile(token)
+            if user_profile and "settings" in user_profile:
+                settings = user_profile.get("settings", {})
+                jlpt_level = settings.get("current_jlpt_level")
+        except Exception as e:
+            # Log but don't fail - we can still get random kanji without user filtering
+            logger.warning(f"Could not fetch user profile (non-critical): {e}")
+
+        # Get random kanji from Go backend
+        kanji_data = get_random_kanji(token, jlpt_level)
+
+        if not kanji_data:
+            raise HTTPException(
+                status_code=503,
+                detail="Kanji service is temporarily unavailable. Please ensure the Go backend is running on port 8080.",
+            )
+
+        # Convert to response model (KanjiResponse is the same as Kanji in models.py)
+        return KanjiResponse(
+            id=kanji_data.get("id"),
+            character=kanji_data.get("character", ""),
+            heisig_en=kanji_data.get("heisig_en"),
+            meanings=kanji_data.get("meanings", []),
+            detail=kanji_data.get("detail"),
+            unicode=kanji_data.get("unicode", ""),
+            onyomi=kanji_data.get("onyomi"),
+            kunyomi=kanji_data.get("kunyomi"),
+            jlpt=kanji_data.get("jlpt"),
+            frequency=kanji_data.get("frequency"),
+            components=kanji_data.get("components"),
+            stroke_count=kanji_data.get("stroke_count"),
+            strokes_svg=kanji_data.get("strokes_svg"),
+            audio_path=kanji_data.get("audio_path"),
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting random kanji: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Error getting random kanji: {str(e)}"
+        )
+
+
+class KanjiImageSubmission(BaseModel):
+    image: str  # Base64 encoded image
+    kanji_id: int  # The kanji ID being practiced
+    character: str  # The kanji character for verification
+
+
+@api.post("/api/writing/kanji/feedback", response_model=KanjiFeedback)
+async def get_kanji_feedback(
+    submission: KanjiImageSubmission,
+    authorization: str = Header(None),
+    claims=Depends(verify_bearer),
+):
+    """Get feedback on a kanji drawing submission"""
+    try:
+        # Extract token for Go backend calls
+        token = None
+        if authorization and authorization.lower().startswith("bearer "):
+            token = authorization.split(" ", 1)[1]
+
+        if not token:
+            raise HTTPException(status_code=401, detail="Missing bearer token")
+
+        # Get user_id from Go backend
+        user_id = get_user_id_from_claims(claims, token)
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Unable to identify user")
+
+        # Decode base64 image
+        image_data = base64.b64decode(submission.image)
+        image = Image.open(io.BytesIO(image_data))
+
+        # Process kanji drawing verification
+        accuracy, grade, feedback, stroke_order_correct = (
+            japanese_app.process_kanji_image(
+                image, submission.kanji_id, submission.character
+            )
+        )
+
+        # Save practice attempt to database via Go backend
+        # Convert image to SVG string for storage (simplified - in production, might want actual SVG trace)
+        trace_svg = (
+            f"<svg><image href='data:image/png;base64,{submission.image}'/></svg>"
+        )
+        save_kanji_trace(token, submission.kanji_id, trace_svg, accuracy)
+
+        return KanjiFeedback(
+            kanji_id=submission.kanji_id,
+            character=submission.character,
+            accuracy=accuracy,
+            grade=grade,
+            feedback=feedback,
+            stroke_order_correct=stroke_order_correct,
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error processing kanji submission: {str(e)}")
         raise HTTPException(
             status_code=500, detail=f"Error processing submission: {str(e)}"
         )

@@ -19,4 +19,5 @@ dependencies = [
     "uvicorn>=0.34.0",
     "Levenshtein>=0.23.0",
     "python-jose[cryptography]>=3.3.0",
+    "jose>=1.0.0",
 ]

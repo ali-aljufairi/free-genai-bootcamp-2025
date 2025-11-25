@@ -10,6 +10,7 @@ import (
 // KanjiStoreInterface defines the interface for kanji store operations
 type KanjiStoreInterface interface {
 	Search(params KanjiSearchParams) ([]KanjiModel, int64, error)
+	GetRandom(jlpt *int, hasSVG bool) (*KanjiModel, error)
 }
 
 type KanjiHandler struct {
@@ -150,6 +151,46 @@ func (h *KanjiHandler) SearchKanji(c *fiber.Ctx) error {
 		Page:       page,
 		PageSize:   pageSize,
 		TotalPages: totalPages,
+	}
+
+	return c.JSON(response)
+}
+
+// GetRandomKanji returns a single random kanji
+func (h *KanjiHandler) GetRandomKanji(c *fiber.Ctx) error {
+	var jlpt *int
+	if jlptStr := c.Query("jlpt"); jlptStr != "" {
+		val, _ := strconv.Atoi(jlptStr)
+		if val >= 0 && val <= 5 {
+			jlpt = &val
+		}
+	}
+
+	hasSVG := c.Query("has_svg", "true") == "true"
+
+	kanjiModel, err := h.Store.GetRandom(jlpt, hasSVG)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to get random kanji",
+		})
+	}
+
+	// Convert to response format
+	response := Kanji{
+		ID:          kanjiModel.ID,
+		Character:   kanjiModel.Character,
+		HeisigEn:    kanjiModel.HeisigEn,
+		Meanings:    []string(kanjiModel.Meanings),
+		Detail:      kanjiModel.Detail,
+		Unicode:     kanjiModel.Unicode,
+		Onyomi:      kanjiModel.Onyomi,
+		Kunyomi:     kanjiModel.Kunyomi,
+		JLPT:        kanjiModel.JLPT,
+		Frequency:   kanjiModel.Frequency,
+		Components:  kanjiModel.Components,
+		StrokeCount: kanjiModel.StrokeCount,
+		StrokesSVG:  kanjiModel.StrokesSVG,
+		AudioPath:   kanjiModel.AudioPath,
 	}
 
 	return c.JSON(response)

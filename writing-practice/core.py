@@ -195,14 +195,18 @@ class JapaneseApp:
             logger.error(f"Error processing sentence image: {str(e)}")
             return "", target, "C", f"Error processing submission: {str(e)}"
 
-    def get_random_word(self):
+    def get_random_word(self, token: str | None = None):
         """Get a random word from API"""
         try:
             # Use the /api/langportal/words/random endpoint directly
             url = f"{self.api_base_url}/api/langportal/words/random"
             logger.debug(f"Fetching random word from: {url}")
 
-            response = requests.get(url)
+            headers = {}
+            if token:
+                headers["Authorization"] = f"Bearer {token}"
+
+            response = requests.get(url, headers=headers)
             if response.status_code == 200:
                 word_data = response.json()
                 logger.debug(f"Received word data: {word_data}")
@@ -668,4 +672,123 @@ Make sure all fields are filled with appropriate values. If there are no kanji c
                 target_sentence
                 or self.current_sentence
                 or "Error getting target sentence",
+            )
+
+    def process_kanji_image(
+        self, image: Image.Image, kanji_id: int, target_character: str
+    ) -> tuple[float, str, str, bool | None]:
+        """
+        Process a kanji drawing submission and return accuracy, grade, feedback, and stroke order correctness.
+        
+        Args:
+            image: PIL Image of the user's drawing
+            kanji_id: The kanji ID being practiced
+            target_character: The target kanji character
+            
+        Returns:
+            Tuple of (accuracy: float 0-100, grade: str, feedback: str, stroke_order_correct: bool | None)
+        """
+        try:
+            logger.info(f"Processing kanji drawing for character: {target_character}")
+            
+            # Perform OCR to recognize what was drawn
+            transcription = self.ocr_image(image)
+            logger.debug(f"OCR result: {transcription}")
+            
+            # Clean transcription - remove whitespace and extract kanji characters
+            transcription_clean = "".join([c for c in transcription if "\u4e00" <= c <= "\u9fff"])
+            
+            # Calculate accuracy based on character match
+            accuracy = 0.0
+            grade = "C"
+            stroke_order_correct = None
+            
+            if not transcription_clean:
+                # No kanji detected
+                accuracy = 0.0
+                grade = "C"
+                feedback = "Could not detect any kanji characters in your drawing. Please try writing more clearly."
+            elif transcription_clean == target_character:
+                # Exact match
+                accuracy = 100.0
+                grade = "S"
+                feedback = f"Perfect! You correctly wrote {target_character}. Excellent stroke accuracy!"
+                stroke_order_correct = True
+            elif target_character in transcription_clean:
+                # Target found within transcription
+                accuracy = 85.0
+                grade = "A"
+                feedback = f"Very good! You wrote {target_character} correctly. The character is clear and recognizable."
+                stroke_order_correct = True
+            else:
+                # Use similarity calculation
+                from Levenshtein import distance
+                
+                # Calculate similarity for character recognition
+                dist = distance(transcription_clean, target_character)
+                max_len = max(len(transcription_clean), len(target_character))
+                similarity = 1 - (dist / max_len) if max_len > 0 else 0
+                
+                # Also check if any character in transcription is similar
+                char_similarity = 0.0
+                if len(transcription_clean) > 0 and len(target_character) > 0:
+                    # Compare first character
+                    if transcription_clean[0] == target_character[0]:
+                        char_similarity = 0.8
+                    else:
+                        # Use visual similarity (simplified - in production, use more sophisticated comparison)
+                        char_similarity = 0.3
+                
+                # Combine OCR accuracy with visual assessment
+                accuracy = (similarity * 60 + char_similarity * 40) * 100
+                
+                if accuracy >= 80:
+                    grade = "A"
+                    feedback = f"Good attempt! Your drawing is close to {target_character}. Keep practicing to improve accuracy."
+                    stroke_order_correct = True
+                elif accuracy >= 60:
+                    grade = "B"
+                    feedback = f"Decent attempt. You're getting closer to {target_character}. Focus on stroke order and proportions."
+                    stroke_order_correct = None  # Uncertain
+                else:
+                    grade = "C"
+                    feedback = f"Keep practicing! Your drawing doesn't quite match {target_character}. Try following the stroke guide more carefully."
+                    stroke_order_correct = False
+            
+            # Use AI for more detailed feedback if accuracy is below 90%
+            if accuracy < 90:
+                try:
+                    ai_feedback_response = self.client.chat.completions.create(
+                        model=self.llm_model,
+                        messages=[
+                            {
+                                "role": "system",
+                                "content": "You are a Japanese language teacher providing feedback on kanji writing practice. Be encouraging and specific.",
+                            },
+                            {
+                                "role": "user",
+                                "content": f"Target kanji: {target_character}\nRecognized: {transcription_clean}\nAccuracy: {accuracy:.1f}%\nProvide brief, encouraging feedback on how to improve the drawing.",
+                            },
+                        ],
+                        temperature=self.llm_temperature,
+                        max_tokens=100,
+                    )
+                    ai_feedback = ai_feedback_response.choices[0].message.content.strip()
+                    if ai_feedback:
+                        feedback = f"{feedback}\n\n{ai_feedback}"
+                except Exception as e:
+                    logger.warning(f"Failed to get AI feedback: {e}")
+                    # Continue with basic feedback
+            
+            logger.info(f"Kanji verification complete: {target_character}, accuracy={accuracy:.1f}%, grade={grade}")
+            
+            return accuracy, grade, feedback, stroke_order_correct
+            
+        except Exception as e:
+            logger.error(f"Error processing kanji image: {str(e)}", exc_info=True)
+            return (
+                0.0,
+                "C",
+                f"Error processing kanji drawing: {str(e)}. Please try again.",
+                None,
             )

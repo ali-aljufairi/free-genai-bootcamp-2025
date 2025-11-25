@@ -117,6 +117,15 @@ func (s *WordsStore) Search(params SearchWordsParams) ([]models.Word, int64, err
 	return words, total, nil
 }
 
+// GetRandom returns a single random word
+func (s *WordsStore) GetRandom() (*models.Word, error) {
+	var word models.Word
+	if err := s.DB.Order("RANDOM()").Limit(1).First(&word).Error; err != nil {
+		return nil, err
+	}
+	return &word, nil
+}
+
 type SearchWordsParams struct {
 	Query        *string
 	JLPT         *int

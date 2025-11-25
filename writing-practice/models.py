@@ -37,3 +37,37 @@ class SentenceFeedback(BaseModel):
     translation: str
     grade: str
     feedback: str
+
+
+class KanjiResponse(BaseModel):
+    """
+    Model for kanji data response
+    """
+
+    id: int
+    character: str
+    heisig_en: Optional[str] = None
+    meanings: list[str]
+    detail: Optional[str] = None
+    unicode: str
+    onyomi: Optional[str] = None
+    kunyomi: Optional[str] = None
+    jlpt: Optional[int] = None
+    frequency: Optional[int] = None
+    components: Optional[str] = None
+    stroke_count: Optional[int] = None
+    strokes_svg: Optional[str] = None
+    audio_path: Optional[str] = None
+
+
+class KanjiFeedback(BaseModel):
+    """
+    Model for kanji drawing feedback
+    """
+
+    kanji_id: int
+    character: str
+    accuracy: float  # 0-100
+    grade: str  # S, A, B, C
+    feedback: str
+    stroke_order_correct: Optional[bool] = None

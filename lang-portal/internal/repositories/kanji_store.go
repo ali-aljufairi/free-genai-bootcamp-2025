@@ -3,6 +3,7 @@ package repositories
 import (
 	"lang-portal/internal/database/models"
 	"lang-portal/internal/handlers/kanji"
+
 	"gorm.io/gorm"
 )
 
@@ -81,7 +82,7 @@ func (s *KanjiStore) Search(params kanji.KanjiSearchParams) ([]kanji.KanjiModel,
 		query = query.Where("components ILIKE ?", "%"+*params.Components+"%")
 	}
 
-	if params.GroupID != nil && len(params.GroupID) > 0 {
+	if len(params.GroupID) > 0 {
 		if len(params.GroupID) == 1 {
 			query = query.Joins("JOIN kanji_groups ON kanji.id = kanji_groups.kanji_id").
 				Where("kanji_groups.group_id = ?", params.GroupID[0])
@@ -116,7 +117,7 @@ func (s *KanjiStore) Search(params kanji.KanjiSearchParams) ([]kanji.KanjiModel,
 				err := s.DB.Model(&models.Word{}).
 					Where("kanji LIKE ?", "%"+kanjiModels[i].Character+"%").
 					First(&word).Error
-				
+
 				if err == nil && word.English != "" {
 					// Populate meanings with the word's English translation
 					kanjiModels[i].Meanings = kanji.StringSlice{word.English}
@@ -128,3 +129,32 @@ func (s *KanjiStore) Search(params kanji.KanjiSearchParams) ([]kanji.KanjiModel,
 	return kanjiModels, total, nil
 }
 
+// GetRandom returns a single random kanji with optional filters
+func (s *KanjiStore) GetRandom(jlpt *int, hasSVG bool) (*kanji.KanjiModel, error) {
+	query := s.DB.Model(&kanji.KanjiModel{})
+
+	if jlpt != nil {
+		jlptVal := *jlpt
+		if jlptVal >= 0 && jlptVal <= 5 {
+			query = query.Where("jlpt = ?", jlptVal)
+		}
+	}
+
+	if hasSVG {
+		query = query.Where("strokes_svg IS NOT NULL AND strokes_svg != ''")
+	}
+
+	var kanjiModel kanji.KanjiModel
+	if err := query.Order("RANDOM()").Limit(1).First(&kanjiModel).Error; err != nil {
+		return nil, err
+	}
+
+	// Add fallback meanings if empty
+	if len(kanjiModel.Meanings) == 0 {
+		if kanjiModel.HeisigEn != nil && *kanjiModel.HeisigEn != "" {
+			kanjiModel.Meanings = kanji.StringSlice{*kanjiModel.HeisigEn}
+		}
+	}
+
+	return &kanjiModel, nil
+}
