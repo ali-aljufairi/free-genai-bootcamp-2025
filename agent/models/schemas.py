@@ -1,77 +1,136 @@
 """
-Pydantic models for ShopGenie application.
+Pydantic models for Learning Plan Generator application.
 """
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Any
 from typing_extensions import TypedDict
 from pydantic import BaseModel, Field
 
-class SpecsComparison(BaseModel):
-    """Smartphone specifications comparison model."""
-    processor: str = Field(..., description="Processor type and model, e.g., 'Snapdragon 888'")
-    battery: str = Field(..., description="Battery capacity and type, e.g., '4500mAh'")
-    camera: str = Field(..., description="Camera specs, e.g., '108MP primary'")
-    display: str = Field(..., description="Display type, size, refresh rate, e.g., '6.5 inch OLED, 120Hz'")
-    storage: str = Field(..., description="Storage options and expandability, e.g., '128GB, expandable'")
 
-class RatingsComparison(BaseModel):
-    """Smartphone ratings comparison model."""
-    overall_rating: float = Field(..., description="Overall rating out of 5, e.g., 4.5")
-    performance: float = Field(..., description="Rating for performance out of 5, e.g., 4.7")
-    battery_life: float = Field(..., description="Rating for battery life out of 5, e.g., 4.3")
-    camera_quality: float = Field(..., description="Rating for camera quality out of 5, e.g., 4.6")
-    display_quality: float = Field(..., description="Rating for display quality out of 5, e.g., 4.8")
+# Learning Plan Schemas
+class WeakArea(BaseModel):
+    """Represents a weak area in learning."""
+    category: str = Field(..., description="Category: kanji, vocabulary, or grammar")
+    item_id: Optional[int] = Field(None, description="ID of the item")
+    name: str = Field(..., description="Name or character of the item")
+    accuracy: float = Field(..., description="Current accuracy percentage")
+    jlpt_level: Optional[int] = Field(None, description="JLPT level")
+    details: Optional[Dict[str, Any]] = Field(None, description="Additional details")
 
-class Comparison(BaseModel):
-    """Product comparison model."""
-    product_name: str = Field(..., description="Name of the product")
-    specs_comparison: SpecsComparison
-    ratings_comparison: RatingsComparison
-    reviews_summary: str = Field(..., description="Summary of key points from user reviews about this product")
 
-class BestProduct(BaseModel):
-    """Best product information model."""
-    product_name: str = Field(..., description="Name of the best product")
-    justification: str = Field(..., description="Explanation of why this product is the best choice")
+class WeaknessAnalysis(BaseModel):
+    """Analysis of user's weak areas."""
+    kanji_weaknesses: List[WeakArea] = Field(default_factory=list, description="Weak kanji areas")
+    vocabulary_weaknesses: List[WeakArea] = Field(default_factory=list, description="Weak vocabulary areas")
+    grammar_weaknesses: List[WeakArea] = Field(default_factory=list, description="Weak grammar areas")
+    summary: str = Field(..., description="Summary of overall weaknesses")
+    priority_focus: str = Field(..., description="Highest priority area to focus on")
 
-class ProductComparison(BaseModel):
-    """Complete product comparison model."""
-    comparisons: List[Comparison]
-    best_product: BestProduct
 
-class Highlights(BaseModel):
-    """Product highlight features."""
-    Camera: Optional[str] = None
-    Performance: Optional[str] = None
-    Display: Optional[str] = None
-    Fast_Charging: Optional[str] = None
+class DailyGoal(BaseModel):
+    """Daily study goal."""
+    day: int = Field(..., description="Day number (1-7 for weekly plan)")
+    kanji_reviews: int = Field(default=0, description="Number of kanji to review")
+    vocabulary_reviews: int = Field(default=0, description="Number of vocabulary words to review")
+    grammar_practice: int = Field(default=0, description="Number of grammar exercises")
+    jlpt_questions: int = Field(default=0, description="Number of JLPT questions to practice")
+    estimated_time_minutes: int = Field(default=30, description="Estimated time in minutes")
 
-class SmartphoneReview(BaseModel):
-    """A review of a smartphone."""
-    title: str = Field(..., description="The title of the smartphone review")
-    url: Optional[str] = Field(None, description="The URL of the smartphone review")
-    content: Optional[str] = Field(None, description="The main content of the smartphone review")
-    pros: Optional[List[str]] = Field(None, description="The pros of the smartphone")
-    cons: Optional[List[str]] = Field(None, description="The cons of the smartphone")
-    highlights: Optional[dict] = Field(None, description="The highlights of the smartphone")
-    score: Optional[float] = Field(None, description="The score of the smartphone")
 
-class ListOfSmartphoneReviews(BaseModel):
-    """A list of smartphone reviews."""
-    reviews: List[SmartphoneReview] = Field(..., description="List of individual smartphone reviews")
+class WeeklyFocus(BaseModel):
+    """Weekly focus area."""
+    week: int = Field(..., description="Week number")
+    primary_focus: str = Field(..., description="Primary focus area: kanji, vocabulary, grammar, or jlpt")
+    secondary_focus: Optional[str] = Field(None, description="Secondary focus area")
+    goals: List[DailyGoal] = Field(..., description="Daily goals for this week")
 
-class EmailRecommendation(BaseModel):
-    """Email recommendation content."""
-    subject: str = Field(..., description="The email subject line, designed to capture the recipient's attention.")
-    heading: str = Field(..., description="The main heading of the email, introducing the recommended product.")
-    justification_line: str = Field(..., description="A concise explanation of why the product is being recommended.")
+
+class SoramiFeatureRecommendation(BaseModel):
+    """Recommendation for using a Sorami feature."""
+    feature_name: str = Field(..., description="Feature name: srs_review, jlpt_practice, kanji_study, grammar_study, word_builder")
+    feature_url: str = Field(..., description="URL path to the feature")
+    description: str = Field(..., description="Why this feature is recommended")
+    priority: int = Field(default=1, description="Priority level (1-5, 1 is highest)")
+    content_ids: Optional[List[int]] = Field(None, description="Specific content IDs to focus on")
+
+
+class ExternalLearningResource(BaseModel):
+    """External learning resource found via web search."""
+    title: str = Field(..., description="Title of the resource")
+    url: str = Field(..., description="URL of the resource")
+    description: str = Field(..., description="Description or summary of the resource")
+    relevance_score: Optional[float] = Field(None, description="Relevance score from search")
+
+
+class YouTubeLearningVideo(BaseModel):
+    """YouTube learning video recommendation."""
+    video_id: str = Field(..., description="YouTube video ID")
+    title: str = Field(..., description="Video title")
+    url: str = Field(..., description="YouTube video URL")
+    description: Optional[str] = Field(None, description="Video description")
+    channel_title: Optional[str] = Field(None, description="Channel name")
+    thumbnail: Optional[str] = Field(None, description="Thumbnail URL")
+
+
+class ExternalLearningResource(BaseModel):
+    """External learning resource found via web search."""
+    title: str = Field(..., description="Title of the resource")
+    url: str = Field(..., description="URL of the resource")
+    description: str = Field(..., description="Description or summary of the resource")
+    relevance_score: Optional[float] = Field(None, description="Relevance score from search")
+
+
+class YouTubeLearningVideo(BaseModel):
+    """YouTube learning video recommendation."""
+    video_id: str = Field(..., description="YouTube video ID")
+    title: str = Field(..., description="Video title")
+    url: str = Field(..., description="YouTube video URL")
+    description: Optional[str] = Field(None, description="Video description")
+    channel_title: Optional[str] = Field(None, description="Channel name")
+    thumbnail: Optional[str] = Field(None, description="Thumbnail URL")
+
+
+class LearningPlan(BaseModel):
+    """Personalized learning plan."""
+    current_level_assessment: str = Field(..., description="Assessment of user's current JLPT level and progress")
+    weak_areas_summary: str = Field(..., description="Summary of identified weak areas")
+    short_term_goals: List[str] = Field(..., description="1-week goals")
+    medium_term_goals: List[str] = Field(..., description="1-month goals")
+    long_term_goals: List[str] = Field(..., description="3-month goals")
+    weekly_plans: List[WeeklyFocus] = Field(..., description="Weekly study plans")
+    recommended_features: List[SoramiFeatureRecommendation] = Field(..., description="Recommended Sorami features to use")
+    external_resources: Optional[List[ExternalLearningResource]] = Field(default_factory=list, description="External learning resources found via web search")
+    youtube_videos: Optional[List[YouTubeLearningVideo]] = Field(default_factory=list, description="Recommended YouTube learning videos")
+    study_tips: List[str] = Field(default_factory=list, description="Personalized study tips")
+
+
+class PlanRecommendation(BaseModel):
+    """Complete learning plan recommendation."""
+    learning_plan: LearningPlan
+    weaknesses: WeaknessAnalysis
+    next_steps: List[str] = Field(..., description="Immediate next steps for the user")
+
+
+class UserProgressData(BaseModel):
+    """User progress data summary."""
+    user_id: int
+    current_jlpt_level: int
+    kanji_mastered: int
+    kanji_studied: int
+    vocabulary_mastered: int
+    vocabulary_studied: int
+    grammar_points_studied: int
+    overall_accuracy: Optional[float] = None
+    study_streak_days: int = 0
+
 
 class State(TypedDict):
     """The state object used throughout the LangGraph workflow."""
-    query: str
-    email: str
-    products: List[Dict]
-    product_schema: List[SmartphoneReview]
-    blogs_content: Optional[List[Dict]]
-    best_product: Dict
-    comparison: List
-    youtube_link: str
+    user_id: int
+    token: Optional[str]  # JWT token for calling Go backend API
+    learning_goal: Optional[str]  # Optional user-provided learning goal
+    user_data: Dict[str, Any]  # Comprehensive user data from Go backend API
+    weaknesses: Optional[WeaknessAnalysis]  # Identified weaknesses
+    learning_resources: Optional[List[Dict[str, Any]]]  # External learning resources from Tavily
+    youtube_videos: Optional[List[Dict[str, Any]]]  # YouTube learning videos
+    learning_plan: Optional[LearningPlan]  # Generated learning plan
+    recommendations: Optional[PlanRecommendation]  # Final recommendations

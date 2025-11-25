@@ -138,6 +138,16 @@ export function StudySessionHub() {
         return
       }
 
+      // For agent (Learning Resources), generate a session ID and route to agent page
+      if (type === "agent") {
+        // Generate a unique session ID (using timestamp + random for uniqueness)
+        const sessionId = `agent-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
+        await navigateWithTransition(router, `/study/agent/${sessionId}`, {
+          transitionName: 'page',
+        })
+        return
+      }
+
       // TEMPORARILY DISABLED DUE TO DATABASE MIGRATION ISSUES
       // For other features, show disabled message
       toast.error("This feature is temporarily disabled due to database migration")

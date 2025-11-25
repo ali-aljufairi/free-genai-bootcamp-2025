@@ -1,5 +1,5 @@
 """
-Configuration settings for ShopGenie application.
+Configuration settings for Agent application.
 """
 
 import os
@@ -17,6 +17,16 @@ YOUTUBE_API_KEY = os.environ.get("YOUTUBE_API_KEY")
 GMAIL_USER = os.environ.get("GMAIL_USER")
 GMAIL_PASSWORD = os.environ.get("GMAIL_PASS")
 
+# Go Backend URL (for user management and data fetching)
+GO_BACKEND_URL = os.environ.get("GO_BACKEND_URL", "http://localhost:8080")
+
+# PostgreSQL database configuration (optional - only needed if not using Go backend)
+POSTGRES_HOST = os.environ.get("POSTGRES_HOST", "localhost")
+POSTGRES_PORT = os.environ.get("POSTGRES_PORT", "5432")
+POSTGRES_USER = os.environ.get("POSTGRES_USER", "postgres")
+POSTGRES_PASSWORD = os.environ.get("POSTGRES_PASSWORD", "")
+POSTGRES_DB = os.environ.get("POSTGRES_DB", "sorami")
+
 # Email server settings
 SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 587
@@ -32,6 +42,6 @@ llm = ChatGroq(
     temperature=0.6,
 )
 
-tavily_client = TavilyClient(api_key=TAVILY_API_KEY)
+tavily_client = TavilyClient(api_key=TAVILY_API_KEY) if TAVILY_API_KEY else None
 
-youtube = build("youtube", "v3", developerKey=YOUTUBE_API_KEY)
+youtube = build("youtube", "v3", developerKey=YOUTUBE_API_KEY) if YOUTUBE_API_KEY else None

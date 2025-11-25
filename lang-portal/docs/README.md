@@ -30,6 +30,10 @@ Feature-specific guides and best practices.
 - [Mobile Study Session Guide](./guides/mobile-study-session-guide.md) - Mobile-first implementation
 - [New React Features Guide](./guides/new-react-features-guide.md) - React 19 features usage
 
+### [services/](./services/)
+Microservices integration documentation.
+- [Python Agent Authentication](./services/python-agent-auth.md) - How the Python agent service integrates with Sorami authentication
+
 ### Design System
 - [Sorami Design Language](./SORAMI_DESIGN_LANGUAGE.md) - Complete design system documentation including implementation learnings from flashcard system refactoring
 
