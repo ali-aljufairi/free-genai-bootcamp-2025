@@ -3,7 +3,32 @@ import { toast } from "@/components/ui/sonner";
 import { generateImageFromText } from '@/services/google-ai';
 import { transcribeAudio } from '@/app/actions/transcribe';
 
-export function useSpeechStudy() {
+// Function to save speech study session to database
+async function saveSpeechStudySession(data: {
+    sessionId: string;
+    transcription: string;
+    analysis: string;
+    imageUrl: string;
+    recordingDurationSeconds: number;
+    modelUsed: string;
+}) {
+    const response = await fetch('/api/speech-study/save', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(error.error || 'Failed to save speech study session');
+    }
+
+    return await response.json();
+}
+
+export function useSpeechStudy(sessionId?: string) {
     const [transcription, setTranscription] = useState<string>('');
     const [generatedImage, setGeneratedImage] = useState<string>('');
     const [analysisResult, setAnalysisResult] = useState<string>('');
@@ -208,8 +233,8 @@ export function useSpeechStudy() {
         }
     };
 
-    const analyzeSpeech = async (transcript: string) => {
-        if (!transcript) return;
+    const analyzeSpeech = async (transcript: string): Promise<string> => {
+        if (!transcript) return '';
         
         setIsAnalyzing(true);
         try {
@@ -240,6 +265,8 @@ export function useSpeechStudy() {
                 description: "Speech analysis completed successfully!",
                 duration: 3000
             });
+            
+            return data.analysis;
         } catch (error) {
             console.error('Error analyzing speech:', error);
             toast({
@@ -247,6 +274,7 @@ export function useSpeechStudy() {
                 title: "Analysis Error",
                 description: error instanceof Error ? error.message : "Failed to analyze speech",
             });
+            return '';
         } finally {
             setIsAnalyzing(false);
         }
@@ -290,7 +318,7 @@ export function useSpeechStudy() {
 
                     // Run image generation and speech analysis independently
                     // so they can display as soon as they're ready
-                    generateImageFromText(result.text)
+                    const imagePromise = generateImageFromText(result.text)
                         .then(imageUrl => {
                             setGeneratedImage(imageUrl);
                             console.log('Image generated successfully');
@@ -299,6 +327,7 @@ export function useSpeechStudy() {
                                 description: "Image generated successfully!",
                                 duration: 3000
                             });
+                            return imageUrl;
                         })
                         .catch(error => {
                             console.error('Image generation error:', error);
@@ -307,10 +336,36 @@ export function useSpeechStudy() {
                                 title: "Image Error",
                                 description: error instanceof Error ? error.message : "Failed to generate image",
                             });
+                            return null; // Return null instead of throwing to allow saving even if image fails
                         });
                     
                     // Run analysis in parallel but independently
-                    analyzeSpeech(result.text);
+                    const analysisPromise = analyzeSpeech(result.text).catch(error => {
+                        console.error('Analysis error:', error);
+                        return ''; // Return empty string if analysis fails
+                    });
+                    
+                    // Save session to database when both image and analysis are complete
+                    Promise.all([imagePromise, analysisPromise])
+                        .then(([imageUrl, analysis]) => {
+                            // Only save if we have at least transcription
+                            if (result.text) {
+                                saveSpeechStudySession({
+                                    sessionId: sessionId || `speech-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+                                    transcription: result.text,
+                                    analysis: analysis || '',
+                                    imageUrl: imageUrl || '',
+                                    recordingDurationSeconds: recordingTime,
+                                    modelUsed: 'gemini-2.5-flash-image'
+                                }).catch(error => {
+                                    console.error('Failed to save speech study session:', error);
+                                    // Don't show error toast to user as this is a background operation
+                                });
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error in speech study session:', error);
+                        });
                 } else {
                     throw new Error('No transcription text returned');
                 }

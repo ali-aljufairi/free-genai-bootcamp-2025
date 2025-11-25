@@ -16,7 +16,7 @@ export async function POST(req: Request) {
     }
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.0-flash-exp-image-generation",
+      model: "gemini-2.5-flash-image",
       contents: `Transform this Japanese text into a visually stunning scene: "${text}". 
   Style: Blend traditional Japanese aesthetics with modern digital art. 
   Key elements: Include symbolic representations of the text's core themes. 

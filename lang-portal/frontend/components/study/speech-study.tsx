@@ -27,7 +27,7 @@ export function SpeechStudy({ sessionId, onComplete }: SpeechStudyProps) {
         startRecording,
         stopRecording,
         formatTime
-    } = useSpeechStudy();
+    } = useSpeechStudy(sessionId);
 
     return (
         <div className="space-y-6 min-h-screen w-full p-4 md:p-6 lg:p-8">

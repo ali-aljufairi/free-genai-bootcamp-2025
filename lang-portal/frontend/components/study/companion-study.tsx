@@ -6,6 +6,7 @@ import { Mic, PhoneOff, PhoneCall, Volume2, X } from "lucide-react";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useCompanionStudyStore } from "@/stores/companion-study-store";
 
 // Get Vapi public key from environment variable
 const VAPI_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPI_PUBLIC_KEY;
@@ -196,8 +197,17 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
     const [callStatus, setCallStatus] = useState<CallStatus>("idle");
     const [isVapiInitialized, setIsVapiInitialized] = useState(false);
     const [assistantIsSpeaking, setAssistantIsSpeaking] = useState(false);
-    const [selectedAssistant, setSelectedAssistant] = useState<string>(ASSISTANTS.casual.id);
+    const [userTranscript, setUserTranscript] = useState<string>("");
+    const [assistantTranscript, setAssistantTranscript] = useState<string>("");
+    const [callStartTime, setCallStartTime] = useState<Date | null>(null);
     const vapiRef = useRef<any>(null);
+
+    // Zustand store for preferences
+    const {
+        selectedAssistant,
+        showTranscription,
+        setSelectedAssistant: setStoreSelectedAssistant
+    } = useCompanionStudyStore();
 
     const cleanup = () => {
         if (vapiRef.current) {
@@ -209,6 +219,9 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
         }
         setCallStatus("ended");
         setAssistantIsSpeaking(false);
+        setUserTranscript("");
+        setAssistantTranscript("");
+        setCallStartTime(null);
     };
 
     useEffect(() => {
@@ -223,8 +236,11 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
                     vapiRef.current = new Vapi(VAPI_PUBLIC_KEY);
                     vapiRef.current.on("call-start", () => {
                         setCallStatus("active");
+                        setCallStartTime(new Date());
                     });
-                    vapiRef.current.on("call-end", () => {
+                    vapiRef.current.on("call-end", async () => {
+                        // Save session to database before cleanup
+                        await saveCompanionSession();
                         cleanup();
                         onComplete && onComplete();
                     });
@@ -236,6 +252,52 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
                         setAssistantIsSpeaking(false);
                         setCallStatus("listening");
                     });
+                    // Add message event listener for transcription
+                    vapiRef.current.on("message", (message: any) => {
+                        try {
+                            if (message && message.type === 'transcript') {
+                                const transcript = message.transcript || "";
+                                const role = message.role || "";
+
+                                if (!transcript) return; // Skip empty transcripts
+
+                                if (role === 'user') {
+                                    // Update user transcript - handle partial and final
+                                    if (message.transcriptType === 'final') {
+                                        setUserTranscript(prev => {
+                                            // Remove any partial transcript and add final
+                                            const cleanPrev = prev.replace(/\.\.\.$/, '').trim();
+                                            return cleanPrev ? `${cleanPrev} ${transcript}` : transcript;
+                                        });
+                                    } else {
+                                        // Partial transcript - append with indicator
+                                        setUserTranscript(prev => {
+                                            const cleanPrev = prev.replace(/\.\.\.$/, '').trim();
+                                            return cleanPrev ? `${cleanPrev} ${transcript}...` : `${transcript}...`;
+                                        });
+                                    }
+                                } else if (role === 'assistant') {
+                                    // Update assistant transcript - handle partial and final
+                                    if (message.transcriptType === 'final') {
+                                        setAssistantTranscript(prev => {
+                                            // Remove any partial transcript and add final
+                                            const cleanPrev = prev.replace(/\.\.\.$/, '').trim();
+                                            return cleanPrev ? `${cleanPrev} ${transcript}` : transcript;
+                                        });
+                                    } else {
+                                        // Partial transcript - append with indicator
+                                        setAssistantTranscript(prev => {
+                                            const cleanPrev = prev.replace(/\.\.\.$/, '').trim();
+                                            return cleanPrev ? `${cleanPrev} ${transcript}...` : `${transcript}...`;
+                                        });
+                                    }
+                                }
+                            }
+                        } catch (error) {
+                            console.error('Error processing transcription message:', error);
+                            // Don't show error to user for transcription issues
+                        }
+                    });
                     vapiRef.current.on("error", (err: any) => {
                         setCallStatus("ended");
                         setAssistantIsSpeaking(false);
@@ -243,15 +305,21 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
                         cleanup();
                     });
                     setIsVapiInitialized(true);
-                } catch (error) {
+                } catch (error: any) {
                     setCallStatus("ended");
                     setAssistantIsSpeaking(false);
-                    toast.error("Initialization Error", { description: "Failed to initialize Vapi. Please try again." });
+                    console.error('VAPI initialization error:', error);
+                    toast.error("Initialization Error", {
+                        description: error?.message || "Failed to initialize Vapi. Please refresh the page and try again."
+                    });
                 }
-            }).catch(error => {
+            }).catch((error: any) => {
                 setCallStatus("ended");
                 setAssistantIsSpeaking(false);
-                toast.error("Loading Error", { description: "Failed to load Vapi module. Please try again." });
+                console.error('VAPI module loading error:', error);
+                toast.error("Loading Error", {
+                    description: error?.message || "Failed to load Vapi module. Please check your internet connection and try again."
+                });
             });
         }
         return () => {
@@ -261,19 +329,79 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
 
     const startCall = async () => {
         if (!isVapiInitialized) {
+            toast.error("Initialization Error", { description: "VAPI is not initialized. Please wait a moment and try again." });
             return;
         }
-        if (vapiRef.current) {
-            setCallStatus("connecting");
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-                stream.getTracks().forEach(track => track.stop());
-                vapiRef.current.start(selectedAssistant);
-            } catch (error) {
-                toast.error("Call Start Failed", { description: "Could not start the call. Please ensure microphone access is granted." });
-                setCallStatus("ended");
-                setAssistantIsSpeaking(false);
+        if (!vapiRef.current) {
+            toast.error("Connection Error", { description: "VAPI connection is not available. Please refresh the page." });
+            return;
+        }
+
+        setCallStatus("connecting");
+        try {
+            // Request microphone permission first
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+            stream.getTracks().forEach(track => track.stop());
+
+            // Start the call
+            vapiRef.current.start(selectedAssistant);
+        } catch (error: any) {
+            console.error('Error starting call:', error);
+            let errorMessage = "Could not start the call. ";
+            if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+                errorMessage += "Please grant microphone access and try again.";
+            } else if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
+                errorMessage += "No microphone found. Please connect a microphone and try again.";
+            } else {
+                errorMessage += "Please ensure microphone access is granted.";
             }
+            toast.error("Call Start Failed", { description: errorMessage });
+            setCallStatus("idle");
+            setAssistantIsSpeaking(false);
+        }
+    };
+
+    const handleAssistantChange = (assistantId: string) => {
+        setStoreSelectedAssistant(assistantId);
+    };
+
+    // Function to save companion study session to database
+    const saveCompanionSession = async () => {
+        if (!callStartTime) {
+            return; // Don't save if call never started
+        }
+
+        // Save even with empty transcripts to track session attempts
+        try {
+            const endedAt = new Date();
+            const durationSeconds = Math.max(0, Math.floor((endedAt.getTime() - callStartTime.getTime()) / 1000));
+
+            const response = await fetch('/api/companion-study/save', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    session_id: sessionId,
+                    assistant_id: selectedAssistant,
+                    user_transcript: userTranscript || '',
+                    assistant_transcript: assistantTranscript || '',
+                    duration_seconds: durationSeconds,
+                    started_at: callStartTime.toISOString(),
+                    ended_at: endedAt.toISOString(),
+                }),
+            });
+
+            if (!response.ok) {
+                const error = await response.json().catch(() => ({ error: 'Unknown error' }));
+                console.error('Failed to save companion study session:', error);
+                // Don't show error toast to user as this is a background operation
+                // Session data is still valuable even if save fails
+            }
+        } catch (error) {
+            console.error('Error saving companion study session:', error);
+            // Don't show error toast to user as this is a background operation
+            // Session data is still valuable even if save fails
         }
     };
 
@@ -315,7 +443,7 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
                             <div className="flex flex-col items-center gap-4 w-full max-w-md">
                                 <Select
                                     value={selectedAssistant}
-                                    onValueChange={setSelectedAssistant}
+                                    onValueChange={handleAssistantChange}
                                 >
                                     <SelectTrigger className="w-full">
                                         <SelectValue placeholder="Select an assistant" />
@@ -332,6 +460,7 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
                                     onClick={startCall}
                                     className="flex items-center gap-2 w-full"
                                     size="lg"
+                                    disabled={!isVapiInitialized}
                                 >
                                     <PhoneCall className="h-5 w-5" /> Start Call
                                 </Button>
@@ -352,6 +481,41 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
                                     {callStatus === "listening" && "Listening..."}
                                     {callStatus === "speaking" && "Speaking..."}
                                 </div>
+
+                                {/* Transcription Display */}
+                                {showTranscription && (userTranscript || assistantTranscript) && (
+                                    <div className="w-full max-w-2xl mt-6 space-y-4">
+                                        {userTranscript && (
+                                            <motion.div
+                                                initial={{ opacity: 0, y: 10 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                className="bg-blue-50 dark:bg-blue-950/30 rounded-lg p-4 border border-blue-200 dark:border-blue-800"
+                                            >
+                                                <div className="text-xs font-semibold text-blue-700 dark:text-blue-300 mb-2">
+                                                    You
+                                                </div>
+                                                <div className="text-sm text-blue-900 dark:text-blue-100">
+                                                    {userTranscript}
+                                                </div>
+                                            </motion.div>
+                                        )}
+                                        {assistantTranscript && (
+                                            <motion.div
+                                                initial={{ opacity: 0, y: 10 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                className="bg-purple-50 dark:bg-purple-950/30 rounded-lg p-4 border border-purple-200 dark:border-purple-800"
+                                            >
+                                                <div className="text-xs font-semibold text-purple-700 dark:text-purple-300 mb-2">
+                                                    Assistant
+                                                </div>
+                                                <div className="text-sm text-purple-900 dark:text-purple-100">
+                                                    {assistantTranscript}
+                                                </div>
+                                            </motion.div>
+                                        )}
+                                    </div>
+                                )}
+
                                 <div className="mt-8">
                                     <Button
                                         onClick={endCall}

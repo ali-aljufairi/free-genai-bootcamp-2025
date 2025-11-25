@@ -158,24 +158,29 @@ export function StudySessionHub() {
         return
       }
 
+      // For speech study, generate a session ID and route to speech page
+      if (type === "speech") {
+        // Generate a unique session ID (using timestamp + random for uniqueness)
+        const sessionId = `speech-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
+        await navigateWithTransition(router, `/study/speech/${sessionId}`, {
+          transitionName: 'page',
+        })
+        return
+      }
+
+      // For companion-study, generate a session ID and route to companion page
+      if (type === "companion-study") {
+        // Generate a unique session ID (using timestamp + random for uniqueness)
+        const sessionId = `companion-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
+        await navigateWithTransition(router, `/study/companion-study/${sessionId}`, {
+          transitionName: 'page',
+        })
+        return
+      }
+
       // TEMPORARILY DISABLED DUE TO DATABASE MIGRATION ISSUES
       // For other features, show disabled message
       toast.error("This feature is temporarily disabled due to database migration")
-
-      // Future implementation for other study types:
-      // const session = await createSession({
-      //   type,
-      //   groupId: groups?.[0]?.id,
-      //   name: `${type} Session`,
-      //   description: `New ${type} study session`,
-      // })
-
-      // Special route for companion-study
-      // if (type === "companion-study") {
-      //   await navigateWithTransition(router, `/study/companion-study/${session.id}`)
-      // } else {
-      //   await navigateWithTransition(router, `/study/${type}/${session.id}`)
-      // }
     } catch (error) {
       console.error('Failed to create session:', error)
       toast.error("Failed to start session")

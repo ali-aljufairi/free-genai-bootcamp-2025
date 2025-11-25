@@ -20,7 +20,7 @@ export const studyImages = {
 
 // During the Postgres migration we only allow the new v2 flashcards (words & kanji).
 // All other features are temporarily disabled and hidden or marked as such.
-export const ENABLED_FEATURES = new Set(["words", "kanji", "grammar", "chat", "word-builder", "agent", "drawing"]);
+export const ENABLED_FEATURES = new Set(["words", "kanji", "grammar", "chat", "word-builder", "agent", "drawing", "speech", "companion-study"]);
 
 export type StudyOption = {
     title: string;
@@ -84,20 +84,16 @@ export const studyOptions: StudyOption[] = [
     },
     {
         title: "Speech to Image",
-        description: "Turn spoken words into images (coming soon)",
+        description: "Turn spoken words into images",
         icon: <Mic className="h-4 w-4 sm:h-5 sm:w-5 text-red-500" />,
         image: studyImages.speech,
-        type: "speech",
-        disabled: true,
-        reason: "Migration in progress"
+        type: "speech"
     },
     {
         title: "Companion",
-        description: "Voice AI companion (coming soon)",
+        description: "Voice AI companion for conversation practice",
         icon: <Mic className="h-4 w-4 sm:h-5 sm:w-5 text-pink-500" />,
         image: studyImages.companion,
-        type: "companion-study",
-        disabled: true,
-        reason: "Migration in progress"
+        type: "companion-study"
     }
 ] as const;

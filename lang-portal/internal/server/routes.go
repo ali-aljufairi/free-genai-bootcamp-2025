@@ -3,6 +3,8 @@ package server
 import (
 	roothandlers "lang-portal/internal/handlers"
 	"lang-portal/internal/handlers/chat"
+	"lang-portal/internal/handlers/companion"
+	"lang-portal/internal/handlers/speech"
 	"lang-portal/internal/handlers/dashboard"
 	"lang-portal/internal/handlers/flashcard"
 	"lang-portal/internal/handlers/grammar"
@@ -121,6 +123,14 @@ func (s *FiberServer) RegisterFiberRoutes() {
 	s.App.Get("/api/langportal/study_activities/:id", studyActivityHandler.GetStudyActivity)
 	s.App.Get("/api/langportal/study_activities/:id/sessions", studyActivityHandler.GetStudyActivitySessions)
 	s.App.Post("/api/langportal/study_activities", studyActivityHandler.CreateStudyActivity)
+
+	// Speech study routes
+	speechHandler := speech.NewSpeechHandler(s.postgresDB)
+	s.App.Post("/api/langportal/speech-study/save", speechHandler.SaveSpeechStudySession)
+
+	// Companion study routes
+	companionHandler := companion.NewCompanionHandler(s.postgresDB)
+	s.App.Post("/api/langportal/companion-study/save", companionHandler.SaveCompanionStudySession)
 
 	// Flashcard routes
 	flashcardHandler := flashcard.NewFlashcardHandler(s.postgresDB)
