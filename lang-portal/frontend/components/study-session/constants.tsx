@@ -1,3 +1,4 @@
+import { buildClerkProps } from "@clerk/nextjs/server";
 import { Brain, Edit, ScrollText, Search, MessageSquare, Mic, CheckCircle, Languages, Lock, Puzzle } from "lucide-react"
 
 // Image dimensions constants
@@ -15,7 +16,8 @@ export const studyImages = {
     drawing: "/Study-session/drawing.png",
     agent: "/Study-session/agent.png",
     speech: "/Study-session/mic.png",
-    companion: "/Study-session/comp.png"
+    companion: "/Study-session/comp.png",
+    builder: "/Study-session/builder.png"
 } as const;
 
 // During the Postgres migration we only allow the new v2 flashcards (words & kanji).
@@ -65,7 +67,7 @@ export const studyOptions: StudyOption[] = [
         title: "Word Builder",
         description: "Build words from kanji in this fun timed game",
         icon: <Puzzle className="h-4 w-4 sm:h-5 sm:w-5 text-amber-500" />,
-        image: studyImages.flashcards,
+        image: studyImages.builder,
         type: "word-builder"
     },
     {

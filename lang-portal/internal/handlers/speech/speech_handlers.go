@@ -3,7 +3,6 @@ package speech
 import (
 	"encoding/json"
 	"fmt"
-	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
@@ -22,12 +21,12 @@ func NewSpeechHandler(db *gorm.DB) *SpeechHandler {
 // SaveSpeechStudySession saves a speech study session to the database
 func (h *SpeechHandler) SaveSpeechStudySession(c *fiber.Ctx) error {
 	var input struct {
-		SessionID              string  `json:"session_id"`
-		Transcription          string  `json:"transcription"`
-		Analysis               string  `json:"analysis"`
-		ImageURL               string  `json:"image_url"`
-		RecordingDurationSeconds int   `json:"recording_duration_seconds"`
-		ModelUsed              string  `json:"model_used"`
+		SessionID                string `json:"session_id"`
+		Transcription            string `json:"transcription"`
+		Analysis                 string `json:"analysis"`
+		ImageURL                 string `json:"image_url"`
+		RecordingDurationSeconds int    `json:"recording_duration_seconds"`
+		ModelUsed                string `json:"model_used"`
 	}
 
 	if err := c.BodyParser(&input); err != nil {
@@ -50,7 +49,7 @@ func (h *SpeechHandler) SaveSpeechStudySession(c *fiber.Ctx) error {
 		"analysis":                   input.Analysis,
 		"image_url":                  input.ImageURL,
 		"recording_duration_seconds": input.RecordingDurationSeconds,
-		"model_used":                  input.ModelUsed,
+		"model_used":                 input.ModelUsed,
 		"session_id":                 input.SessionID,
 	}
 
@@ -99,9 +98,3 @@ func (h *SpeechHandler) getUserID(c *fiber.Ctx) (int64, error) {
 
 	return userID, nil
 }
-
-
-
-
-
-

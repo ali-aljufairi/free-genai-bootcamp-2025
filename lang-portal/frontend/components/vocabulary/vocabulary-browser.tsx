@@ -377,10 +377,12 @@ export function VocabularyBrowser() {
 
   return (
     <div className="space-y-6">
+      {/* Header - rendered once to avoid duplicate DropdownMenu instances */}
+      {headerContent}
+      {showImport && <VocabularyImportSection />}
+      
       {/* Desktop: Main content layout */}
       <div className="hidden md:block space-y-6">
-        {headerContent}
-        {showImport && <VocabularyImportSection />}
         <VocabularyGrid
           items={visibleItems}
           isLoading={isLoading}
@@ -396,8 +398,6 @@ export function VocabularyBrowser() {
 
       {/* Mobile: Standard layout */}
       <div className="md:hidden space-y-6">
-        {headerContent}
-        {showImport && <VocabularyImportSection />}
         <VocabularyGrid
           items={visibleItems}
           isLoading={isLoading}
