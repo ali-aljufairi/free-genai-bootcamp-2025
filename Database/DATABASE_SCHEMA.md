@@ -475,8 +475,15 @@ The Sorami language learning platform uses PostgreSQL 16+ with a comprehensive s
 ```sql
 - id: BIGSERIAL PRIMARY KEY
 - user_id: BIGINT REFERENCES users(id)
-- started_at: TIMESTAMPTZ DEFAULT now()
-- context: TEXT
+- session_id: TEXT (unique, frontend session identifier)
+- messages: JSONB (full conversation array)
+- skill_summary: JSONB (AI-generated assessment, nullable)
+- model_used: TEXT (LLM model identifier)
+- prompt_used: TEXT (prompt template identifier)
+- started_at: TIMESTAMPTZ DEFAULT now() (legacy, kept for backward compatibility)
+- context: TEXT (legacy field)
+- created_at: TIMESTAMPTZ DEFAULT now() (session creation timestamp)
+- updated_at: TIMESTAMPTZ DEFAULT now() (last update timestamp)
 ```
 
 ### `chat_messages`

@@ -122,7 +122,7 @@ func (h *ChatHandler) GetChatHistory(c *fiber.Ctx) error {
 
 	var sessions []models.ChatSession
 	if err := h.db.Where("user_id = ?", userID).
-		Order("created_at DESC").
+		Order("started_at DESC").
 		Limit(50). // Limit to last 50 sessions
 		Find(&sessions).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{

@@ -413,8 +413,15 @@ CREATE TABLE kanji_traces (
 CREATE TABLE chat_sessions (
     id BIGSERIAL PRIMARY KEY,
     user_id BIGINT REFERENCES users (id) ON DELETE CASCADE,
-    started_at TIMESTAMPTZ DEFAULT now(),
-    context TEXT
+    session_id TEXT, -- Frontend session ID (unique)
+    messages JSONB, -- Full conversation array
+    skill_summary JSONB, -- AI-generated assessment
+    model_used TEXT, -- LLM model identifier
+    prompt_used TEXT, -- Prompt template identifier
+    started_at TIMESTAMPTZ DEFAULT now(), -- Legacy field, kept for backward compatibility
+    context TEXT, -- Legacy field
+    created_at TIMESTAMPTZ DEFAULT now(), -- Session creation timestamp
+    updated_at TIMESTAMPTZ DEFAULT now() -- Last update timestamp
 );
 
 CREATE TABLE chat_messages (
@@ -428,6 +435,13 @@ CREATE TABLE chat_messages (
 );
 
 CREATE INDEX idx_chat_messages_session ON chat_messages (session_id);
+
+-- Indexes for chat_sessions
+CREATE UNIQUE INDEX idx_chat_sessions_session_id ON chat_sessions (session_id)
+WHERE
+    session_id IS NOT NULL;
+
+CREATE INDEX idx_chat_sessions_user_created ON chat_sessions (user_id, created_at DESC);
 
 /* 10. DATA INTEGRITY CONSTRAINTS ------------------------------------ */
 
@@ -1525,4 +1539,5 @@ VALUES (
     (
         'Kanji Stroke Order',
         'stroke'
-    ) ON CONFLICT (activity_type) DO NOTHING;
+    )
+ON CONFLICT (activity_type) DO NOTHING;

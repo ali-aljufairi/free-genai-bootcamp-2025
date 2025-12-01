@@ -39,6 +39,7 @@ COPY ../indexes/graph_indexes.sql /docker-entrypoint-initdb.d/17-graph-indexes.s
 COPY ../functions/srs.sql /docker-entrypoint-initdb.d/18-srs.sql
 COPY ../schema/study_activities_init.sql /docker-entrypoint-initdb.d/19-study-activities-init.sql
 COPY ../schema/import_functions/word_builder_functions.sql /docker-entrypoint-initdb.d/20-word-builder-functions.sql
+COPY ../schema/migration_chat_sessions_update.sql /docker-entrypoint-initdb.d/21-migration-chat-sessions-update.sql
 
 
 # Set proper permissions

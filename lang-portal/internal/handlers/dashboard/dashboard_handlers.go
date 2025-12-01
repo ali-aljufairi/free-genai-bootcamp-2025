@@ -134,7 +134,7 @@ func (h *DashboardHandler) GetQuickStats(c *fiber.Ctx) error {
 			UNION
 			SELECT DATE(started_at) as activity_date FROM learning_activities WHERE user_id = ?
 			UNION
-			SELECT DATE(created_at) as activity_date FROM chat_sessions WHERE user_id = ?
+			SELECT DATE(started_at) as activity_date FROM chat_sessions WHERE user_id = ?
 			UNION
 			SELECT DATE(last_seen) as activity_date FROM progress WHERE user_id = ? AND last_seen IS NOT NULL
 		) all_activity
@@ -193,7 +193,7 @@ func (h *DashboardHandler) GetActivityDates(c *fiber.Ctx) error {
 			UNION
 			SELECT DATE(started_at) as activity_date FROM learning_activities WHERE user_id = ?
 			UNION
-			SELECT DATE(created_at) as activity_date FROM chat_sessions WHERE user_id = ?
+			SELECT DATE(started_at) as activity_date FROM chat_sessions WHERE user_id = ?
 			UNION
 			SELECT DATE(last_seen) as activity_date FROM progress WHERE user_id = ? AND last_seen IS NOT NULL
 		) all_activity
@@ -310,12 +310,12 @@ func (h *DashboardHandler) GetRecentActivities(c *fiber.Ctx) error {
 	// Get activities from chat_sessions
 	var chatActivities []struct {
 		ID        int64     `gorm:"column:id"`
-		CreatedAt time.Time `gorm:"column:created_at"`
+		StartedAt time.Time `gorm:"column:started_at"`
 	}
 	h.DB.Table("chat_sessions").
 		Where("user_id = ?", userID).
-		Select("id, created_at").
-		Order("created_at DESC").
+		Select("id, started_at").
+		Order("started_at DESC").
 		Limit(limit).
 		Find(&chatActivities)
 
@@ -325,7 +325,7 @@ func (h *DashboardHandler) GetRecentActivities(c *fiber.Ctx) error {
 			Type:        "chat",
 			Name:        "Chat Practice",
 			Description: "Conversation practice",
-			CreatedAt:   act.CreatedAt,
+			CreatedAt:   act.StartedAt,
 		})
 	}
 
