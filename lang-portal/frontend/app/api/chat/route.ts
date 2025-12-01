@@ -1,7 +1,7 @@
 import { model, modelID } from "@/ai/providers";
 import { systemPrompts, SystemPromptID } from "@/ai/prompts";
 import { defaultModel, defaultPrompt } from "@/ai/config";
-import { streamText, UIMessage } from 'ai';
+import { streamText, UIMessage, convertToModelMessages } from 'ai';
 import { auth } from '@clerk/nextjs/server';
 import { getBackendUrl } from '@/lib/api-utils';
 
@@ -98,11 +98,22 @@ export async function POST(req: Request) {
   const result = streamText({
     model: model.languageModel(selectedModel),
     system: systemPromptText,
-    messages,
+    messages: convertToModelMessages(messages),
     experimental_telemetry: {
       isEnabled: true,
     },
   });
 
-  return result.toDataStreamResponse({ sendReasoning: true });
+  return result.toUIMessageStreamResponse({
+    sendReasoning: true,
+    onError: (error) => {
+      if (error instanceof Error) {
+        if (error.message.includes("Rate limit")) {
+          return "Rate limit exceeded. Please try again later.";
+        }
+      }
+      console.error(error);
+      return "An error occurred.";
+    },
+  });
 }

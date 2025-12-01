@@ -8,6 +8,32 @@ interface ChatMessageProps {
     isLoading: boolean;
 }
 
+// Helper function to extract text content from a message
+function getMessageContent(message: UIMessage): string {
+    // If content is a string, return it directly
+    if (typeof message.content === 'string') {
+        return message.content;
+    }
+
+    // If content is an array of parts, extract text from text parts
+    if (Array.isArray(message.content)) {
+        return message.content
+            .filter((part: any) => part.type === 'text')
+            .map((part: any) => part.text)
+            .join('');
+    }
+
+    // Fallback: try to get text from parts property (new AI SDK format)
+    if (message.parts && Array.isArray(message.parts)) {
+        return message.parts
+            .filter((part: any) => part.type === 'text')
+            .map((part: any) => part.text)
+            .join('');
+    }
+
+    return '';
+}
+
 export function ChatMessages({ messages, isLoading }: ChatMessageProps) {
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -28,29 +54,33 @@ export function ChatMessages({ messages, isLoading }: ChatMessageProps) {
                 </div>
             )}
 
-            {messages.map((message) => (
-                <div
-                    key={message.id}
-                    className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
-                >
+            {messages.map((message) => {
+                const content = getMessageContent(message);
+
+                return (
                     <div
-                        className={`
-              max-w-[80%] rounded-lg px-4 py-2
-              ${message.role === "user"
-                                ? "bg-primary/10 text-foreground"
-                                : "bg-muted text-foreground"
-                            }
-            `}
+                        key={message.id}
+                        className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
                     >
-                        <div className="text-xs text-muted-foreground mb-1">
-                            {message.role === "user" ? "You" : "Language Tutor"}
-                        </div>
-                        <div className="text-sm">
-                            <Markdown>{message.content}</Markdown>
+                        <div
+                            className={`
+                  max-w-[80%] rounded-lg px-4 py-2
+                  ${message.role === "user"
+                                    ? "bg-primary/10 text-foreground"
+                                    : "bg-muted text-foreground"
+                                }
+                `}
+                        >
+                            <div className="text-xs text-muted-foreground mb-1">
+                                {message.role === "user" ? "You" : "Language Tutor"}
+                            </div>
+                            <div className="text-sm">
+                                <Markdown>{content}</Markdown>
+                            </div>
                         </div>
                     </div>
-                </div>
-            ))}
+                );
+            })}
 
             {isLoading && (
                 <div className="flex justify-start">

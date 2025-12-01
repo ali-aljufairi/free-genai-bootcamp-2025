@@ -1,7 +1,8 @@
 "use client"
 
 import { useChat } from '@ai-sdk/react';
-import { useState, useEffect, useRef } from "react";
+import { DefaultChatTransport, UIMessage } from 'ai';
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { X } from "lucide-react";
@@ -18,22 +19,53 @@ interface MobileChatStudyProps {
     onComplete: () => void;
 }
 
+// Helper function to extract text content from a message
+function getMessageContent(message: UIMessage): string {
+    // Check for parts property (new AI SDK format)
+    if (message.parts && Array.isArray(message.parts)) {
+        return message.parts
+            .filter((part: any) => part.type === 'text')
+            .map((part: any) => part.text)
+            .join('');
+    }
+
+    // Fallback for any other format
+    return '';
+}
+
 export function MobileChatStudy({ sessionId, onComplete }: MobileChatStudyProps) {
     const router = useRouter();
     const [selectedModel, setSelectedModel] = useState<modelID>(defaultModel);
     const [selectedPrompt, setSelectedPrompt] = useState<SystemPromptID>(defaultPrompt);
     const [isComplete, setIsComplete] = useState(false);
-    const messagesRef = useRef<any[]>([]);
+    const [input, setInput] = useState("");
+    const messagesRef = useRef<UIMessage[]>([]);
     const hasSavedRef = useRef(false);
 
-    const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat({
+    // Create transport with the API endpoint and body data
+    const transport = useMemo(() => new DefaultChatTransport({
         api: "/api/chat",
         body: {
             selectedModel,
             selectedPrompt
+        }
+    }), [selectedModel, selectedPrompt]);
+
+    // Use the new AI SDK API
+    const { messages, status, stop, sendMessage, error } = useChat({
+        id: sessionId,
+        transport,
+        onError: (err) => {
+            toast.error(
+                err.message.length > 0
+                    ? err.message
+                    : "An error occurred, please try again later.",
+                { position: "top-center", richColors: true }
+            );
         },
-        id: sessionId
     });
+
+    const isLoading = status === "streaming" || status === "submitted";
 
     // Keep messages ref updated
     useEffect(() => {
@@ -48,10 +80,10 @@ export function MobileChatStudy({ sessionId, onComplete }: MobileChatStudyProps)
                 const messagesToSave = messagesRef.current.map(msg => ({
                     id: msg.id,
                     role: msg.role,
-                    content: msg.content,
+                    content: getMessageContent(msg),
                 }));
 
-                // Use sendBeacon for reliable submission on page unload
+                // Use fetch with keepalive for reliable submission
                 const data = JSON.stringify({
                     session_id: sessionId,
                     messages: messagesToSave,
@@ -59,27 +91,14 @@ export function MobileChatStudy({ sessionId, onComplete }: MobileChatStudyProps)
                     prompt_used: selectedPrompt,
                 });
 
-                // Try sendBeacon first (works on page unload)
-                if (navigator.sendBeacon) {
-                    const blob = new Blob([data], { type: 'application/json' });
-                    fetch('/api/langportal/chat/sessions', {
-                        method: 'POST',
-                        body: blob,
-                        keepalive: true,
-                    }).catch(() => {
-                        // Silently fail - background operation
-                    });
-                } else {
-                    // Fallback to fetch with keepalive
-                    fetch('/api/langportal/chat/sessions', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: data,
-                        keepalive: true,
-                    }).catch(() => {
-                        // Silently fail - background operation
-                    });
-                }
+                fetch('/api/langportal/chat/sessions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: data,
+                    keepalive: true,
+                }).catch(() => {
+                    // Silently fail - background operation
+                });
             }
         };
     }, [sessionId, selectedModel, selectedPrompt]);
@@ -95,13 +114,13 @@ export function MobileChatStudy({ sessionId, onComplete }: MobileChatStudyProps)
                 messages: messages.map(msg => ({
                     id: msg.id,
                     role: msg.role,
-                    content: msg.content,
+                    content: getMessageContent(msg),
                 })),
                 model_used: selectedModel,
                 prompt_used: selectedPrompt,
             });
-        } catch (error) {
-            console.error("Failed to save chat session:", error);
+        } catch (err) {
+            console.error("Failed to save chat session:", err);
             hasSavedRef.current = false; // Allow retry
         }
     };
@@ -118,6 +137,20 @@ export function MobileChatStudy({ sessionId, onComplete }: MobileChatStudyProps)
         saveChatSession();
         router.push("/study");
     }
+
+    // Handle input change
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        setInput(e.target.value);
+    };
+
+    // Handle form submit - use new sendMessage API
+    const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        if (input.trim() && !isLoading) {
+            sendMessage({ text: input });
+            setInput("");
+        }
+    };
 
     if (isComplete) {
         return (
@@ -183,4 +216,3 @@ export function MobileChatStudy({ sessionId, onComplete }: MobileChatStudyProps)
         </div>
     )
 }
-
