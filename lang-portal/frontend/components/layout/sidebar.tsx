@@ -59,7 +59,7 @@ export default function Sidebar() {
       {!isStudySessionActive && <MobileBottomNav />}
 
       <div className={cn(
-        "hidden md:flex flex-col h-screen border-r bg-white/90 dark:bg-slate-900/90 paper-texture backdrop-blur-sm transition-all duration-300",
+        "hidden md:flex flex-col h-screen border-r bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm transition-all duration-300",
         !isExpanded ? "w-20" : "w-64"
       )}>
         <div className="flex items-center gap-2 p-4 border-b">

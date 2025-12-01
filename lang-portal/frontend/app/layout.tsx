@@ -104,7 +104,7 @@ export default function RootLayout({
     >
       <html lang="en" suppressHydrationWarning>
         <body
-          className={`${inter.className} bg-gradient-to-br from-sky-50/80 via-blue-50/60 to-blue-100/70 dark:from-slate-900/90 dark:via-blue-950/80 dark:to-blue-950/90 paper-texture atmospheric-bg`}
+          className={`${inter.className} bg-gradient-to-br from-sky-50/80 via-blue-50/60 to-blue-100/70 dark:from-slate-900/90 dark:via-blue-950/80 dark:to-blue-950/90 kanji-texture atmospheric-bg`}
           suppressHydrationWarning
         >
           <ClientLayout>{children}</ClientLayout>

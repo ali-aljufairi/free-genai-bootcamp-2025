@@ -7,7 +7,7 @@ import { useState } from "react";
 
 interface ChatInputProps {
     input: string;
-    handleInputChange: (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
+    handleInputChange?: (event: React.ChangeEvent<HTMLTextAreaElement>) => void;
     handleSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
     isLoading: boolean;
     selectedModel: modelID;
@@ -32,9 +32,6 @@ export function ChatInput({
     // Guard against undefined input to prevent .trim() crashes
     const safeInput = input ?? "";
 
-    // Ensure onChange handler is always defined
-    const handleChange = handleInputChange || (() => { });
-
     // Get current model label
     const currentModelLabel = availableModels.find(m => m.id === selectedModel)?.label || selectedModel.split('-')[0].charAt(0).toUpperCase() + selectedModel.split('-')[0].slice(1);
 
@@ -45,11 +42,17 @@ export function ChatInput({
         <form onSubmit={handleSubmit} className="w-full">
             <div className="relative w-full pt-4">
                 <ShadcnTextarea
-                    className="resize-none bg-secondary w-full rounded-2xl pr-12 pt-4 pb-12 border focus-visible:ring-1 focus-visible:ring-primary"
-                    value={safeInput}
+                    className="resize-none bg-secondary w-full rounded-2xl pr-12 pt-4 pb-12 border focus-visible:ring-1 focus-visible:ring-primary relative z-10"
                     autoFocus
                     placeholder="Type your message..."
-                    onChange={handleChange}
+                    readOnly={false}
+                    disabled={false}
+                    {...(handleInputChange
+                        ? {
+                            value: safeInput,
+                            onChange: handleInputChange,
+                        }
+                        : {})}
                     onKeyDown={(e) => {
                         if (e.key === "Enter" && !e.shiftKey) {
                             e.preventDefault();
@@ -65,7 +68,7 @@ export function ChatInput({
                         setShowPromptPicker(false);
                     }}
                 />
-                <div className="absolute left-2 bottom-2 flex space-x-2">
+                <div className="absolute left-2 bottom-2 flex space-x-2 z-20 pointer-events-none">
                     <button
                         type="button"
                         onClick={(e) => {
@@ -73,7 +76,7 @@ export function ChatInput({
                             setShowModelPicker(!showModelPicker);
                             setShowPromptPicker(false);
                         }}
-                        className="text-xs text-muted-foreground hover:text-foreground p-1 rounded-md transition-colors"
+                        className="text-xs text-muted-foreground hover:text-foreground p-1 rounded-md transition-colors pointer-events-auto"
                     >
                         {currentModelLabel} ▾
                     </button>
@@ -85,13 +88,13 @@ export function ChatInput({
                                 setShowPromptPicker(!showPromptPicker);
                                 setShowModelPicker(false);
                             }}
-                            className="text-xs text-muted-foreground hover:text-foreground p-1 rounded-md transition-colors"
+                            className="text-xs text-muted-foreground hover:text-foreground p-1 rounded-md transition-colors pointer-events-auto"
                         >
                             {currentPromptLabel} ▾
                         </button>
                     )}
                     {showModelPicker && (
-                        <div className="absolute bottom-10 left-0 bg-background border border-border rounded-md p-2 z-10 w-[200px] shadow-md">
+                        <div className="absolute bottom-10 left-0 bg-background border border-border rounded-md p-2 z-30 w-[200px] shadow-md">
                             <div className="space-y-2">
                                 {availableModels.map((model) => (
                                     <button
@@ -110,7 +113,7 @@ export function ChatInput({
                         </div>
                     )}
                     {showPromptPicker && setSelectedPrompt && (
-                        <div className="absolute bottom-10 left-[150px] bg-background border border-border rounded-md p-2 z-10 w-[200px] shadow-md">
+                        <div className="absolute bottom-10 left-[150px] bg-background border border-border rounded-md p-2 z-30 w-[200px] shadow-md">
                             <div className="space-y-2">
                                 {availablePrompts.map((prompt) => (
                                     <button
@@ -132,7 +135,7 @@ export function ChatInput({
                 <button
                     type="submit"
                     disabled={isLoading || !safeInput.trim()}
-                    className="absolute right-2 bottom-2 rounded-full p-2 bg-primary hover:bg-primary/80 disabled:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="absolute right-2 bottom-2 rounded-full p-2 bg-primary hover:bg-primary/80 disabled:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-colors z-20"
                 >
                     {isLoading ? (
                         <div className="animate-spin h-4 w-4">
