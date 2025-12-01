@@ -3,6 +3,8 @@
 import type { Metadata } from "next"
 import { StudySessionHub } from "@/components/study-session/study-session-hub"
 import { usePreserveScrollPosition } from "@/hooks/use-preserve-state"
+import { Grid3x3 } from "lucide-react"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 // Note: Metadata export needs to be moved to layout.tsx for client components
 // export const metadata: Metadata = {

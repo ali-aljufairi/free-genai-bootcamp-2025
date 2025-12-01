@@ -13,6 +13,8 @@ import { createSwapy } from 'swapy'
 import { useSortedStudyOptions, useStudyCardOrderStore } from '@/stores/study-card-order-store'
 import { navigateWithTransition } from '@/lib/view-transitions'
 import type { Swapy, SwapEvent, SwapStartEvent, SwapEndEvent } from '@/types/swapy'
+import { Grid3x3 } from "lucide-react"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 /**
  * Study Session Hub Component
@@ -217,15 +219,15 @@ export function StudySessionHub() {
       transition={{ duration: 0.2 }}
     >
       <Card
-        className={`glass-card relative overflow-hidden flex flex-col h-full ${ENABLED_FEATURES.has(type) ? 'cursor-pointer' : 'opacity-60'}`}
+        className={`glass-card relative overflow-hidden flex flex-col h-full min-h-[320px] ${ENABLED_FEATURES.has(type) ? 'cursor-pointer' : 'opacity-60'}`}
         onClick={() => startSession(type, !ENABLED_FEATURES.has(type))}
       >
-        <CardHeader className="z-10 pb-0">
-          <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+        <CardHeader className="z-10 pb-0 flex-shrink-0">
+          <CardTitle className="flex items-center gap-2 text-base sm:text-lg mb-2">
             {icon}
             {title}
           </CardTitle>
-          <CardDescription className="text-xs sm:text-sm line-clamp-2">
+          <CardDescription className="text-xs sm:text-sm line-clamp-2 min-h-[2.5rem]">
             {description}
             {!ENABLED_FEATURES.has(type) && (
               <span className="block text-[10px] sm:text-xs text-amber-500 mt-1">Temporarily disabled</span>
@@ -265,7 +267,7 @@ export function StudySessionHub() {
             transition={{ duration: 0.2 }}
           >
             <Button
-              className="w-full text-sm sm:text-base font-medium bg-blue-600 hover:bg-blue-700 text-white shadow-md"
+              className="w-full text-sm sm:text-base font-medium bg-primary text-primary-foreground hover:brightness-95 border-0 shadow-md"
               disabled={!ENABLED_FEATURES.has(type)}
             >
               {ENABLED_FEATURES.has(type)
@@ -285,6 +287,21 @@ export function StudySessionHub() {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
     >
+      {/* Drag indicator icon positioned at top of cards grid */}
+      <div className="flex justify-end mb-2">
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="flex items-center justify-center p-2 rounded-lg hover:bg-muted/50 transition-colors cursor-help">
+                <Grid3x3 className="h-5 w-5 text-muted-foreground" />
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Drag cards to reorder</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      </div>
       {/* 
         Grid container with Swapy integration:
         - ref={containerRef} connects to Swapy instance
@@ -294,13 +311,15 @@ export function StudySessionHub() {
       */}
       <div
         ref={containerRef}
-        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4"
+        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 items-stretch"
+        style={{ gridAutoRows: 'minmax(320px, auto)' }}
       >
         <AnimatePresence>
           {sortedStudyOptions.map((option, index) => (
             <motion.div
               key={option.type}
               data-swapy-slot={`slot-${option.type}`}  // Swapy slot identifier
+              className="h-full"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
@@ -309,7 +328,7 @@ export function StudySessionHub() {
                 delay: index * 0.05  // Staggered animation for visual appeal
               }}
             >
-              <div data-swapy-item={`item-${option.type}`}>  {/* Swapy item identifier */}
+              <div data-swapy-item={`item-${option.type}`} className="h-full">  {/* Swapy item identifier */}
                 <StudyCard
                   title={option.title}
                   description={option.description}

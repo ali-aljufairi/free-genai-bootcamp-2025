@@ -183,8 +183,9 @@ export default function HomePage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: isVisible ? 1 : 0, y: isVisible ? 0 : 20 }}
               transition={{ duration: 0.5, delay: 0.3 }}
-              className="flex flex-col sm:flex-row gap-4"
+              className="flex flex-col sm:flex-row gap-4 items-center justify-center sm:justify-start"
             >
+              <TourGuide />
               {isSignedIn ? (
                 <Button
                   size="lg"
@@ -205,7 +206,6 @@ export default function HomePage() {
                   </Button>
                 </SignUpButton>
               )}
-              <TourGuide />
             </motion.div>
           </div>
 
