@@ -262,6 +262,11 @@ export const userApi = {
     method: 'PUT',
     body: JSON.stringify({ group_id: groupId }),
   }),
+  updateUser: (userId: string, data: { display_name?: string | null; email?: string | null }) => 
+    fetchData<{ message: string }>(`/users/${userId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
 };
 
 

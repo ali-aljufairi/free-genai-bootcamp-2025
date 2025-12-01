@@ -1,8 +1,12 @@
 "use client"
 
-import { UserProfile } from "@clerk/nextjs"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Separator } from "@/components/ui/separator"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { AccountTab } from "@/components/settings/account-tab"
+import { WordFlashcardSettings } from "@/components/settings/word-flashcard-settings"
+import { KanjiFlashcardSettings } from "@/components/settings/kanji-flashcard-settings"
+import { GrammarQuizSettings } from "@/components/settings/grammar-quiz-settings"
+import { User, Brain, Languages, CheckCircle } from "lucide-react"
 
 export default function SettingsPage() {
   return (
@@ -12,33 +16,69 @@ export default function SettingsPage() {
         <p className="text-muted-foreground">Manage your account and application preferences.</p>
       </div>
 
-      <Card className="border-border/50 shadow-lg py-8 px-4 w-full max-w-4xl mx-auto">
-        <CardContent className="p-0 flex justify-center">
-          <UserProfile
-            appearance={{
-              elements: {
-                rootBox: "flex justify-center w-full max-w-3xl",
-                card: "bg-transparent shadow-none p-0",
-                navbar: "hidden",
-                pageScrollBox: "p-0",
-                profileSection: "p-6",
-                profilePage: "p-4",
-                headerTitle: "text-foreground",
-                headerSubtitle: "text-foreground/80",
-                formFieldLabel: "text-foreground font-medium",
-                formFieldInput: "bg-background border-border text-foreground placeholder:text-foreground/70",
-                formButtonPrimary: "bg-primary hover:bg-primary/90 text-primary-foreground",
-                formButtonReset: "text-foreground/80 hover:text-foreground",
-                userPreviewMainIdentifier: "text-foreground",
-                userPreviewSecondaryIdentifier: "text-foreground/80",
-                userButtonPopoverCard: "bg-popover border border-border",
-                userButtonPopoverText: "text-foreground",
-                userButtonPopoverActionButton: "text-foreground/80 hover:text-foreground",
-                formFieldWarningText: "text-yellow-500 dark:text-yellow-400",
-                formFieldErrorText: "text-destructive"
-              }
-            }}
-          />
+      <Card className="glass-card border-border/50 shadow-lg w-full max-w-6xl mx-auto">
+        <CardHeader className="pb-4">
+          <CardTitle className="text-2xl">Account & Study Preferences</CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          <Tabs defaultValue="account" className="w-full">
+            <TabsList className="w-full justify-start rounded-none border-b bg-transparent p-0 h-auto">
+              <TabsTrigger
+                value="account"
+                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-6 py-4"
+              >
+                <div className="flex items-center gap-2">
+                  <User className="w-4 h-4" />
+                  <span>Account</span>
+                </div>
+              </TabsTrigger>
+              <TabsTrigger
+                value="words"
+                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-6 py-4"
+              >
+                <div className="flex items-center gap-2">
+                  <Brain className="w-4 h-4" />
+                  <span>Word Flashcards</span>
+                </div>
+              </TabsTrigger>
+              <TabsTrigger
+                value="kanji"
+                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-6 py-4"
+              >
+                <div className="flex items-center gap-2">
+                  <Languages className="w-4 h-4" />
+                  <span>Kanji Flashcards</span>
+                </div>
+              </TabsTrigger>
+              <TabsTrigger
+                value="grammar"
+                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-6 py-4"
+              >
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4" />
+                  <span>Grammar Quiz</span>
+                </div>
+              </TabsTrigger>
+            </TabsList>
+
+            <div className="p-6">
+              <TabsContent value="account" className="mt-0">
+                <AccountTab />
+              </TabsContent>
+
+              <TabsContent value="words" className="mt-0">
+                <WordFlashcardSettings />
+              </TabsContent>
+
+              <TabsContent value="kanji" className="mt-0">
+                <KanjiFlashcardSettings />
+              </TabsContent>
+
+              <TabsContent value="grammar" className="mt-0">
+                <GrammarQuizSettings />
+              </TabsContent>
+            </div>
+          </Tabs>
         </CardContent>
       </Card>
     </div>

@@ -13,8 +13,6 @@ import { createSwapy } from 'swapy'
 import { useSortedStudyOptions, useStudyCardOrderStore } from '@/stores/study-card-order-store'
 import { navigateWithTransition } from '@/lib/view-transitions'
 import type { Swapy, SwapEvent, SwapStartEvent, SwapEndEvent } from '@/types/swapy'
-import { Grid3x3 } from "lucide-react"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 /**
  * Study Session Hub Component
@@ -287,21 +285,6 @@ export function StudySessionHub() {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
     >
-      {/* Drag indicator icon positioned at top of cards grid */}
-      <div className="flex justify-end mb-2">
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <div className="flex items-center justify-center p-2 rounded-lg hover:bg-muted/50 transition-colors cursor-help">
-                <Grid3x3 className="h-5 w-5 text-muted-foreground" />
-              </div>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Drag cards to reorder</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      </div>
       {/* 
         Grid container with Swapy integration:
         - ref={containerRef} connects to Swapy instance
