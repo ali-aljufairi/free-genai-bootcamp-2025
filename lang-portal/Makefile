@@ -89,7 +89,7 @@ clean:
 docker-up:
 	@echo "Starting PostgreSQL database..."
 	@if command -v docker >/dev/null 2>&1; then \
-		cd ../Database && docker compose up -d; \
+		cd Database && docker compose up -d; \
 	else \
 		echo "Docker not found."; \
 		exit 1; \
@@ -98,7 +98,7 @@ docker-up:
 docker-down:
 	@echo "Stopping PostgreSQL database..."
 	@if command -v docker >/dev/null 2>&1; then \
-		cd ../Database && docker compose down; \
+		cd Database && docker compose down; \
 	else \
 		echo "Docker not found."; \
 		exit 1; \
@@ -107,19 +107,80 @@ docker-down:
 db-reset: docker-down
 	@echo "Resetting database..."
 	@if command -v docker >/dev/null 2>&1; then \
-		cd ../Database && docker compose down -v && docker compose up -d; \
-		echo "Database reset complete. Run import script if needed."; \
+		cd Database && docker compose down -v && docker compose up -d; \
+		echo "Database reset complete. Run migrations and seed if needed."; \
 	else \
 		echo "Docker not found."; \
 		exit 1; \
 	fi
 
-# Import JLPT data into database
-db-seed:
-	@echo "Importing JLPT data into database..."
-	@if command -v go >/dev/null 2>&1; then \
-		cd ../Database/import-client && go run *.go; \
+# Database Migrations
+.PHONY: migrate-up migrate-down migrate-status migrate-create migrate-reset
+
+migrate-up:
+	@echo "Running database migrations..."
+	@go run cmd/migrate/main.go up
+
+migrate-down:
+	@echo "Rolling back last migration..."
+	@go run cmd/migrate/main.go down
+
+migrate-status:
+	@echo "Checking migration status..."
+	@go run cmd/migrate/main.go status
+
+migrate-create:
+	@read -p "Migration name: " name; \
+	goose -dir internal/database/migrations create $$name sql
+
+migrate-reset:
+	@echo "WARNING: This will rollback ALL migrations!"
+	@read -p "Are you sure? (yes/no): " confirm; \
+	if [ "$$confirm" = "yes" ]; then \
+		go run cmd/migrate/main.go reset; \
 	else \
-		echo "Go not found."; \
-		exit 1; \
+		echo "Cancelled."; \
 	fi
+
+# Database Seeding
+.PHONY: seed seed-kanji seed-words seed-jlpt seed-grammar seed-graph seed-ndjson
+
+seed:
+	@echo "Seeding database with all data..."
+	@go run cmd/seed/main.go
+
+seed-kanji:
+	@echo "Seeding kanji data only..."
+	@go run cmd/seed/main.go -only=kanji
+
+seed-words:
+	@echo "Seeding words data only..."
+	@go run cmd/seed/main.go -only=words
+
+seed-jlpt:
+	@echo "Seeding JLPT questions only..."
+	@go run cmd/seed/main.go -only=jlpt
+
+seed-grammar:
+	@echo "Seeding grammar data only..."
+	@go run cmd/seed/main.go -only=grammar
+
+seed-graph:
+	@echo "Seeding graph relationships only..."
+	@go run cmd/seed/main.go -only=graph
+
+seed-ndjson:
+	@echo "Seeding from NDJSON exports (fast mode)..."
+	@go run cmd/seed/main.go -ndjson
+
+# Full database setup (migrate + seed)
+.PHONY: db-setup db-validate
+
+db-setup: migrate-up seed
+	@echo "Database setup complete!"
+	@echo "Running validation..."
+	@go run cmd/validate/main.go
+
+db-validate:
+	@echo "Validating database schema and data..."
+	@go run cmd/validate/main.go

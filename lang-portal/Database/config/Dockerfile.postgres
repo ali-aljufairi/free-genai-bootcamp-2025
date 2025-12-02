@@ -1,0 +1,27 @@
+FROM postgres:17
+
+# Metadata for the image
+LABEL org.opencontainers.image.title="Sorami PostgreSQL"
+LABEL org.opencontainers.image.description="PostgreSQL database with pgvector extension for Sorami language learning platform"
+LABEL org.opencontainers.image.source="https://github.com/your-username/sorami"
+LABEL org.opencontainers.image.licenses="MIT"
+
+# Install pgvector extension - try to install from source if package not available
+RUN apt-get update && \
+    (apt-get install -y postgresql-17-pgvector || \
+    (apt-get install -y build-essential git postgresql-server-dev-17 && \
+    git clone https://github.com/pgvector/pgvector.git && \
+    cd pgvector && \
+    make && \
+    make install && \
+    cd .. && \
+    rm -rf pgvector)) && \
+    rm -rf /var/lib/apt/lists/*
+
+# Note: Database schema is managed by Goose migrations, not Docker initialization scripts
+# Run migrations using: make migrate-up
+
+# Health check
+HEALTHCHECK --interval=10s --timeout=5s --start-period=30s --retries=3 \
+    CMD pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-postgres} || exit 1
+

@@ -35,3 +35,9 @@ main
 # OS X generated file
 .DS_Store
 
+jlpt_organized/
+
+# NDJSON data files (exported from database)
+*.ndjson
+data/cleaned_json/db/*.ndjson
+seed
