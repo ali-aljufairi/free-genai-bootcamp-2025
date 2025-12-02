@@ -523,14 +523,14 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
                                                         `}
                                                     >
                                                         <div className={`text-xs font-semibold mb-1 ${message.role === "user"
-                                                                ? "text-blue-700 dark:text-blue-300"
-                                                                : "text-purple-700 dark:text-purple-300"
+                                                            ? "text-blue-700 dark:text-blue-300"
+                                                            : "text-purple-700 dark:text-purple-300"
                                                             }`}>
                                                             {message.role === "user" ? "You" : "Assistant"}
                                                         </div>
                                                         <div className={`text-sm ${message.role === "user"
-                                                                ? "text-blue-900 dark:text-blue-100"
-                                                                : "text-purple-900 dark:text-purple-100"
+                                                            ? "text-blue-900 dark:text-blue-100"
+                                                            : "text-purple-900 dark:text-purple-100"
                                                             }`}>
                                                             {message.text}
                                                             {message.isPartial && <span className="opacity-50">...</span>}

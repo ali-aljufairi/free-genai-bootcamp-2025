@@ -133,4 +133,48 @@
     background-color: rgb(59 130 246 / 0.4);
     color: rgb(239 246 255);
   }
+
+  /* Custom scrollbar styling - blue theme with transparent background */
+  /* Webkit browsers (Chrome, Safari, Edge) */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: rgb(96 165 250 / 0.6);
+    border-radius: 5px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgb(96 165 250 / 0.8);
+    background-clip: padding-box;
+  }
+
+  /* Dark mode scrollbar */
+  .dark ::-webkit-scrollbar-thumb {
+    background: rgb(59 130 246 / 0.6);
+    background-clip: padding-box;
+  }
+
+  .dark ::-webkit-scrollbar-thumb:hover {
+    background: rgb(59 130 246 / 0.8);
+    background-clip: padding-box;
+  }
+
+  /* Firefox */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(96 165 250 / 0.6) transparent;
+  }
+
+  .dark * {
+    scrollbar-color: rgb(59 130 246 / 0.6) transparent;
+  }
 }
