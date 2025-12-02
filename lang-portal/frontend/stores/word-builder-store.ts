@@ -44,6 +44,7 @@ interface WordBuilderStore {
   clearSlots: () => void
   validateCurrentWord: () => WordBuilderValidWord | null
   addFormedWord: (word: WordBuilderValidWord) => void
+  removeFormedWord: (wordIndex: number) => void
   incrementAttempts: () => void
   refreshKanji: (kanji: Kanji[], validWords: WordBuilderValidWord[]) => void
   startTimer: () => void
@@ -136,7 +137,10 @@ export const useWordBuilderStore = create<WordBuilderStore>()(
       },
       
       clearSlots: () => {
-        set({ currentSlots: [null, null, null, null] })
+        set((state) => ({ 
+          currentSlots: [null, null, null, null],
+          // Keep kanjiPool unchanged - kanji should remain in pool
+        }))
       },
       
       validateCurrentWord: () => {
@@ -154,10 +158,8 @@ export const useWordBuilderStore = create<WordBuilderStore>()(
         if (matchedWord) {
           // Success!
           get().addFormedWord(matchedWord)
-          // Auto-clear if enabled
-          if (state.preferences.auto_clear_on_success) {
-            get().clearSlots()
-          }
+          // Always clear slots after successful word formation
+          get().clearSlots()
           return matchedWord
         } else {
           // Invalid combination
@@ -171,6 +173,17 @@ export const useWordBuilderStore = create<WordBuilderStore>()(
           formedWords: [...state.formedWords, word],
           successfulWords: state.successfulWords + 1,
         }))
+      },
+      
+      removeFormedWord: (wordIndex) => {
+        set((state) => {
+          if (wordIndex < 0 || wordIndex >= state.formedWords.length) return state
+          const newFormedWords = state.formedWords.filter((_, index) => index !== wordIndex)
+          return {
+            formedWords: newFormedWords,
+            successfulWords: Math.max(0, state.successfulWords - 1),
+          }
+        })
       },
       
       incrementAttempts: () => {

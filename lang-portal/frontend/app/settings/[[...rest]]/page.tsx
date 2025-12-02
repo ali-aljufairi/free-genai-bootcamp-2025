@@ -6,7 +6,8 @@ import { AccountTab } from "@/components/settings/account-tab"
 import { WordFlashcardSettings } from "@/components/settings/word-flashcard-settings"
 import { KanjiFlashcardSettings } from "@/components/settings/kanji-flashcard-settings"
 import { GrammarQuizSettings } from "@/components/settings/grammar-quiz-settings"
-import { User, Brain, Languages, CheckCircle } from "lucide-react"
+import { WordBuilderSettings } from "@/components/settings/word-builder-settings"
+import { User, Brain, Languages, CheckCircle, Puzzle } from "lucide-react"
 
 export default function SettingsPage() {
   return (
@@ -59,6 +60,15 @@ export default function SettingsPage() {
                   <span>Grammar Quiz</span>
                 </div>
               </TabsTrigger>
+              <TabsTrigger
+                value="word-builder"
+                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-6 py-4"
+              >
+                <div className="flex items-center gap-2">
+                  <Puzzle className="w-4 h-4" />
+                  <span>Word Builder</span>
+                </div>
+              </TabsTrigger>
             </TabsList>
 
             <div className="p-6">
@@ -76,6 +86,10 @@ export default function SettingsPage() {
 
               <TabsContent value="grammar" className="mt-0">
                 <GrammarQuizSettings />
+              </TabsContent>
+
+              <TabsContent value="word-builder" className="mt-0">
+                <WordBuilderSettings />
               </TabsContent>
             </div>
           </Tabs>

@@ -19,13 +19,13 @@ export function WordBuilderKanjiPool({ kanji }: WordBuilderKanjiPoolProps) {
                 <div
                     key={k.id}
                     data-swapy-slot={`pool-kanji-${k.id}`}
-                    className="relative h-full min-h-0 max-h-full"
+                    className="relative h-full min-h-0 max-h-full [&_button]:hidden"
                 >
                     <motion.div
                         data-swapy-item={`kanji-pool-${k.id}`}
                         className="h-full w-full cursor-grab active:cursor-grabbing"
                     >
-                        <Card className="glass-card h-full w-full max-h-full max-w-full flex items-center justify-center p-2 transition-colors [&:hover]:transform-none [&:hover]:scale-100">
+                        <Card className="glass-card h-full w-full max-h-full max-w-full flex items-center justify-center p-2 transition-colors bg-blue-500/10 border-blue-500/30 [&:hover]:transform-none [&:hover]:scale-100">
                             <CardContent className="p-0 w-full h-full flex flex-col items-center justify-center min-h-0 overflow-hidden">
                                 <div className="text-2xl font-bold mb-1 shrink-0">{k.character}</div>
                                 {showHints && (

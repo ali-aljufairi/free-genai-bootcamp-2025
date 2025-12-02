@@ -45,7 +45,7 @@ export function WordBuilderSlots({ slots, onValidate }: WordBuilderSlotsProps) {
                                 data-swapy-item={`kanji-slot-${kanji.id}-${index}`}
                                 className="h-full w-full"
                             >
-                                <Card className="glass-card h-full w-full flex items-center justify-center p-3 border-primary bg-primary/5 [&:hover]:transform-none [&:hover]:scale-100">
+                                <Card className="glass-card h-full w-full flex items-center justify-center p-3 bg-green-500/10 border-green-500/50 [&:hover]:transform-none [&:hover]:scale-100">
                                     <CardContent className="p-0 w-full h-full flex flex-col items-center justify-center relative">
                                         <motion.div
                                             key={kanji.id}
@@ -72,13 +72,15 @@ export function WordBuilderSlots({ slots, onValidate }: WordBuilderSlotsProps) {
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
-                                                className="absolute top-1 right-1 h-6 w-6"
+                                                className="absolute top-2 right-2 h-8 w-8 z-10 hover:bg-destructive/20 hover:text-destructive"
                                                 onClick={(e) => {
                                                     e.stopPropagation()
+                                                    e.preventDefault()
                                                     removeKanjiFromSlot(index)
                                                 }}
+                                                title="Remove kanji from slot"
                                             >
-                                                <X className="h-3 w-3" />
+                                                <X className="h-4 w-4" />
                                             </Button>
                                         </motion.div>
                                     </CardContent>

@@ -34,9 +34,11 @@ export function WordBuilderGame({
 }: WordBuilderGameProps) {
     const containerRef = useRef<HTMLDivElement>(null)
     const swapyInstance = useRef<Swapy | null>(null)
+    const prevSlotsHadKanji = useRef(false)
     const [showResults, setShowResults] = useState(false)
     const [startTime, setStartTime] = useState<number | null>(null)
     const [timeSpent, setTimeSpent] = useState(0)
+    const [poolRenderKey, setPoolRenderKey] = useState(0)
     const isMobile = useIsMobile()
 
     const {
@@ -105,7 +107,9 @@ export function WordBuilderGame({
                 dragAxis: 'both',
             })
 
-            // Prevent swapping placeholders out of slots
+            // Handle swap logic in onBeforeSwap
+            // For pool→slot: update state and return false to prevent Swapy from moving DOM elements
+            // This ensures React creates the proper slot element (green with X button)
             swapyInstance.current.onBeforeSwap((event: BeforeSwapEvent) => {
                 const { draggingItem, fromSlot, toSlot } = event
 
@@ -119,27 +123,35 @@ export function WordBuilderGame({
                     return false
                 }
 
-                return true
-            })
+                // Prevent slot elements from being dragged to pool
+                if (draggingItem.startsWith('kanji-slot-') && toSlot.startsWith('pool-kanji-')) {
+                    return false
+                }
 
-            // Handle swap events to update store
-            swapyInstance.current.onSwap((event: SwapEvent) => {
-                const { fromSlot, toSlot, draggingItem, swappedWithItem } = event
-
-                // Case 1: Pool → Slot (placing kanji - kanji stays in pool, can be reused)
+                // CRITICAL: Pool → Slot - handle state update here and prevent Swapy from moving DOM
+                // This way React handles rendering the slot element (green with X button)
+                // instead of Swapy moving the pool element (blue without X button)
                 if (fromSlot.startsWith('pool-kanji-') && toSlot.startsWith('slot-')) {
                     const kanjiId = parseInt(fromSlot.replace('pool-kanji-', ''))
                     const slotIndex = parseInt(toSlot.replace('slot-', ''))
                     const kanji = kanjiPool.find(k => k.id === kanjiId)
                     if (kanji) {
-                        // Place kanji in slot (kanji remains in pool for reuse)
+                        // Update state - React will re-render the slot with proper element
                         placeKanjiInSlot(kanji, slotIndex)
-                        // Note: Swapy will move the DOM element, but we need to restore the pool item
-                        // We'll handle this in the update effect
                     }
+                    // Return false to prevent Swapy from moving the DOM element
+                    return false
                 }
-                // Case 2: Slot → Slot (reordering)
-                else if (fromSlot.startsWith('slot-') && toSlot.startsWith('slot-')) {
+
+                return true
+            })
+
+            // Handle swap events for slot→slot moves only (pool→slot is handled in onBeforeSwap)
+            swapyInstance.current.onSwap((event: SwapEvent) => {
+                const { fromSlot, toSlot, draggingItem, swappedWithItem } = event
+
+                // Slot → Slot (reordering)
+                if (fromSlot.startsWith('slot-') && toSlot.startsWith('slot-')) {
                     // Only swap if both are actual kanji (not placeholders)
                     if (!draggingItem.startsWith('placeholder-') && !swappedWithItem.startsWith('placeholder-')) {
                         const fromIndex = parseInt(fromSlot.replace('slot-', ''))
@@ -161,12 +173,6 @@ export function WordBuilderGame({
                             }
                         }
                     }
-                }
-                // Case 3: Slot → Pool (clearing slot - kanji was never removed from pool)
-                else if (fromSlot.startsWith('slot-') && toSlot.startsWith('pool-kanji-')) {
-                    const slotIndex = parseInt(fromSlot.replace('slot-', ''))
-                    // Just clear the slot, kanji remains in pool
-                    removeKanjiFromSlot(slotIndex)
                 }
 
                 // Update Swapy after state change
@@ -234,13 +240,32 @@ export function WordBuilderGame({
     // Update Swapy when slots or kanji pool changes
     useEffect(() => {
         if (swapyInstance.current) {
-            // Small delay to ensure DOM has updated
-            const timer = setTimeout(() => {
-                swapyInstance.current?.update()
-            }, 50)
-            return () => clearTimeout(timer)
+            const frameId = requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    if (swapyInstance.current) {
+                        swapyInstance.current.update()
+                    }
+                })
+            })
+            return () => cancelAnimationFrame(frameId)
         }
     }, [currentSlots, kanjiPool])
+
+    // Force kanji pool re-render when slots are cleared
+    // This ensures pool items are visible after Swapy moves elements
+    useEffect(() => {
+        const allSlotsEmpty = currentSlots.every(slot => slot === null)
+
+        // Check if we just cleared slots (had kanji, now all empty)
+        if (allSlotsEmpty && prevSlotsHadKanji.current) {
+            // Increment key to force React to completely re-render kanji pool
+            // This ensures all kanji are visible in the pool after clearing slots
+            setPoolRenderKey(prev => prev + 1)
+        }
+
+        // Track if slots had kanji
+        prevSlotsHadKanji.current = !allSlotsEmpty
+    }, [currentSlots])
 
     // Timer logic
     useEffect(() => {
@@ -452,7 +477,7 @@ export function WordBuilderGame({
                                 <RefreshCw className={`h-4 w-4 ${refreshKanjiMutation.isPending ? 'animate-spin' : ''}`} />
                             </Button>
                         </div>
-                        <div className="flex-1 min-h-0 overflow-hidden">
+                        <div className="flex-1 min-h-0 overflow-hidden" key={`kanji-pool-${poolRenderKey}`}>
                             {isMobile ? (
                                 <WordBuilderKanjiPoolMobile kanji={kanjiPool} />
                             ) : (
