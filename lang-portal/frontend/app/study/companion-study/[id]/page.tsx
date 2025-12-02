@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertTriangle, Crown } from "lucide-react"
 import { SubscriptionGate, useSubscription } from "@/components/subscription/subscription-gate"
+import { subscriptionApi } from "@/services/api"
 
 interface PageParams {
     id: string;
@@ -35,8 +36,7 @@ export default function CompanionStudySessionPage({
 
     useEffect(() => {
         // Fetch usage data
-        fetch('/api/langportal/subscription/usage')
-            .then(res => res.json())
+        subscriptionApi.getUsageCount()
             .then(data => {
                 setUsageData(data)
                 setLoading(false)

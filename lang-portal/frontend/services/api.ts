@@ -498,6 +498,19 @@ export const wordBuilderApi = {
   },
 };
 
+// Subscription API using langportal proxy
+export const subscriptionApi = {
+  getUsageCount: async () => {
+    return fetchData<{
+      session_count: number;
+      month_year: string;
+      plan: string;
+      limit: number;
+      remaining: number;
+    }>('/subscription/usage');
+  },
+};
+
 export const api = {
   dashboard: dashboardApi,
   // studySession: studySessionApi,
@@ -510,6 +523,7 @@ export const api = {
   grammar: grammarApi,
   chat: chatApi,
   wordBuilder: wordBuilderApi,
+  subscription: subscriptionApi,
 };
 
 export default api;

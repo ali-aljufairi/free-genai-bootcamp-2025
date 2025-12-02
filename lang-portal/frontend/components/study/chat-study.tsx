@@ -14,6 +14,7 @@ import { chatApi } from "@/services/api";
 import { ChatInput } from "../chat/chat-input";
 import { ChatMessages } from "../chat/chat-messages";
 import { MobileChatStudy } from "./mobile/mobile-chat-study";
+import { getCachedToken } from "@/lib/token-cache";
 
 interface ChatProps {
     sessionId: string;
@@ -99,14 +100,36 @@ export function Chat({ sessionId, onComplete }: ChatProps) {
                 });
 
                 // Try fetch with keepalive for reliable submission
-                fetch('/api/langportal/chat/sessions', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: data,
-                    keepalive: true,
-                }).catch(() => {
-                    // Silently fail - background operation
-                });
+                (async () => {
+                    try {
+                        const headers: HeadersInit = { 'Content-Type': 'application/json' };
+                        
+                        // Attach Bearer token if available
+                        if (typeof window !== 'undefined') {
+                            try {
+                                const clerk: any = (window as any).Clerk;
+                                const session = clerk?.session;
+                                if (session) {
+                                    const token = await getCachedToken(session);
+                                    if (token) {
+                                        headers['Authorization'] = `Bearer ${token}`;
+                                    }
+                                }
+                            } catch {}
+                        }
+                        
+                        await fetch('/api/langportal/chat/sessions', {
+                            method: 'POST',
+                            headers,
+                            body: data,
+                            keepalive: true,
+                            credentials: 'omit',
+                            cache: 'no-store',
+                        });
+                    } catch {
+                        // Silently fail - background operation
+                    }
+                })();
             }
         };
     }, [sessionId, selectedModel, selectedPrompt]);

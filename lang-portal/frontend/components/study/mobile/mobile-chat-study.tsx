@@ -13,6 +13,7 @@ import { defaultModel, defaultPrompt } from "@/ai/config";
 import { chatApi } from "@/services/api";
 import { ChatInput } from "../../chat/chat-input";
 import { ChatMessages } from "../../chat/chat-messages";
+import { getCachedToken } from "@/lib/token-cache";
 
 interface MobileChatStudyProps {
     sessionId: string;
@@ -91,14 +92,37 @@ export function MobileChatStudy({ sessionId, onComplete }: MobileChatStudyProps)
                     prompt_used: selectedPrompt,
                 });
 
-                fetch('/api/langportal/chat/sessions', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: data,
-                    keepalive: true,
-                }).catch(() => {
-                    // Silently fail - background operation
-                });
+                // Try fetch with keepalive for reliable submission
+                (async () => {
+                    try {
+                        const headers: HeadersInit = { 'Content-Type': 'application/json' };
+                        
+                        // Attach Bearer token if available
+                        if (typeof window !== 'undefined') {
+                            try {
+                                const clerk: any = (window as any).Clerk;
+                                const session = clerk?.session;
+                                if (session) {
+                                    const token = await getCachedToken(session);
+                                    if (token) {
+                                        headers['Authorization'] = `Bearer ${token}`;
+                                    }
+                                }
+                            } catch {}
+                        }
+                        
+                        await fetch('/api/langportal/chat/sessions', {
+                            method: 'POST',
+                            headers,
+                            body: data,
+                            keepalive: true,
+                            credentials: 'omit',
+                            cache: 'no-store',
+                        });
+                    } catch {
+                        // Silently fail - background operation
+                    }
+                })();
             }
         };
     }, [sessionId, selectedModel, selectedPrompt]);

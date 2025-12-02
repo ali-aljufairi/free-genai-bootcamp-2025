@@ -91,7 +91,12 @@ export function DrawingStudy() {
 
     const fetchRandomWord = async () => {
         try {
-            const response = await fetch(`/api/langportal/words/random`)
+            const headers = await getAuthHeaders()
+            const response = await fetch(`/api/langportal/words/random`, {
+                headers,
+                credentials: 'omit',
+                cache: 'no-store',
+            })
             const data = await response.json()
             setWord(data)
         } catch (error) {
