@@ -75,3 +75,4 @@ WHERE
 -- - The Go model (ChatSession) now matches the database schema
 -- - Dashboard handlers can use either started_at or created_at
 --   (currently using started_at as interim fix)
+

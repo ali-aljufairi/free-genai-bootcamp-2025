@@ -36,7 +36,24 @@ export function AgentStudy({ sessionId, onComplete }: AgentStudyProps) {
             "accept": "application/json"
         }
 
-        // Get token from Clerk using useAuth hook
+        // Use cached token as primary method to reduce API calls
+        try {
+            if (typeof window !== 'undefined') {
+                const clerk: any = (window as any).Clerk;
+                const session = clerk?.session;
+                if (session) {
+                    const token = await getCachedToken(session);
+                    if (token) {
+                        headers['Authorization'] = `Bearer ${token}`;
+                        return headers;
+                    }
+                }
+            }
+        } catch (error) {
+            console.warn('Failed to get cached token:', error);
+        }
+
+        // Fallback to useAuth hook if cached token is not available
         try {
             const token = await getToken();
             if (token) {
@@ -46,21 +63,6 @@ export function AgentStudy({ sessionId, onComplete }: AgentStudyProps) {
             }
         } catch (error) {
             console.error('Failed to get auth token:', error);
-            // Fallback to window.Clerk if useAuth fails
-            if (typeof window !== 'undefined') {
-                try {
-                    const clerk: any = (window as any).Clerk;
-                    const session = clerk?.session;
-                    if (session) {
-                        const fallbackToken = await getCachedToken(session);
-                        if (fallbackToken) {
-                            headers['Authorization'] = `Bearer ${fallbackToken}`;
-                        }
-                    }
-                } catch (fallbackError) {
-                    console.error('Fallback token retrieval also failed:', fallbackError);
-                }
-            }
         }
 
         return headers
