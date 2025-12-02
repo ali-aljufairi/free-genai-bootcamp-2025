@@ -7,8 +7,9 @@ require (
 	github.com/getsentry/sentry-go v0.36.2
 	github.com/gofiber/fiber/v2 v2.52.9
 	github.com/golang-jwt/jwt/v5 v5.3.0
-	github.com/lib/pq v1.10.9
+	github.com/redis/go-redis/v9 v9.6.1
 	github.com/joho/godotenv v1.5.1
+	github.com/lib/pq v1.10.9
 	gorm.io/driver/postgres v1.6.0
 	gorm.io/driver/sqlite v1.6.0
 	gorm.io/gorm v1.31.1
@@ -16,8 +17,10 @@ require (
 
 require (
 	github.com/andybalholm/brotli v1.2.0 // indirect
+	github.com/clerk/clerk-sdk-go/v2 v2.5.0 // indirect
 	github.com/clipperhouse/stringish v0.1.1 // indirect
 	github.com/clipperhouse/uax29/v2 v2.3.0 // indirect
+	github.com/go-jose/go-jose/v3 v3.0.4 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect

@@ -11,6 +11,7 @@ import { Chat } from "@/components/study/chat-study"
 import { SpeechStudy } from "@/components/study/speech-study"
 import React from "react"
 import { navigateWithTransition } from "@/lib/view-transitions"
+import { SubscriptionGate } from "@/components/subscription/subscription-gate"
 
 export default function StudySessionPage({
     params
@@ -28,43 +29,57 @@ export default function StudySessionPage({
         })
     }
 
+    // Get feature name for display
+    const featureName = {
+        flashcards: "Flashcards",
+        kanji: "Kanji Flashcards",
+        words: "Word Flashcards",
+        quiz: "Quiz",
+        drawing: "Writing Practice",
+        agent: "AI Learning Agent",
+        chat: "AI Chat",
+        speech: "Speech-to-Image",
+    }[type] || "Study Session"
+
     return (
-        <div className="space-y-5">
-            <div className="flex flex-col gap-3">
-                <h1 className="text-3xl font-bold tracking-tight">Study Session</h1>
+        <SubscriptionGate feature={featureName}>
+            <div className="space-y-5">
+                <div className="flex flex-col gap-3">
+                    <h1 className="text-3xl font-bold tracking-tight">Study Session</h1>
+                </div>
+
+                {type === "flashcards" && (
+                    <UnifiedFlashcard />
+                )}
+
+                {type === "kanji" && (
+                    <KanjiFlashcard />
+                )}
+
+                {type === "words" && (
+                    <WordsFlashcard />
+                )}
+
+                {type === "quiz" && (
+                    <QuizStudy sessionId={id} onComplete={handleComplete} />
+                )}
+
+                {type === "drawing" && (
+                    <DrawingStudy />
+                )}
+
+                {type === "agent" && (
+                    <AgentStudy sessionId={id} onComplete={handleComplete} />
+                )}
+
+                {type === "chat" && (
+                    <Chat sessionId={id} onComplete={handleComplete} />
+                )}
+
+                {type === "speech" && (
+                    <SpeechStudy sessionId={id} onComplete={handleComplete} />
+                )}
             </div>
-
-            {type === "flashcards" && (
-                <UnifiedFlashcard />
-            )}
-
-            {type === "kanji" && (
-                <KanjiFlashcard />
-            )}
-
-            {type === "words" && (
-                <WordsFlashcard />
-            )}
-
-            {type === "quiz" && (
-                <QuizStudy sessionId={id} onComplete={handleComplete} />
-            )}
-
-            {type === "drawing" && (
-                <DrawingStudy />
-            )}
-
-            {type === "agent" && (
-                <AgentStudy sessionId={id} onComplete={handleComplete} />
-            )}
-
-            {type === "chat" && (
-                <Chat sessionId={id} onComplete={handleComplete} />
-            )}
-
-            {type === "speech" && (
-                <SpeechStudy sessionId={id} onComplete={handleComplete} />
-            )}
-        </div>
+        </SubscriptionGate>
     )
 }

@@ -12,6 +12,7 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
 	"github.com/joho/godotenv"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -28,10 +29,14 @@ func run() error {
 		log.Printf("Warning: .env file not found")
 	}
 
+	// Initialize observability and infrastructure clients
 	if err := config.InitSentry(); err != nil {
 		log.Printf("Failed to initialize Sentry: %v", err)
 	}
 	defer config.FlushSentry()
+
+	// Initialize Valkey cache (optional, non-fatal if unavailable)
+	config.InitCache()
 
 	dbHost := os.Getenv("DB_HOST")
 	dbPort := os.Getenv("DB_PORT")
@@ -67,7 +72,7 @@ func run() error {
 		if port == "" {
 			port = "8080"
 		}
-		
+
 		// Retry logic for port binding (handles Air hot reload race condition)
 		maxRetries := 3
 		for i := 0; i < maxRetries; i++ {
@@ -75,7 +80,7 @@ func run() error {
 			if err == nil {
 				return // Success
 			}
-			
+
 			// Check if it's a port binding error
 			errStr := err.Error()
 			if i < maxRetries-1 && strings.Contains(errStr, "bind: address already in use") {
@@ -86,7 +91,7 @@ func run() error {
 				// Retry immediately - kill -9 should release port instantly
 				continue
 			}
-			
+
 			log.Printf("Server error: %v", err)
 			return
 		}

@@ -4,9 +4,11 @@ import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Brain, Languages } from "lucide-react"
+import { SubscriptionGate } from "@/components/subscription/subscription-gate"
 
 export default function FlashcardsPage() {
     return (
+        <SubscriptionGate feature="Flashcards">
         <div className="space-y-8">
             <div className="flex flex-col gap-3">
                 <h1 className="text-3xl font-bold tracking-tight">Flashcard Study</h1>
@@ -61,5 +63,6 @@ export default function FlashcardsPage() {
                 </Card>
             </div>
         </div>
+        </SubscriptionGate>
     )
 }

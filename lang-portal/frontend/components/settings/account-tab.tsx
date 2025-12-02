@@ -1,21 +1,27 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useUser, useAuth } from "@clerk/nextjs"
+import { useUser } from "@clerk/nextjs"
+import { useSubscription as useClerkSubscription } from "@clerk/nextjs/experimental"
 import { useUserProfile } from "@/hooks/api/useGroup"
-import { User, Shield, CreditCard, Mail, UserCircle, Save, Loader2, Link2, Trash2 } from "lucide-react"
+import { User, Shield, CreditCard, Mail, UserCircle, Save, Loader2, Link2, Trash2, Calendar, DollarSign } from "lucide-react"
 import { Separator } from "@/components/ui/separator"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
 import { userApi } from "@/services/api"
+import { useSubscription } from "@/components/subscription/subscription-gate"
 
 export function AccountTab() {
     const { user: clerkUser, isLoaded: clerkLoaded } = useUser()
     const { data: userProfile, isLoading: profileLoading, refetch } = useUserProfile()
+    const { hasActiveSubscription, isBasic, isPro, plan } = useSubscription()
+    // Use Clerk's experimental useSubscription hook for detailed subscription data
+    const { data: clerkSubscription, isLoading: subscriptionLoading, revalidate: revalidateSubscription } = useClerkSubscription()
     const [isSaving, setIsSaving] = useState(false)
     const [displayName, setDisplayName] = useState("")
+    const [isCanceling, setIsCanceling] = useState(false)
 
     // Initialize display name from user profile
     useEffect(() => {
@@ -73,23 +79,141 @@ export function AccountTab() {
                 </div>
 
                 <div className="space-y-4">
-                    {userProfile?.subscription ? (
+                    {subscriptionLoading ? (
                         <div className="p-4 rounded-lg border border-border/50 bg-muted/50">
-                            <div className="space-y-2">
+                            <div className="flex items-center gap-2">
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                <span className="text-sm text-muted-foreground">Loading subscription...</span>
+                            </div>
+                        </div>
+                    ) : clerkSubscription || hasActiveSubscription ? (
+                        <div className="p-4 rounded-lg border border-border/50 bg-muted/50">
+                            <div className="space-y-4">
+                                {/* Status and Plan */}
                                 <div className="flex items-center justify-between">
                                     <h4 className="text-sm font-medium">Subscription Status</h4>
-                                    <span className={`text-xs px-2 py-1 rounded ${userProfile.subscription.status === 'active'
-                                        ? 'bg-green-500/10 text-green-600 dark:text-green-400'
-                                        : 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400'
-                                        }`}>
-                                        {userProfile.subscription.status}
+                                    <span
+                                        className={`text-xs px-2 py-1 rounded ${clerkSubscription?.status === "active"
+                                                ? "bg-green-500/10 text-green-600 dark:text-green-400"
+                                                : clerkSubscription?.status === "past_due"
+                                                    ? "bg-red-500/10 text-red-600 dark:text-red-400"
+                                                    : "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400"
+                                            }`}
+                                    >
+                                        {clerkSubscription?.status ?? "active"}
                                     </span>
                                 </div>
-                                {userProfile.subscription.current_period_end && (
-                                    <p className="text-xs text-muted-foreground">
-                                        Current period ends: {new Date(userProfile.subscription.current_period_end).toLocaleDateString()}
-                                    </p>
+
+                                <div className="grid grid-cols-2 gap-4 text-sm">
+                                    <div className="space-y-1">
+                                        <p className="text-xs text-muted-foreground">Current Plan</p>
+                                        <p className="font-medium">
+                                            {isPro ? "Pro" : isBasic ? "Basic" : plan ?? "Unknown"}
+                                        </p>
+                                    </div>
+
+                                    {clerkSubscription?.activeAt && (
+                                        <div className="space-y-1">
+                                            <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                                <Calendar className="w-3 h-3" /> Active Since
+                                            </p>
+                                            <p className="font-medium">
+                                                {clerkSubscription.activeAt.toLocaleDateString()}
+                                            </p>
+                                        </div>
+                                    )}
+
+                                    {clerkSubscription?.nextPayment && (
+                                        <>
+                                            <div className="space-y-1">
+                                                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                                    <DollarSign className="w-3 h-3" /> Next Payment
+                                                </p>
+                                                <p className="font-medium">
+                                                    {clerkSubscription.nextPayment.amount.amountFormatted}
+                                                </p>
+                                            </div>
+                                            <div className="space-y-1">
+                                                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                                    <Calendar className="w-3 h-3" /> Next Billing Date
+                                                </p>
+                                                <p className="font-medium">
+                                                    {clerkSubscription.nextPayment.date.toLocaleDateString()}
+                                                </p>
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+
+                                {clerkSubscription?.pastDueAt && (
+                                    <div className="p-3 rounded-md bg-red-500/10 border border-red-500/20">
+                                        <p className="text-xs text-red-600 dark:text-red-400">
+                                            ⚠️ Payment past due since {clerkSubscription.pastDueAt.toLocaleDateString()}.
+                                            Please update your payment method.
+                                        </p>
+                                    </div>
                                 )}
+
+                                {/* Action Buttons */}
+                                <div className="flex flex-wrap gap-2 pt-2 border-t border-border/50">
+                                    <Button variant="outline" size="sm" asChild>
+                                        <a href="/pricing">Change Plan</a>
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
+                                        onClick={async () => {
+                                            if (!clerkSubscription?.subscriptionItems?.[0]?.id) {
+                                                toast.error("Could not find subscription to cancel")
+                                                return
+                                            }
+
+                                            const confirmed = window.confirm(
+                                                "Are you sure you want to cancel your subscription? You will lose access to premium features at the end of your billing period."
+                                            )
+                                            if (!confirmed) return
+
+                                            setIsCanceling(true)
+                                            try {
+                                                // Call backend API to cancel subscription
+                                                const response = await fetch('/api/subscription/cancel', {
+                                                    method: 'POST',
+                                                    headers: { 'Content-Type': 'application/json' },
+                                                    body: JSON.stringify({
+                                                        subscriptionItemId: clerkSubscription.subscriptionItems[0].id,
+                                                        endNow: false // Cancel at end of billing period
+                                                    })
+                                                })
+
+                                                if (!response.ok) {
+                                                    throw new Error('Failed to cancel subscription')
+                                                }
+
+                                                toast.success("Subscription canceled", {
+                                                    description: "Your subscription will end at the end of your current billing period."
+                                                })
+                                                revalidateSubscription()
+                                            } catch (error) {
+                                                toast.error("Failed to cancel subscription", {
+                                                    description: error instanceof Error ? error.message : "Please try again or contact support."
+                                                })
+                                            } finally {
+                                                setIsCanceling(false)
+                                            }
+                                        }}
+                                        disabled={isCanceling}
+                                    >
+                                        {isCanceling ? (
+                                            <>
+                                                <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                                                Canceling...
+                                            </>
+                                        ) : (
+                                            "Cancel Subscription"
+                                        )}
+                                    </Button>
+                                </div>
                             </div>
                         </div>
                     ) : (
@@ -97,7 +221,7 @@ export function AccountTab() {
                             <div className="space-y-2">
                                 <h4 className="text-sm font-medium">No Active Subscription</h4>
                                 <p className="text-xs text-muted-foreground">
-                                    You're currently on the free plan. Upgrade to unlock premium features.
+                                    Subscribe to unlock all AI-powered learning features.
                                 </p>
                                 <Button variant="outline" size="sm" asChild>
                                     <a href="/pricing">View Plans</a>

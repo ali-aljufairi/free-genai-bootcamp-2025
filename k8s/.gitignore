@@ -3,3 +3,5 @@ service.yaml
 issuer.yaml
 *.yaml
 ReadME.md
+*.sh
+*.md

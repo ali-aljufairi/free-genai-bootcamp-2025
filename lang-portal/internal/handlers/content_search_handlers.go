@@ -1,9 +1,13 @@
 package handlers
 
 import (
+	"context"
+	"encoding/json"
+	"lang-portal/internal/config"
 	"lang-portal/internal/database/models"
 	"lang-portal/internal/handlers/kanji"
 	"strconv"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
@@ -271,28 +275,55 @@ func (h *ContentSearchHandler) GetContentRecommendations(c *fiber.Ctx) error {
 	return c.JSON(recommendations)
 }
 
-// GetContentStats returns statistics about all content
+// contentStatsCacheKey is the key used in Valkey/Redis for caching stats.
+const contentStatsCacheKey = "content_stats:v1"
+
+// GetContentStats returns statistics about all content.
+// It uses Valkey (if configured) as a read-through cache to avoid
+// expensive COUNT(*) queries on every request.
 func (h *ContentSearchHandler) GetContentStats(c *fiber.Ctx) error {
 	var stats struct {
 		Kanji map[string]int64 `json:"kanji"`
 		Words map[string]int64 `json:"words"`
 	}
 
-	// Kanji stats
+	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	defer cancel()
+
+	// Try to read from cache if available
+	if cache := config.GetCacheClient(); cache != nil {
+		if data, err := cache.Get(ctx, contentStatsCacheKey).Bytes(); err == nil && len(data) > 0 {
+			if err := json.Unmarshal(data, &stats); err == nil {
+				return c.JSON(stats)
+			}
+			// If unmarshal fails, fall through to recompute and overwrite cache.
+		}
+	}
+
+	// Compute stats from the database
 	stats.Kanji = make(map[string]int64)
 	var totalKanji int64
 	h.DB.Model(&kanji.KanjiModel{}).Count(&totalKanji)
 	stats.Kanji["total"] = totalKanji
 
 	var kanjiWithSVG int64
-	h.DB.Model(&kanji.KanjiModel{}).Where("strokes_svg IS NOT NULL AND strokes_svg != ''").Count(&kanjiWithSVG)
+	h.DB.Model(&kanji.KanjiModel{}).
+		Where("strokes_svg IS NOT NULL AND strokes_svg != ''").
+		Count(&kanjiWithSVG)
 	stats.Kanji["with_svg"] = kanjiWithSVG
 
-	// Words stats
 	stats.Words = make(map[string]int64)
 	var totalWords int64
 	h.DB.Model(&models.Word{}).Count(&totalWords)
 	stats.Words["total"] = totalWords
+
+	// Best-effort: write to cache for future requests
+	if cache := config.GetCacheClient(); cache != nil {
+		if data, err := json.Marshal(stats); err == nil {
+			// Cache for 5 minutes; failure is non-fatal.
+			_ = cache.Set(ctx, contentStatsCacheKey, data, 5*time.Minute).Err()
+		}
+	}
 
 	return c.JSON(stats)
 }

@@ -4,13 +4,14 @@ import (
 	roothandlers "lang-portal/internal/handlers"
 	"lang-portal/internal/handlers/chat"
 	"lang-portal/internal/handlers/companion"
-	"lang-portal/internal/handlers/speech"
 	"lang-portal/internal/handlers/dashboard"
 	"lang-portal/internal/handlers/flashcard"
 	"lang-portal/internal/handlers/grammar"
 	"lang-portal/internal/handlers/group"
 	"lang-portal/internal/handlers/kanji"
 	"lang-portal/internal/handlers/session"
+	"lang-portal/internal/handlers/speech"
+	"lang-portal/internal/handlers/subscription"
 	"lang-portal/internal/handlers/user"
 	"lang-portal/internal/handlers/word_builder"
 	"lang-portal/internal/handlers/words"
@@ -131,8 +132,22 @@ func (s *FiberServer) RegisterFiberRoutes() {
 	s.App.Post("/api/langportal/speech-study/save", speechHandler.SaveSpeechStudySession)
 
 	// Companion study routes
-	companionHandler := companion.NewCompanionHandler(s.postgresDB)
+	companionHandler, err := companion.NewCompanionHandler(s.postgresDB)
+	if err != nil {
+		log.Printf("Warning: Failed to initialize companion handler with Clerk: %v", err)
+		// Create handler without Clerk client for development
+		companionHandler, _ = companion.NewCompanionHandler(s.postgresDB)
+	}
 	s.App.Post("/api/langportal/companion-study/save", companionHandler.SaveCompanionStudySession)
+
+	// Subscription routes
+	subscriptionHandler, err := subscription.NewSubscriptionHandler(s.postgresDB)
+	if err != nil {
+		log.Printf("Warning: Failed to initialize subscription handler: %v", err)
+	} else {
+		s.App.Get("/api/langportal/subscription/usage", subscriptionHandler.GetUsageCount)
+		s.App.Get("/api/langportal/subscription/check-limit", subscriptionHandler.CheckCompanionStudyLimit)
+	}
 
 	// Flashcard routes
 	flashcardHandler := flashcard.NewFlashcardHandler(s.postgresDB)

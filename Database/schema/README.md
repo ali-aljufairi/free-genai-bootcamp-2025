@@ -15,7 +15,7 @@ The schema includes:
 - **Content**: Kanji, words, grammar points, sentences
 - **JLPT System**: Questions, tests, progress tracking
 - **Learning Features**: Spaced repetition, study sessions, analytics
-
+ 
 ## Deployment
 
 Run these files in order:

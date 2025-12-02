@@ -7,13 +7,10 @@ import { Menu } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { UserButton, useUser } from "@clerk/nextjs"
-import AuthDialog from "@/components/auth/auth-dialog"
 
 export default function Navbar() {
   const pathname = usePathname()
   const [open, setOpen] = useState(false)
-  const [signInOpen, setSignInOpen] = useState(false)
-  const [signUpOpen, setSignUpOpen] = useState(false)
   const { isSignedIn } = useUser()
 
   // Only show navbar on homepage
@@ -49,16 +46,19 @@ export default function Navbar() {
                 </>
               ) : (
                 <>
-                  <Button variant="outline" size="sm" className="mr-2" onClick={() => setSignInOpen(true)}>
-                    Sign In
-                  </Button>
-                  <Button
-                    className="bg-[#3B82F6] hover:bg-[#2563EB] text-white border-0 shadow-lg shadow-blue-500/20"
-                    size="sm"
-                    onClick={() => setSignUpOpen(true)}
-                  >
-                    Sign Up
-                  </Button>
+                  <Link href="/sign-in">
+                    <Button variant="outline" size="sm" className="mr-2">
+                      Sign In
+                    </Button>
+                  </Link>
+                  <Link href="/sign-up">
+                    <Button
+                      className="bg-[#3B82F6] hover:bg-[#2563EB] text-white border-0 shadow-lg shadow-blue-500/20"
+                      size="sm"
+                    >
+                      Sign Up
+                    </Button>
+                  </Link>
                 </>
               )}
             </div>
@@ -109,21 +109,23 @@ export default function Navbar() {
                     </>
                   ) : (
                     <>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="w-full mt-2"
-                        onClick={() => { setOpen(false); setSignInOpen(true) }}
-                      >
-                        Sign In
-                      </Button>
-                      <Button
-                        className="bg-[#3B82F6] hover:bg-[#2563EB] text-white border-0 shadow-lg shadow-blue-500/20 w-full mt-2"
-                        size="sm"
-                        onClick={() => { setOpen(false); setSignUpOpen(true) }}
-                      >
-                        Sign Up
-                      </Button>
+                      <Link href="/sign-in" onClick={() => setOpen(false)}>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full mt-2"
+                        >
+                          Sign In
+                        </Button>
+                      </Link>
+                      <Link href="/sign-up" onClick={() => setOpen(false)}>
+                        <Button
+                          className="bg-[#3B82F6] hover:bg-[#2563EB] text-white border-0 shadow-lg shadow-blue-500/20 w-full mt-2"
+                          size="sm"
+                        >
+                          Sign Up
+                        </Button>
+                      </Link>
                     </>
                   )}
                 </nav>
@@ -132,8 +134,6 @@ export default function Navbar() {
           </div>
         </div>
       </header>
-      <AuthDialog mode="sign-in" open={signInOpen} onOpenChange={setSignInOpen} />
-      <AuthDialog mode="sign-up" open={signUpOpen} onOpenChange={setSignUpOpen} />
     </>
   )
 }

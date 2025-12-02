@@ -33,6 +33,8 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
       <QueryClientProvider client={queryClient}>
         <ThemeProvider
           attribute="class"
+          forcedTheme="dark"
+          enableSystem={false}
           defaultTheme="dark"
           disableTransitionOnChange
         >
@@ -52,6 +54,8 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
       <QueryClientProvider client={queryClient}>
         <ThemeProvider
           attribute="class"
+          forcedTheme="dark"
+          enableSystem={false}
           defaultTheme="dark"
           disableTransitionOnChange
         >
@@ -69,6 +73,8 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
       <QueryClientProvider client={queryClient}>
         <ThemeProvider
           attribute="class"
+          forcedTheme="dark"
+          enableSystem={false}
           defaultTheme="dark"
           disableTransitionOnChange
         >
@@ -87,6 +93,8 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
     <QueryClientProvider client={queryClient}>
       <ThemeProvider
         attribute="class"
+        forcedTheme="dark"
+        enableSystem={false}
         defaultTheme="dark"
         disableTransitionOnChange
       >

@@ -14,15 +14,17 @@
         color: rgba(219, 234, 254, 1) !important;
     }
 
-    /* Ensure primary buttons maintain their gradient */
+    /* Ensure primary buttons use solid blue (no gradient) */
     [class*="cl-formButtonPrimary"] {
-        background: linear-gradient(to right, #2563eb, #4f46e5) !important;
+        background: #2563eb !important;
+        background-image: none !important;
         color: white !important;
         border: none !important;
     }
 
     [class*="cl-formButtonPrimary"]:hover {
-        background: linear-gradient(to right, #1d4ed8, #4338ca) !important;
+        background: #1d4ed8 !important;
+        background-image: none !important;
     }
 
     /* Fix any reset/cancel/clear buttons specifically */
@@ -36,9 +38,10 @@
         color: rgba(219, 234, 254, 0.8) !important;
     }
 
-    /* Ensure Continue button matches website styling */
+    /* Ensure Continue button matches website styling - solid blue */
     [class*="cl-formButtonPrimary"] {
-        background: linear-gradient(to right, #2563eb, #4f46e5) !important;
+        background: #2563eb !important;
+        background-image: none !important;
         color: white !important;
         border: none !important;
         height: 3.5rem !important;
@@ -46,13 +49,13 @@
         font-weight: 600 !important;
         border-radius: 0.5rem !important;
         transition: all 0.2s ease-in-out !important;
-        box-shadow: 0 10px 15px -3px rgba(37, 99, 235, 0.3) !important;
+        box-shadow: none !important;
     }
 
     [class*="cl-formButtonPrimary"]:hover {
-        background: linear-gradient(to right, #1d4ed8, #4338ca) !important;
-        transform: translateY(-1px) !important;
-        box-shadow: 0 20px 25px -5px rgba(37, 99, 235, 0.4) !important;
+        background: #1d4ed8 !important;
+        background-image: none !important;
+        filter: brightness(0.95) !important;
     }
 
     /* Responsive dialog styling for full screen */
@@ -64,6 +67,18 @@
     }
 
     /* Preserve original glass card styling - let appearance config handle it */
+
+    /* Green checkmarks for feature lists inside Clerk cards (e.g., PricingTable) */
+    [class*="cl-card"] [role="listitem"] svg {
+        color: #22c55e !important;
+        /* Tailwind green-500 */
+        fill: #22c55e !important;
+    }
+
+    /* Fallback: if the checkmark is rendered via ::before or text, tint the marker green */
+    [class*="cl-card"] [role="listitem"]::before {
+        color: #22c55e !important;
+    }
 }
 
 /* Clerk UserButton popover: remove any entrance animations/slides */
@@ -74,7 +89,49 @@
     opacity: 1 !important;
 }
 
+/* Force white text on all UserButton popover action buttons */
+:where([class*="cl-userButtonPopoverActionButton"]),
+:where([class*="cl-userButtonPopoverActionButton"] span),
+:where([class*="cl-userButtonPopoverActionButton"] *) {
+    color: white !important;
+}
+
+/* Hide "Manage account" button */
+:where([class*="cl-userButtonPopoverActionButton__manageAccount"]),
+:where([class*="cl-userButtonPopoverActionButton"][class*="manageAccount"]) {
+    display: none !important;
+}
+
+/* Hide footer completely */
+:where([class*="cl-userButtonPopoverFooter"]),
+:where([class*="cl-userButtonPopover"] [class*="cl-footer"]) {
+    display: none !important;
+}
+
 /* Hide only the problematic development elements */
 :where([data-localization-key*="badge"], [class*="cl-badge"]) {
     display: none !important;
+}
+
+/* Hide Clerk developer mode and branding completely */
+:where([class*="cl-userButtonPopover"] [class*="cl-badge"]),
+:where([class*="cl-userButtonPopover"] [data-localization-key*="badge"]),
+:where([class*="cl-userButtonPopover"] [class*="cl-footer"]),
+:where([class*="cl-userButtonPopover"] [class*="cl-footerText"]),
+:where([class*="cl-userButtonPopover"] [class*="cl-branding"]),
+:where([class*="cl-userButtonPopover"] [class*="cl-poweredBy"]),
+:where([class*="cl-userButtonPopover"] [class*="cl-developmentModeIndicator"]),
+:where([class*="cl-userButtonPopover"] [data-localization-key*="development"]),
+:where([class*="cl-userButtonPopover"] [data-localization-key*="poweredBy"]),
+:where([class*="cl-internal-"] [class*="development"]),
+:where([class*="cl-userButtonPopover"] [class*="cl-internal-"]:has([data-localization-key*="development"])),
+:where([class*="cl-userButtonPopoverMain"] > div:last-child:not([class*="cl-userButtonPopoverActions"])) {
+    display: none !important;
+}
+
+/* Hide any element containing "Development mode" text in the popover */
+:where([class*="cl-userButtonPopover"] [class*="cl-internal-"]) {
+    &:has(svg + span) {
+        display: none !important;
+    }
 }

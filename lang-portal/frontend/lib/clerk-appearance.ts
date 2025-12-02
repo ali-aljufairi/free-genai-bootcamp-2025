@@ -26,8 +26,8 @@ export const clerkAppearance = {
     // User button styling - restore original
     userButtonBox: "animate-none duration-0 transition-none",
     userButtonPopoverCard: "glass-card bg-[#0A1120]/90 border border-blue-900/40 text-white animate-none transition-none duration-0 transform-none opacity-100",
-    userButtonPopoverActionButton: "text-blue-100 hover:text-white hover:bg-blue-900/30 duration-0 transition-none",
-    userButtonPopoverActionButtonText: "text-blue-100",
+    userButtonPopoverActionButton: "text-white hover:text-white hover:bg-blue-900/30 duration-0 transition-none",
+    userButtonPopoverActionButtonText: "text-white",
     userButtonPopoverActionButtonIcon: "text-blue-200",
     userButtonPopoverFooter: "hidden",
     userButtonPopoverActions: "gap-1",
