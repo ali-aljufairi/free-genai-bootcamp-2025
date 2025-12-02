@@ -9,9 +9,53 @@ import (
 )
 
 // getSimpleKanji builds a simple chain: K1 → word → K2 → word → K3 → ... → K6
-// Optimized approach: Uses kanji_adjacency_map materialized view for faster queries,
-// smart seed selection prioritizing high-connectivity kanji, and fallback strategy for N1/N2
+// First tries the optimized SQL function build_kanji_chain, then falls back to Go implementation
+// if SQL function fails or returns insufficient kanji
 func (h *WordBuilderHandler) getSimpleKanji(jlptLevel int, count int, excludeIDs []int64) ([]KanjiData, error) {
+	// Try SQL function first (has better path-finding logic)
+	kanjiIDs, err := h.getKanjiUsingSQLFunction(jlptLevel, count, excludeIDs)
+	if err == nil && len(kanjiIDs) >= count {
+		log.Printf("[getSimpleKanji] SQL function succeeded with %d kanji", len(kanjiIDs))
+		return h.getKanjiDetails(kanjiIDs[:count])
+	}
+	
+	if err != nil {
+		log.Printf("[getSimpleKanji] SQL function failed: %v, falling back to Go implementation", err)
+	} else {
+		log.Printf("[getSimpleKanji] SQL function returned only %d kanji (needed %d), falling back to Go implementation", len(kanjiIDs), count)
+	}
+	
+	// Fall back to improved Go implementation
+	return h.getSimpleKanjiGo(jlptLevel, count, excludeIDs)
+}
+
+// getKanjiUsingSQLFunction calls the PostgreSQL build_kanji_chain function
+func (h *WordBuilderHandler) getKanjiUsingSQLFunction(jlptLevel int, count int, excludeIDs []int64) ([]int64, error) {
+	sqlDB, err := h.DB.DB()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get database connection: %w", err)
+	}
+
+	var kanjiArray pq.Int64Array
+	err = sqlDB.QueryRow(
+		"SELECT build_kanji_chain($1, $2, $3)",
+		jlptLevel, count, pq.Array(excludeIDs),
+	).Scan(&kanjiArray)
+	
+	if err != nil {
+		return nil, fmt.Errorf("SQL function failed: %w", err)
+	}
+
+	if kanjiArray == nil || len(kanjiArray) == 0 {
+		return nil, fmt.Errorf("SQL function returned empty array")
+	}
+
+	return []int64(kanjiArray), nil
+}
+
+// getSimpleKanjiGo builds a simple chain using Go: K1 → word → K2 → word → K3 → ... → K6
+// Improved version with backtracking and better path selection
+func (h *WordBuilderHandler) getSimpleKanjiGo(jlptLevel int, count int, excludeIDs []int64) ([]KanjiData, error) {
 	sqlDB, err := h.DB.DB()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get database connection: %w", err)
@@ -41,9 +85,9 @@ func (h *WordBuilderHandler) getSimpleKanji(jlptLevel int, count int, excludeIDs
 		fallbackCounts = []int{count, 5, 4} // Try 6, then 5, then 4
 	}
 
-	for _, targetCount := range fallbackCounts {
+		for _, targetCount := range fallbackCounts {
 		for attempt := 0; attempt < maxRetries; attempt++ {
-			log.Printf("[getSimpleKanji] Attempt %d/%d: JLPT level %d (range %d-%d), target: %d, excludeIDs: %v",
+			log.Printf("[getSimpleKanjiGo] Attempt %d/%d: JLPT level %d (range %d-%d), target: %d, excludeIDs: %v",
 				attempt+1, maxRetries, jlptLevel, jlptMin, jlptMax, targetCount, excludeIDs)
 
 			// 1. Find seed kanji with high connectivity using materialized view
@@ -83,7 +127,7 @@ func (h *WordBuilderHandler) getSimpleKanji(jlptLevel int, count int, excludeIDs
 			var currentKanjiID int64
 			err := sqlDB.QueryRow(seedQuery, args...).Scan(&currentKanjiID)
 			if err != nil {
-				log.Printf("[getSimpleKanji] Attempt %d: Failed to find seed kanji: %v", attempt+1, err)
+				log.Printf("[getSimpleKanjiGo] Attempt %d: Failed to find seed kanji: %v", attempt+1, err)
 				// If no high-connectivity seed found, try with lower threshold
 				if minWordConnections > 1 {
 					minWordConnections = 1
@@ -91,7 +135,7 @@ func (h *WordBuilderHandler) getSimpleKanji(jlptLevel int, count int, excludeIDs
 				}
 				continue // Try next attempt
 			}
-			log.Printf("[getSimpleKanji] Attempt %d: Found seed kanji ID: %d", attempt+1, currentKanjiID)
+			log.Printf("[getSimpleKanjiGo] Attempt %d: Found seed kanji ID: %d", attempt+1, currentKanjiID)
 
 			// 2. Start chain with seed kanji
 			collectedKanji := []int64{currentKanjiID}
@@ -99,56 +143,76 @@ func (h *WordBuilderHandler) getSimpleKanji(jlptLevel int, count int, excludeIDs
 
 			// 3. Build chain: K1 → word → K2 → word → K3 → ... → K6
 			// Use materialized view for faster lookups
+			// Improved: Try multiple words per kanji before giving up (backtracking)
+			maxWordTriesPerKanji := 3 // Try up to 3 different words before giving up on current kanji
 			for len(collectedKanji) < targetCount {
-				log.Printf("[getSimpleKanji] Attempt %d: Step %d/%d - Current kanji: %d, Collected so far: %v",
+				log.Printf("[getSimpleKanjiGo] Attempt %d: Step %d/%d - Current kanji: %d, Collected so far: %v",
 					attempt+1, len(collectedKanji), targetCount, currentKanjiID, collectedKanji)
 
-				// Find a word using current kanji from materialized view (exclude words we've already used)
-				var wordQuery string
-				var wordArgs []interface{}
-				if len(usedWords) > 0 {
+				// Find a word using current kanji (backtracking: try multiple words if needed)
+				var wordID int64
+				wordFound := false
+				for wordTry := 0; wordTry < maxWordTriesPerKanji; wordTry++ {
+					// Rebuild usedWordIDs list for each try (in case we added words)
 					usedWordIDs := make([]int64, 0, len(usedWords))
 					for wID := range usedWords {
 						usedWordIDs = append(usedWordIDs, wID)
 					}
-					wordQuery = `
-						SELECT kam.word_id
-						FROM kanji_adjacency_map kam
-						JOIN words w ON w.id = kam.word_id
-						WHERE kam.kanji_id = $1
-						  AND kam.kanji_jlpt BETWEEN $2 AND $3
-						  AND (w.jlpt BETWEEN $2 AND $3 OR w.jlpt IS NULL)
-						  AND kam.word_id != ALL($4::bigint[])
-						ORDER BY RANDOM()
-						LIMIT 1
-					`
-					wordArgs = []interface{}{currentKanjiID, jlptMin, jlptMax, pq.Array(usedWordIDs)}
-				} else {
-					wordQuery = `
-						SELECT kam.word_id
-						FROM kanji_adjacency_map kam
-						JOIN words w ON w.id = kam.word_id
-						WHERE kam.kanji_id = $1
-						  AND kam.kanji_jlpt BETWEEN $2 AND $3
-						  AND (w.jlpt BETWEEN $2 AND $3 OR w.jlpt IS NULL)
-						ORDER BY RANDOM()
-						LIMIT 1
-					`
-					wordArgs = []interface{}{currentKanjiID, jlptMin, jlptMax}
+					
+					// Build query and args based on whether we have used words
+					var wordQuery string
+					var wordArgs []interface{}
+					if len(usedWordIDs) > 0 {
+						wordQuery = `
+							SELECT kam.word_id
+							FROM kanji_adjacency_map kam
+							JOIN words w ON w.id = kam.word_id
+							WHERE kam.kanji_id = $1
+							  AND kam.kanji_jlpt BETWEEN $2 AND $3
+							  AND (w.jlpt BETWEEN $2 AND $3 OR w.jlpt IS NULL)
+							  AND kam.word_id != ALL($4::bigint[])
+							ORDER BY RANDOM()
+							LIMIT 1
+						`
+						wordArgs = []interface{}{currentKanjiID, jlptMin, jlptMax, pq.Array(usedWordIDs)}
+					} else {
+						wordQuery = `
+							SELECT kam.word_id
+							FROM kanji_adjacency_map kam
+							JOIN words w ON w.id = kam.word_id
+							WHERE kam.kanji_id = $1
+							  AND kam.kanji_jlpt BETWEEN $2 AND $3
+							  AND (w.jlpt BETWEEN $2 AND $3 OR w.jlpt IS NULL)
+							ORDER BY RANDOM()
+							LIMIT 1
+						`
+						wordArgs = []interface{}{currentKanjiID, jlptMin, jlptMax}
+					}
+					
+					err := sqlDB.QueryRow(wordQuery, wordArgs...).Scan(&wordID)
+					if err != nil {
+						log.Printf("[getSimpleKanjiGo] Attempt %d: Step %d - Word try %d failed for kanji %d: %v",
+							attempt+1, len(collectedKanji), wordTry+1, currentKanjiID, err)
+						if wordTry == maxWordTriesPerKanji-1 {
+							// Last try failed, give up on this kanji
+							break
+						}
+						continue // Try another word
+					}
+					
+					// Found a word - mark it as used and proceed to find kanji
+					usedWords[wordID] = true
+					wordFound = true
+					log.Printf("[getSimpleKanjiGo] Attempt %d: Step %d - Found word ID: %d for kanji %d (try %d)",
+						attempt+1, len(collectedKanji), wordID, currentKanjiID, wordTry+1)
+					break
 				}
-
-				var wordID int64
-				err := sqlDB.QueryRow(wordQuery, wordArgs...).Scan(&wordID)
-				if err != nil {
-					log.Printf("[getSimpleKanji] Attempt %d: Step %d - No word found for kanji %d (used words: %v): %v",
-						attempt+1, len(collectedKanji), currentKanjiID, usedWords, err)
+				
+				if !wordFound {
+					log.Printf("[getSimpleKanjiGo] Attempt %d: Step %d - No word found for kanji %d after %d tries",
+						attempt+1, len(collectedKanji), currentKanjiID, maxWordTriesPerKanji)
 					break // No word found, try new seed
 				}
-				log.Printf("[getSimpleKanji] Attempt %d: Step %d - Found word ID: %d for kanji %d",
-					attempt+1, len(collectedKanji), wordID, currentKanjiID)
-
-				// Mark this word as used
-				usedWords[wordID] = true
 
 				// Extract another kanji from that word using materialized view
 				// Use the neighbor_kanji_ids array from the materialized view
@@ -188,11 +252,13 @@ func (h *WordBuilderHandler) getSimpleKanji(jlptLevel int, count int, excludeIDs
 				var nextKanjiID int64
 				err = sqlDB.QueryRow(kanjiQuery, kanjiArgs...).Scan(&nextKanjiID)
 				if err != nil {
-					log.Printf("[getSimpleKanji] Attempt %d: Step %d - No new kanji found in word %d (exclude: %v): %v",
+					log.Printf("[getSimpleKanjiGo] Attempt %d: Step %d - No new kanji found in word %d (exclude: %v): %v",
 						attempt+1, len(collectedKanji), wordID, excludeAll, err)
-					break // No new kanji found, try new seed
+					// Word is already marked as used, continue outer loop to try another word
+					// This implements backtracking: if a word doesn't yield new kanji, try another word
+					continue
 				}
-				log.Printf("[getSimpleKanji] Attempt %d: Step %d - Extracted kanji ID: %d from word %d",
+				log.Printf("[getSimpleKanjiGo] Attempt %d: Step %d - Extracted kanji ID: %d from word %d",
 					attempt+1, len(collectedKanji), nextKanjiID, wordID)
 
 				// Add to collection
@@ -200,18 +266,18 @@ func (h *WordBuilderHandler) getSimpleKanji(jlptLevel int, count int, excludeIDs
 				currentKanjiID = nextKanjiID
 			}
 
-			log.Printf("[getSimpleKanji] Attempt %d: Collected %d kanji: %v", attempt+1, len(collectedKanji), collectedKanji)
+			log.Printf("[getSimpleKanjiGo] Attempt %d: Collected %d kanji: %v", attempt+1, len(collectedKanji), collectedKanji)
 
 			// If we got enough kanji, return them
 			if len(collectedKanji) >= targetCount {
-				log.Printf("[getSimpleKanji] Success! Returning %d kanji (target was %d)", len(collectedKanji), count)
+				log.Printf("[getSimpleKanjiGo] Success! Returning %d kanji (target was %d)", len(collectedKanji), count)
 				return h.getKanjiDetails(collectedKanji[:targetCount])
 			}
 		}
 	}
 
 	// All retries failed - return error
-	log.Printf("[getSimpleKanji] FAILED: Could not find %d connected kanji after %d attempts (JLPT: %d, excludeIDs: %v)",
+	log.Printf("[getSimpleKanjiGo] FAILED: Could not find %d connected kanji after %d attempts (JLPT: %d, excludeIDs: %v)",
 		count, maxRetries, jlptLevel, excludeIDs)
 	return nil, fmt.Errorf("could not find %d connected kanji after %d attempts", count, maxRetries)
 }

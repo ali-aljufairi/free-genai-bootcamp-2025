@@ -1,6 +1,10 @@
 package word_builder
 
-import "time"
+import (
+	"time"
+
+	pq "github.com/lib/pq"
+)
 
 // LearningActivity represents the learning_activities table structure
 type LearningActivity struct {
@@ -9,7 +13,7 @@ type LearningActivity struct {
 	ActivityType     string                 `gorm:"column:activity_type"`
 	ContentType      string                 `gorm:"column:content_type"`
 	JLPTLevel        *int                   `gorm:"column:jlpt_level"`
-	ItemIDs          []int64                `gorm:"column:item_ids;type:integer[]"`
+	ItemIDs          pq.Int64Array           `gorm:"column:item_ids;type:bigint[]"`
 	ItemCount        int                    `gorm:"column:item_count"`
 	CorrectCount     int                    `gorm:"column:correct_count"`
 	TotalTimeSeconds int                    `gorm:"column:total_time_seconds"`

@@ -254,8 +254,8 @@ func (h *WordBuilderHandler) RefreshKanji(c *fiber.Ctx) error {
 			}
 
 			var existingItemIDs []int64
-			if activity.ItemIDs != nil {
-				existingItemIDs = activity.ItemIDs
+			if activity.ItemIDs != nil && len(activity.ItemIDs) > 0 {
+				existingItemIDs = []int64(activity.ItemIDs)
 			}
 			updatedItemIDs := append(existingItemIDs, newKanjiIDs...)
 

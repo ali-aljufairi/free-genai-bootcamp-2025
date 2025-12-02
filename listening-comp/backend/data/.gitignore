@@ -1,9 +1,0 @@
-./vectorstore/*
-./vectorstore/**/*
-*.bin
-*.sqlite3
-stored_questions.json
-
-# Audio files
-../../frontend/static/audio/*
-!../../frontend/static/audio/.gitkeep
