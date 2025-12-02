@@ -1,5 +1,5 @@
 "use client"
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useLayoutEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Mic, PhoneOff, PhoneCall, Volume2, X } from "lucide-react";
@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCompanionStudyStore } from "@/stores/companion-study-store";
+import { useIsMobile } from "@/components/ui/use-mobile";
 
 // Get Vapi public key from environment variable
 const VAPI_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPI_PUBLIC_KEY;
@@ -42,13 +43,21 @@ interface CompanionStudyProps {
 
 type CallStatus = "idle" | "connecting" | "active" | "speaking" | "listening" | "ended";
 
+interface TranscriptMessage {
+    id: string;
+    role: "user" | "assistant";
+    text: string;
+    isPartial: boolean;
+}
+
 interface FluidVisualizationProps {
     isActive: boolean;
     isListening: boolean;
     isSpeaking: boolean;
+    size?: number;
 }
 
-function FluidVisualization({ isActive, isListening, isSpeaking }: FluidVisualizationProps) {
+function FluidVisualization({ isActive, isListening, isSpeaking, size = 300 }: FluidVisualizationProps) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
 
     useEffect(() => {
@@ -155,9 +164,9 @@ function FluidVisualization({ isActive, isListening, isSpeaking }: FluidVisualiz
         };
 
         const resizeCanvas = () => {
-            const size = Math.min(300, window.innerWidth - 40);
-            canvas.width = size;
-            canvas.height = size;
+            const canvasSize = Math.min(size, window.innerWidth - 40);
+            canvas.width = canvasSize;
+            canvas.height = canvasSize;
         };
 
         resizeCanvas();
@@ -197,10 +206,11 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
     const [callStatus, setCallStatus] = useState<CallStatus>("idle");
     const [isVapiInitialized, setIsVapiInitialized] = useState(false);
     const [assistantIsSpeaking, setAssistantIsSpeaking] = useState(false);
-    const [userTranscript, setUserTranscript] = useState<string>("");
-    const [assistantTranscript, setAssistantTranscript] = useState<string>("");
+    const [transcriptMessages, setTranscriptMessages] = useState<TranscriptMessage[]>([]);
     const [callStartTime, setCallStartTime] = useState<Date | null>(null);
     const vapiRef = useRef<any>(null);
+    const transcriptEndRef = useRef<HTMLDivElement>(null);
+    const isMobile = useIsMobile();
 
     // Zustand store for preferences
     const {
@@ -219,8 +229,7 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
         }
         setCallStatus("ended");
         setAssistantIsSpeaking(false);
-        setUserTranscript("");
-        setAssistantTranscript("");
+        setTranscriptMessages([]);
         setCallStartTime(null);
     };
 
@@ -261,36 +270,22 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
 
                                 if (!transcript) return; // Skip empty transcripts
 
-                                if (role === 'user') {
-                                    // Update user transcript - handle partial and final
-                                    if (message.transcriptType === 'final') {
-                                        setUserTranscript(prev => {
-                                            // Remove any partial transcript and add final
-                                            const cleanPrev = prev.replace(/\.\.\.$/, '').trim();
-                                            return cleanPrev ? `${cleanPrev} ${transcript}` : transcript;
-                                        });
-                                    } else {
-                                        // Partial transcript - append with indicator
-                                        setUserTranscript(prev => {
-                                            const cleanPrev = prev.replace(/\.\.\.$/, '').trim();
-                                            return cleanPrev ? `${cleanPrev} ${transcript}...` : `${transcript}...`;
-                                        });
-                                    }
-                                } else if (role === 'assistant') {
-                                    // Update assistant transcript - handle partial and final
-                                    if (message.transcriptType === 'final') {
-                                        setAssistantTranscript(prev => {
-                                            // Remove any partial transcript and add final
-                                            const cleanPrev = prev.replace(/\.\.\.$/, '').trim();
-                                            return cleanPrev ? `${cleanPrev} ${transcript}` : transcript;
-                                        });
-                                    } else {
-                                        // Partial transcript - append with indicator
-                                        setAssistantTranscript(prev => {
-                                            const cleanPrev = prev.replace(/\.\.\.$/, '').trim();
-                                            return cleanPrev ? `${cleanPrev} ${transcript}...` : `${transcript}...`;
-                                        });
-                                    }
+                                const isPartial = message.transcriptType !== 'final';
+                                const messageId = `${role}-${Date.now()}-${Math.random()}`;
+
+                                if (role === 'user' || role === 'assistant') {
+                                    setTranscriptMessages(prev => {
+                                        // Remove any existing partial message for this role
+                                        const filtered = prev.filter(msg => !(msg.role === role && msg.isPartial));
+
+                                        // Add the new message
+                                        return [...filtered, {
+                                            id: messageId,
+                                            role: role as "user" | "assistant",
+                                            text: transcript,
+                                            isPartial
+                                        }];
+                                    });
                                 }
                             }
                         } catch (error) {
@@ -371,6 +366,17 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
             return; // Don't save if call never started
         }
 
+        // Extract final transcripts from messages (exclude partial messages)
+        const finalMessages = transcriptMessages.filter(msg => !msg.isPartial);
+        const userTranscript = finalMessages
+            .filter(msg => msg.role === 'user')
+            .map(msg => msg.text)
+            .join(' ');
+        const assistantTranscript = finalMessages
+            .filter(msg => msg.role === 'assistant')
+            .map(msg => msg.text)
+            .join(' ');
+
         // Save even with empty transcripts to track session attempts
         try {
             const endedAt = new Date();
@@ -410,6 +416,11 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
         setCallStatus("idle");
     };
 
+    // Auto-scroll to bottom when new messages arrive
+    useLayoutEffect(() => {
+        transcriptEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, [transcriptMessages]);
+
     if (!VAPI_PUBLIC_KEY) {
         return (
             <div className="flex flex-col h-[calc(100vh-8rem)]">
@@ -437,98 +448,116 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
                         Practice speaking with your AI language companion
                     </CardDescription>
                 </CardHeader>
-                <CardContent className="flex-1 flex flex-col items-center justify-center gap-6 p-8">
-                    <div className="w-full flex flex-col items-center gap-4">
-                        {(callStatus === "idle" || callStatus === "ended") && (
-                            <div className="flex flex-col items-center gap-4 w-full max-w-md">
-                                <Select
-                                    value={selectedAssistant}
-                                    onValueChange={handleAssistantChange}
-                                >
-                                    <SelectTrigger className="w-full">
-                                        <SelectValue placeholder="Select an assistant" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {Object.entries(ASSISTANTS).map(([key, assistant]) => (
-                                            <SelectItem key={key} value={assistant.id}>
-                                                {assistant.name}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                <CardContent className="flex-1 flex flex-col overflow-hidden p-4 sm:p-8">
+                    {(callStatus === "idle" || callStatus === "ended") && (
+                        <div className="flex flex-col items-center justify-center gap-4 w-full max-w-md mx-auto h-full">
+                            <Select
+                                value={selectedAssistant}
+                                onValueChange={handleAssistantChange}
+                            >
+                                <SelectTrigger className="w-full">
+                                    <SelectValue placeholder="Select an assistant" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {Object.entries(ASSISTANTS).map(([key, assistant]) => (
+                                        <SelectItem key={key} value={assistant.id}>
+                                            {assistant.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <Button
+                                onClick={startCall}
+                                className="flex items-center gap-2 w-full"
+                                size="lg"
+                                disabled={!isVapiInitialized}
+                            >
+                                <PhoneCall className="h-5 w-5" /> Start Call
+                            </Button>
+                        </div>
+                    )}
+                    {(callStatus !== "idle" && callStatus !== "ended") && (
+                        <div className="flex flex-col h-full gap-4">
+                            {/* Status text - above animation */}
+                            <div className="text-center text-muted-foreground text-base min-h-[2em] flex items-center justify-center">
+                                {callStatus === "connecting" && "Connecting..."}
+                                {callStatus === "active" && "Connected"}
+                                {callStatus === "listening" && "Listening..."}
+                                {callStatus === "speaking" && "Speaking..."}
+                            </div>
+
+                            {/* Animation */}
+                            <div className={`flex items-center justify-center ${isMobile ? 'w-32 h-32 mx-auto' : 'w-48 h-48 mx-auto'}`}>
+                                <FluidVisualization
+                                    isActive={true}
+                                    isListening={callStatus === "listening"}
+                                    isSpeaking={assistantIsSpeaking}
+                                    size={isMobile ? 128 : 192}
+                                />
+                            </div>
+
+                            {/* Scrollable Transcript Area */}
+                            {showTranscription && (
+                                <div className="flex-1 overflow-y-auto min-h-0 px-2 sm:px-4">
+                                    <div className="space-y-3 max-w-4xl mx-auto py-2">
+                                        {transcriptMessages.length === 0 ? (
+                                            <div className="text-center text-muted-foreground text-sm py-8">
+                                                Waiting for conversation to start...
+                                            </div>
+                                        ) : (
+                                            transcriptMessages.map((message) => (
+                                                <motion.div
+                                                    key={message.id}
+                                                    initial={{ opacity: 0, y: 10 }}
+                                                    animate={{ opacity: 1, y: 0 }}
+                                                    className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
+                                                >
+                                                    <div
+                                                        className={`
+                                                            max-w-[85%] sm:max-w-[75%] rounded-lg px-4 py-2
+                                                            ${message.role === "user"
+                                                                ? "bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800"
+                                                                : "bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800"
+                                                            }
+                                                            ${message.isPartial ? "opacity-70" : ""}
+                                                        `}
+                                                    >
+                                                        <div className={`text-xs font-semibold mb-1 ${message.role === "user"
+                                                                ? "text-blue-700 dark:text-blue-300"
+                                                                : "text-purple-700 dark:text-purple-300"
+                                                            }`}>
+                                                            {message.role === "user" ? "You" : "Assistant"}
+                                                        </div>
+                                                        <div className={`text-sm ${message.role === "user"
+                                                                ? "text-blue-900 dark:text-blue-100"
+                                                                : "text-purple-900 dark:text-purple-100"
+                                                            }`}>
+                                                            {message.text}
+                                                            {message.isPartial && <span className="opacity-50">...</span>}
+                                                        </div>
+                                                    </div>
+                                                </motion.div>
+                                            ))
+                                        )}
+                                        <div ref={transcriptEndRef} />
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* End Call Button - Icon Only */}
+                            <div className="flex items-center justify-center pt-4">
                                 <Button
-                                    onClick={startCall}
-                                    className="flex items-center gap-2 w-full"
-                                    size="lg"
-                                    disabled={!isVapiInitialized}
+                                    onClick={endCall}
+                                    variant="destructive"
+                                    size={isMobile ? "icon" : "icon"}
+                                    className={`${isMobile ? "h-12 w-12 rounded-full" : "h-14 w-14 rounded-full"} shadow-lg`}
+                                    aria-label="End Call"
                                 >
-                                    <PhoneCall className="h-5 w-5" /> Start Call
+                                    <PhoneOff className={isMobile ? "h-6 w-6" : "h-7 w-7"} />
                                 </Button>
                             </div>
-                        )}
-                        {(callStatus !== "idle" && callStatus !== "ended") && (
-                            <>
-                                <div className="w-48 h-48">
-                                    <FluidVisualization
-                                        isActive={true}
-                                        isListening={callStatus === "listening"}
-                                        isSpeaking={assistantIsSpeaking}
-                                    />
-                                </div>
-                                <div className="text-center text-muted-foreground text-base min-h-[2em]">
-                                    {callStatus === "connecting" && "Connecting..."}
-                                    {callStatus === "active" && "Connected"}
-                                    {callStatus === "listening" && "Listening..."}
-                                    {callStatus === "speaking" && "Speaking..."}
-                                </div>
-
-                                {/* Transcription Display */}
-                                {showTranscription && (userTranscript || assistantTranscript) && (
-                                    <div className="w-full max-w-2xl mt-6 space-y-4">
-                                        {userTranscript && (
-                                            <motion.div
-                                                initial={{ opacity: 0, y: 10 }}
-                                                animate={{ opacity: 1, y: 0 }}
-                                                className="bg-blue-50 dark:bg-blue-950/30 rounded-lg p-4 border border-blue-200 dark:border-blue-800"
-                                            >
-                                                <div className="text-xs font-semibold text-blue-700 dark:text-blue-300 mb-2">
-                                                    You
-                                                </div>
-                                                <div className="text-sm text-blue-900 dark:text-blue-100">
-                                                    {userTranscript}
-                                                </div>
-                                            </motion.div>
-                                        )}
-                                        {assistantTranscript && (
-                                            <motion.div
-                                                initial={{ opacity: 0, y: 10 }}
-                                                animate={{ opacity: 1, y: 0 }}
-                                                className="bg-purple-50 dark:bg-purple-950/30 rounded-lg p-4 border border-purple-200 dark:border-purple-800"
-                                            >
-                                                <div className="text-xs font-semibold text-purple-700 dark:text-purple-300 mb-2">
-                                                    Assistant
-                                                </div>
-                                                <div className="text-sm text-purple-900 dark:text-purple-100">
-                                                    {assistantTranscript}
-                                                </div>
-                                            </motion.div>
-                                        )}
-                                    </div>
-                                )}
-
-                                <div className="mt-8">
-                                    <Button
-                                        onClick={endCall}
-                                        variant="destructive"
-                                        className="flex items-center gap-2"
-                                        size="lg"
-                                    >
-                                        <PhoneOff className="h-5 w-5" /> End Call
-                                    </Button>
-                                </div>
-                            </>
-                        )}
-                    </div>
+                        </div>
+                    )}
                 </CardContent>
                 <CardFooter>
                     <div className="text-xs text-muted-foreground w-full text-center">
