@@ -38,6 +38,7 @@ export default function GrammarPage() {
   const { data, isLoading, error } = useGrammarList();
   const { data: userProfile, isLoading: isLoadingProfile } = useUserProfile();
   const [searchQuery, setSearchQuery] = useState("");
+  const [learningStatusFilter, setLearningStatusFilter] = useState<boolean | undefined>(undefined);
 
   // Initialize selected levels based on user's JLPT level
   const defaultLevels = useMemo(() => {
@@ -61,7 +62,7 @@ export default function GrammarPage() {
     }
   }, [defaultLevels, isLoadingProfile]);
 
-  // Filter grammar points based on search and level
+  // Filter grammar points based on search, level, and learning status
   const filteredData = useMemo(() => {
     if (!data) return [];
 
@@ -69,6 +70,14 @@ export default function GrammarPage() {
       // Level filter
       if (!selectedLevels.has(grammarPoint.level as JLPTLevel)) {
         return false;
+      }
+
+      // Learning status filter
+      if (learningStatusFilter !== undefined) {
+        const isLearned = grammarPoint.is_learned ?? false;
+        if (learningStatusFilter !== isLearned) {
+          return false;
+        }
       }
 
       // Search filter
@@ -84,7 +93,7 @@ export default function GrammarPage() {
 
       return true;
     });
-  }, [data, searchQuery, selectedLevels]);
+  }, [data, searchQuery, selectedLevels, learningStatusFilter]);
 
   // Calculate progress
   const progress = useMemo(() => {
@@ -199,6 +208,46 @@ export default function GrammarPage() {
           </div>
         </div>
 
+        {/* Learning Status Filter */}
+        <div className="flex flex-col gap-3">
+          <label className="text-sm font-medium">Filter by Learning Status</label>
+          <div className="grid grid-cols-3 gap-1.5">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setLearningStatusFilter(undefined)}
+              className={cn(
+                "h-7 text-xs",
+                learningStatusFilter === undefined && "bg-accent text-accent-foreground border-2 border-primary/50"
+              )}
+            >
+              All
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setLearningStatusFilter(false)}
+              className={cn(
+                "h-7 text-xs",
+                learningStatusFilter === false && "bg-accent text-accent-foreground border-2 border-primary/50"
+              )}
+            >
+              Not Learned
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setLearningStatusFilter(true)}
+              className={cn(
+                "h-7 text-xs",
+                learningStatusFilter === true && "bg-accent text-accent-foreground border-2 border-primary/50"
+              )}
+            >
+              Learned
+            </Button>
+          </div>
+        </div>
+
         {/* Progress Summary */}
         {!isLoading && data && data.length > 0 && (
           <div className="flex items-center gap-4 text-sm">
@@ -246,8 +295,8 @@ export default function GrammarPage() {
             <Alert>
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
-                {searchQuery || selectedLevels.size < JLPT_LEVELS.length
-                  ? "No grammar points match your filters. Try adjusting your search or level filters."
+                {searchQuery || selectedLevels.size < JLPT_LEVELS.length || learningStatusFilter !== undefined
+                  ? "No grammar points match your filters. Try adjusting your search, level, or learning status filters."
                   : "No grammar points found for your current JLPT level."}
               </AlertDescription>
             </Alert>
