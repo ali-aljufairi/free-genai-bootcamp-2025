@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { BookOpen, GraduationCap, LayoutDashboard, Settings, MoreVertical, FileText, Users } from "lucide-react"
+import { BookOpen, GraduationCap, LayoutDashboard, Settings, MoreVertical, FileText, Users, RotateCcw } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
     DropdownMenu,
@@ -42,6 +42,11 @@ export default function MobileBottomNav() {
 
     // Extra navigation items (in dropdown)
     const extraRoutes = [
+        {
+            name: "SRS Review",
+            path: "/srs-review",
+            icon: RotateCcw,
+        },
         {
             name: "Grammar",
             path: "/grammar",

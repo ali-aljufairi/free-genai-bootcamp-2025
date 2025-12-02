@@ -70,9 +70,13 @@ export function GrammarQuiz() {
             setTimeRemaining(prev => {
                 if (prev <= 1) {
                     // Timer expired - auto-select wrong answer
-                    const wrongOptions = questions[currentIndex]?.answers
-                        .map((_, index) => index)
-                        .filter(index => index !== questions[currentIndex]?.correct_index) || []
+                    const currentQuestion = questions[currentIndex]
+                    const answers = currentQuestion?.answers
+                    const wrongOptions = (answers && Array.isArray(answers) && answers.length > 0)
+                        ? answers
+                            .map((_, index) => index)
+                            .filter(index => index !== currentQuestion?.correct_index)
+                        : []
 
                     if (wrongOptions.length > 0) {
                         const randomWrongIndex = wrongOptions[Math.floor(Math.random() * wrongOptions.length)]
@@ -90,18 +94,19 @@ export function GrammarQuiz() {
 
     // Start timer when new question is shown
     useEffect(() => {
-        if (session && questions.length > 0 && timerDuration > 0) {
+        if (session && questions && Array.isArray(questions) && questions.length > 0 && timerDuration > 0) {
             setTimeRemaining(timerDuration)
             setIsTimerActive(true)
         }
-    }, [currentIndex, session, questions.length, timerDuration])
+    }, [currentIndex, session, questions, timerDuration])
 
     // Mutations
     const startSessionMutation = useMutation({
         mutationFn: (config: GrammarQuizConfig) => grammarApi.start(config),
         onSuccess: (data) => {
             setSession(data)
-            setQuestions(data.questions)
+            // Ensure questions is always an array, even if null/undefined from API
+            setQuestions(data.questions && Array.isArray(data.questions) ? data.questions : [])
             setCurrentIndex(0)
             setSelectedOption(null)
             setIsCorrect(null)
@@ -118,8 +123,11 @@ export function GrammarQuiz() {
 
     // Calculate results locally without waiting for backend
     const calculateLocalResults = (finalAnswers: GrammarAnswer[]): GrammarResult => {
+        // Safety check: ensure questions is a valid array
+        const validQuestions = questions && Array.isArray(questions) ? questions : []
+
         const correctCount = finalAnswers.filter(answer => {
-            const question = questions.find(q => q.id === answer.question_id)
+            const question = validQuestions.find(q => q.id === answer.question_id)
             return question && answer.answer === question.correct_index
         }).length
 
@@ -135,7 +143,7 @@ export function GrammarQuiz() {
             wrong_count: total - correctCount,
             duration: 0, // We don't track duration locally yet
             results: finalAnswers.map(answer => {
-                const question = questions.find(q => q.id === answer.question_id)
+                const question = validQuestions.find(q => q.id === answer.question_id)
                 return {
                     question_id: answer.question_id,
                     item_id: question?.id || 0,
@@ -211,7 +219,8 @@ export function GrammarQuiz() {
             // Use cached session
             const data = cachedData as GrammarQuizSession
             setSession(data)
-            setQuestions(data.questions)
+            // Ensure questions is always an array, even if null/undefined from cache
+            setQuestions(data.questions && Array.isArray(data.questions) ? data.questions : [])
             setCurrentIndex(0)
             setSelectedOption(null)
             setIsCorrect(null)
@@ -228,18 +237,23 @@ export function GrammarQuiz() {
     const handleOptionSelect = (optionIndex: number) => {
         if (selectedOption !== null || !session) return
 
+        const currentQuestion = questions[currentIndex]
+        if (!currentQuestion || !currentQuestion.answers || !Array.isArray(currentQuestion.answers)) {
+            return
+        }
+
         // Pause timer when answer is selected
         setIsTimerActive(false)
 
         setSelectedOption(optionIndex)
-        const correct = optionIndex === questions[currentIndex].correct_index
+        const correct = optionIndex === currentQuestion.correct_index
         setIsCorrect(correct)
         if (correct) {
             setScore(prev => prev + 1)
         }
 
         const answer: GrammarAnswer = {
-            question_id: questions[currentIndex].id,
+            question_id: currentQuestion.id,
             answer: optionIndex,
         }
         setAnswers(prev => [...prev, answer])
@@ -366,11 +380,54 @@ export function GrammarQuiz() {
         return <FlashcardSkeleton isMobile={isMobile} />
     }
 
-    if (!session || questions.length === 0) {
-        return <div className="flex items-center justify-center min-h-[calc(100vh-8rem)]">No questions available</div>
+    // Check if there are no questions - handle null/undefined/empty cases
+    if (!session || !questions || !Array.isArray(questions) || questions.length === 0) {
+        const emptyMessage = useSRS
+            ? "There are no items for Review"
+            : "No questions available"
+        return (
+            <div className="flex items-center justify-center min-h-[calc(100vh-8rem)]">
+                <div className="text-center space-y-2">
+                    <p className="text-lg font-medium">{emptyMessage}</p>
+                    {useSRS && (
+                        <p className="text-sm text-muted-foreground">
+                            Try adjusting your filters or study more content to generate review items.
+                        </p>
+                    )}
+                    <Button
+                        variant="outline"
+                        onClick={() => setShowConfig(true)}
+                        className="mt-4"
+                    >
+                        Change Settings
+                    </Button>
+                </div>
+            </div>
+        )
     }
 
     const currentQuestion = questions[currentIndex]
+
+    // Safety check: if current question is invalid, show error
+    if (!currentQuestion || !currentQuestion.answers || !Array.isArray(currentQuestion.answers) || currentQuestion.answers.length === 0) {
+        return (
+            <div className="flex items-center justify-center min-h-[calc(100vh-8rem)]">
+                <div className="text-center space-y-2">
+                    <p className="text-lg font-medium">Invalid question data</p>
+                    <p className="text-sm text-muted-foreground">
+                        The current question is missing required data. Please try again.
+                    </p>
+                    <Button
+                        variant="outline"
+                        onClick={() => setShowConfig(true)}
+                        className="mt-4"
+                    >
+                        Change Settings
+                    </Button>
+                </div>
+            </div>
+        )
+    }
 
     // Use separate mobile component for better maintainability
     if (isMobile) {
@@ -394,17 +451,24 @@ export function GrammarQuiz() {
     }
 
     // Desktop layout - convert all grammar questions to flashcard format for shared component
-    const flashcardFormats = questions.map(q => ({
-        id: q.id,
-        type: 'word' as const, // Use 'word' type to match Flashcard type, but we'll handle grammar rendering
-        question: { question_text: q.question_text },
-        answer: { answer: q.answers[q.correct_index] },
-        options: q.answers.map((answer) => ({ answer })),
-        correct_index: q.correct_index,
-        item_id: q.id,
-        item_type: 'grammar' as const,
-        explanation: q.explanation, // Add explanation for display
-    })) as any // Type assertion needed since we're extending Flashcard type
+    const flashcardFormats = questions.map(q => {
+        // Handle null/undefined answers gracefully
+        const answers = q.answers && Array.isArray(q.answers) && q.answers.length > 0
+            ? q.answers
+            : []
+
+        return {
+            id: q.id,
+            type: 'word' as const, // Use 'word' type to match Flashcard type, but we'll handle grammar rendering
+            question: { question_text: q.question_text },
+            answer: { answer: answers[q.correct_index] || '' },
+            options: answers.map((answer) => ({ answer })),
+            correct_index: q.correct_index,
+            item_id: q.id,
+            item_type: 'grammar' as const,
+            explanation: q.explanation, // Add explanation for display
+        }
+    }) as any // Type assertion needed since we're extending Flashcard type
 
     // Need to create a custom progress component or modify FlashcardSession to accept label
     // For now, let's create a simple wrapper that uses FlashcardSession but with custom progress
@@ -442,19 +506,21 @@ export function GrammarQuiz() {
             </div>
 
             {/* Question Card with Options */}
-            <FlashcardQuestionCard
-                card={flashcardFormats[currentIndex]}
-                selectedOption={selectedOption}
-                isCorrect={isCorrect}
-                explanation={currentQuestion.explanation}
-                renderQuestion={(card: any) => {
-                    const q = questions.find(q => q.id === card.id) || currentQuestion
-                    return renderGrammarQuestion(q)
-                }}
-                renderOption={(option: any) => renderGrammarOption(option.answer || option)}
-                onOptionSelect={handleOptionSelect}
-                isMobile={false}
-            />
+            {flashcardFormats[currentIndex] && (
+                <FlashcardQuestionCard
+                    card={flashcardFormats[currentIndex]}
+                    selectedOption={selectedOption}
+                    isCorrect={isCorrect}
+                    explanation={currentQuestion?.explanation}
+                    renderQuestion={(card: any) => {
+                        const q = questions.find(q => q.id === card.id) || currentQuestion
+                        return renderGrammarQuestion(q)
+                    }}
+                    renderOption={(option: any) => renderGrammarOption(option.answer || option)}
+                    onOptionSelect={handleOptionSelect}
+                    isMobile={false}
+                />
+            )}
         </div>
     )
 }

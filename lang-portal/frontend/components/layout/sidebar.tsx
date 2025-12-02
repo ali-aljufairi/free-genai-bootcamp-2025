@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { BookOpen, GraduationCap, LayoutDashboard, ChevronLeft, ChevronRight, Users, FileText, Settings } from "lucide-react"
+import { BookOpen, GraduationCap, LayoutDashboard, ChevronLeft, ChevronRight, Users, FileText, Settings, RotateCcw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { useSidebar } from "@/hooks/use-sidebar"
@@ -23,19 +23,24 @@ export default function Sidebar() {
       icon: <LayoutDashboard className="h-5 w-5" />,
     },
     {
-      name: "Study",
-      path: "/study",
-      icon: <GraduationCap className="h-5 w-5" />,
-    },
-    {
       name: "Vocabulary",
       path: "/vocabulary",
       icon: <BookOpen className="h-5 w-5" />,
     },
     {
+      name: "Study",
+      path: "/study",
+      icon: <GraduationCap className="h-5 w-5" />,
+    },
+    {
       name: "Grammar",
       path: "/grammar",
       icon: <FileText className="h-5 w-5" />,
+    },
+    {
+      name: "SRS Review",
+      path: "/srs-review",
+      icon: <RotateCcw className="h-5 w-5" />,
     },
     {
       name: "Groups",

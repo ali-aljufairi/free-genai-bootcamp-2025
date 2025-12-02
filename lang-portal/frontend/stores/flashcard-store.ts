@@ -38,6 +38,7 @@ export interface FlashcardPreferences {
   askForKanjiEnglish: boolean
   
   // SRS Control
+  useSRS: boolean // If true, use SRS due items as content source
   requiredCorrectCount: number
   
   // Timer Settings
@@ -52,6 +53,7 @@ interface FlashcardStore extends FlashcardPreferences {
   setGroup: (groupId: number | null) => void
   setCount: (count: number) => void
   setPartsOfSpeech: (parts: PartOfSpeech[]) => void
+  setUseSRS: (useSRS: boolean) => void
   setRequiredCorrectCount: (count: number) => void
   setTimerDuration: (duration: number) => void
   
@@ -99,6 +101,7 @@ const defaultPreferences: FlashcardPreferences = {
   askForKunyomi: false,
   askForKanjiEnglish: true,
   
+  useSRS: false,
   requiredCorrectCount: 3,
   
   timerDuration: 0, // 0 = off, 10/15/20/30 = seconds
@@ -115,6 +118,7 @@ export const useFlashcardStore = create<FlashcardStore>()(
       setGroup: (selectedGroup) => set({ selectedGroup }),
       setCount: (count) => set({ count }),
       setPartsOfSpeech: (selectedPartsOfSpeech) => set({ selectedPartsOfSpeech }),
+      setUseSRS: (useSRS) => set({ useSRS }),
       setRequiredCorrectCount: (requiredCorrectCount) => set({ requiredCorrectCount }),
       setTimerDuration: (timerDuration) => set({ timerDuration }),
       

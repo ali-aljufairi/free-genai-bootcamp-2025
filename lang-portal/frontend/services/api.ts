@@ -267,6 +267,31 @@ export const userApi = {
       method: 'PUT',
       body: JSON.stringify(data),
     }),
+  getUserSettings: (userId: string) => fetchData<{
+    user_id: number;
+    hide_english: boolean;
+    ui_language: string;
+    timezone: string;
+    daily_review_target: number;
+    current_jlpt_level: number;
+  }>(`/users/${userId}/settings`),
+  updateUserSettings: (userId: string, data: {
+    hide_english?: boolean;
+    ui_language?: string;
+    timezone?: string;
+    daily_review_target?: number;
+    current_jlpt_level?: number;
+  }) => fetchData<{
+    user_id: number;
+    hide_english: boolean;
+    ui_language: string;
+    timezone: string;
+    daily_review_target: number;
+    current_jlpt_level: number;
+  }>(`/users/${userId}/settings`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  }),
 };
 
 

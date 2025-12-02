@@ -128,8 +128,9 @@ func (h *DashboardHandler) GetQuickStats(c *fiber.Ctx) error {
 
 	// Use Raw SQL to combine dates from all activity sources for this user
 	// Include: enhanced_study_sessions (flashcards/grammar), learning_activities (word builder), chat_sessions (chat), and progress (SRS reviews)
+	// Use TO_CHAR to ensure consistent YYYY-MM-DD format
 	h.DB.Raw(`
-		SELECT activity_date FROM (
+		SELECT TO_CHAR(activity_date, 'YYYY-MM-DD') as activity_date FROM (
 			SELECT DATE(started_at) as activity_date FROM enhanced_study_sessions WHERE user_id = ?
 			UNION
 			SELECT DATE(started_at) as activity_date FROM learning_activities WHERE user_id = ?
@@ -144,26 +145,58 @@ func (h *DashboardHandler) GetQuickStats(c *fiber.Ctx) error {
 
 	streak := 0
 	if len(dates) > 0 {
-		today := time.Now().Truncate(24 * time.Hour)
-
-		// Create a map of activity dates for quick lookup
-		activityMap := make(map[string]bool)
-		for _, dateItem := range dates {
-			activityMap[dateItem.Date] = true
+		// Get today's date from database to ensure timezone consistency with activity dates
+		var dbToday string
+		h.DB.Raw("SELECT TO_CHAR(CURRENT_DATE, 'YYYY-MM-DD')").Scan(&dbToday)
+		
+		// Normalize database date (remove time if present)
+		dbToday = normalizeDateString(dbToday)
+		
+		// Parse the database date
+		today, err := time.Parse("2006-01-02", dbToday)
+		if err != nil {
+			// Fallback to local time if database date parsing fails
+			today = time.Now().Truncate(24 * time.Hour)
 		}
 
-		// Count consecutive days backwards from today
-		// If there's activity today, streak starts at 1, then count backwards
-		currentDate := today
-		for {
-			dateStr := currentDate.Format("2006-01-02")
-			if activityMap[dateStr] {
-				streak++
-				// Move to previous day
-				currentDate = currentDate.AddDate(0, 0, -1)
-			} else {
-				// No activity on this day, streak is broken
-				break
+		// Create a map of activity dates for quick lookup (normalize all dates)
+		activityMap := make(map[string]bool)
+		for _, dateItem := range dates {
+			normalizedDate := normalizeDateString(dateItem.Date)
+			activityMap[normalizedDate] = true
+		}
+
+		// Determine the starting date for streak calculation
+		// Start from today if there's activity today, otherwise start from yesterday if there's activity yesterday
+		todayStr := today.Format("2006-01-02")
+		yesterday := today.AddDate(0, 0, -1)
+		yesterdayStr := yesterday.Format("2006-01-02")
+		
+		var startDate time.Time
+		if activityMap[todayStr] {
+			// Activity today, start counting from today
+			startDate = today
+		} else if activityMap[yesterdayStr] {
+			// No activity today, but activity yesterday - streak is still active
+			startDate = yesterday
+		} else {
+			// No activity today or yesterday, streak is broken
+			streak = 0
+		}
+
+		// Count consecutive days backwards from start date
+		if activityMap[todayStr] || activityMap[yesterdayStr] {
+			currentDate := startDate
+			for {
+				dateStr := currentDate.Format("2006-01-02")
+				if activityMap[dateStr] {
+					streak++
+					// Move to previous day
+					currentDate = currentDate.AddDate(0, 0, -1)
+				} else {
+					// No activity on this day, streak is broken
+					break
+				}
 			}
 		}
 	}
@@ -347,6 +380,37 @@ func (h *DashboardHandler) GetRecentActivities(c *fiber.Ctx) error {
 // Helper function to check if string contains substring
 func contains(s, substr string) bool {
 	return strings.Contains(s, substr)
+}
+
+// normalizeDateString normalizes a date string to YYYY-MM-DD format
+// Handles various formats that might come from PostgreSQL (with time, timezone, etc.)
+func normalizeDateString(dateStr string) string {
+	// Remove any whitespace
+	dateStr = strings.TrimSpace(dateStr)
+	
+	// If it contains 'T' (ISO format with time), take only the date part
+	if idx := strings.Index(dateStr, "T"); idx != -1 {
+		dateStr = dateStr[:idx]
+	}
+	
+	// If it contains a space (date with time), take only the date part
+	if idx := strings.Index(dateStr, " "); idx != -1 {
+		dateStr = dateStr[:idx]
+	}
+	
+	// If it contains '+' or '-' after the date (timezone), take only the date part
+	// This handles formats like "2025-01-02+00:00" or "2025-01-02-05:00"
+	for i := 0; i < len(dateStr); i++ {
+		if dateStr[i] == '+' || (dateStr[i] == '-' && i > 4) {
+			// Check if this is a timezone separator (after YYYY-MM-DD)
+			if i >= 10 {
+				dateStr = dateStr[:i]
+				break
+			}
+		}
+	}
+	
+	return dateStr
 }
 
 // TestSentry is a test endpoint to verify Sentry error reporting

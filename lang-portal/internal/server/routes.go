@@ -106,6 +106,8 @@ func (s *FiberServer) RegisterFiberRoutes() {
 	userHandler := user.NewUserHandler(s.postgresDB)
 	s.App.Get("/api/langportal/users/me", userHandler.GetMe)
 	s.App.Put("/api/langportal/users/me/favorite_group", userHandler.SetFavoriteGroup)
+	s.App.Get("/api/langportal/users/:id/settings", userHandler.GetUserSettings)
+	s.App.Put("/api/langportal/users/:id/settings", userHandler.UpdateUserSettings)
 
 	// Word routes (new handler structure)
 	wordsStore := repositories.NewWordsStore(s.postgresDB)

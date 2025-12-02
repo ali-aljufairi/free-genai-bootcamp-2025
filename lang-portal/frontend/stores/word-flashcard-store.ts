@@ -25,6 +25,7 @@ export interface WordFlashcardPreferences {
   askForEnglish: boolean
   
   // SRS Control
+  useSRS: boolean // If true, use SRS due items as content source
   requiredCorrectCount: number
   
   // Timer Settings
@@ -38,6 +39,7 @@ interface WordFlashcardStore extends WordFlashcardPreferences {
   setUnit: (unitId: number | null) => void
   setCount: (count: number) => void
   setPartsOfSpeech: (parts: PartOfSpeech[]) => void
+  setUseSRS: (useSRS: boolean) => void
   setRequiredCorrectCount: (count: number) => void
   setTimerDuration: (duration: number) => void
   
@@ -69,6 +71,7 @@ const defaultPreferences: WordFlashcardPreferences = {
   askForRomaji: false,
   askForEnglish: true,
   
+  useSRS: false,
   requiredCorrectCount: 3,
   
   timerDuration: 0, // 0 = off, 10/15/20/30 = seconds
@@ -84,6 +87,7 @@ export const useWordFlashcardStore = create<WordFlashcardStore>()(
       setUnit: (selectedUnit) => set({ selectedUnit }),
       setCount: (count) => set({ count }),
       setPartsOfSpeech: (selectedPartsOfSpeech) => set({ selectedPartsOfSpeech }),
+      setUseSRS: (useSRS) => set({ useSRS }),
       setRequiredCorrectCount: (requiredCorrectCount) => set({ requiredCorrectCount }),
       setTimerDuration: (timerDuration) => set({ timerDuration }),
       
