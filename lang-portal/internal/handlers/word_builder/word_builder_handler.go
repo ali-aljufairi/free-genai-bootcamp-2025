@@ -65,36 +65,72 @@ func (h *WordBuilderHandler) StartSession(c *fiber.Ctx) error {
 		})
 	}
 
-	// Get 6 kanji using fast iterative selection
+	// Get 6 kanji with auto-refresh if no valid words found
+	// Retry up to 5 times to find kanji that form valid words
+	maxRetries := 5
+	var kanji []KanjiData
+	var validWords []ValidWord
+	var kanjiDuration time.Duration
+	var wordsDuration time.Duration
+	excludeIDs := []int64{}
+	
 	kanjiStartTime := time.Now()
-	kanji, err := h.getSimpleKanji(req.JLPTLevel, 6, nil)
-	kanjiDuration := time.Since(kanjiStartTime)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error":   "Failed to get kanji",
-			"details": err.Error(),
-		})
-	}
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		// Get kanji (excluding previously tried sets)
+		kanjiAttemptStart := time.Now()
+		kanji, err := h.getSimpleKanji(req.JLPTLevel, 6, excludeIDs)
+		kanjiDuration = time.Since(kanjiAttemptStart)
+		if err != nil {
+			if attempt == maxRetries-1 {
+				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+					"error":   "Failed to get kanji after multiple attempts",
+					"details": err.Error(),
+				})
+			}
+			log.Printf("[StartSession] Attempt %d: Failed to get kanji: %v, retrying...", attempt+1, err)
+			continue
+		}
 
-	// Pre-compute all valid words
-	wordsStartTime := time.Now()
-	validWords, err := h.ComputeValidWords(kanji)
-	wordsDuration := time.Since(wordsStartTime)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error":   "Failed to compute valid words",
-			"details": err.Error(),
-			"debug": map[string]interface{}{
-				"kanji_count": len(kanji),
-				"kanji_ids": func() []int64 {
-					ids := make([]int64, len(kanji))
-					for i, k := range kanji {
-						ids[i] = k.ID
-					}
-					return ids
-				}(),
-			},
-		})
+		// Pre-compute all valid words
+		wordsStartTime := time.Now()
+		validWords, err = h.ComputeValidWords(kanji)
+		wordsDuration = time.Since(wordsStartTime)
+		if err != nil {
+			if attempt == maxRetries-1 {
+				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+					"error":   "Failed to compute valid words after multiple attempts",
+					"details": err.Error(),
+				})
+			}
+			log.Printf("[StartSession] Attempt %d: Failed to compute valid words: %v, retrying...", attempt+1, err)
+			// Exclude these kanji and retry
+			for _, k := range kanji {
+				excludeIDs = append(excludeIDs, k.ID)
+			}
+			continue
+		}
+
+		// If we found valid words, break out of retry loop
+		if len(validWords) > 0 {
+			if attempt > 0 {
+				log.Printf("[StartSession] Auto-refresh succeeded on attempt %d (found %d valid words)", attempt+1, len(validWords))
+			}
+			break
+		}
+
+		// No valid words found - exclude these kanji and retry
+		log.Printf("[StartSession] Attempt %d: Found 0 valid words, auto-refreshing kanji...", attempt+1)
+		for _, k := range kanji {
+			excludeIDs = append(excludeIDs, k.ID)
+		}
+		
+		if attempt == maxRetries-1 {
+			// Last attempt failed - return error
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error":   "Could not find kanji that form valid words after multiple attempts",
+				"details": fmt.Sprintf("Tried %d times but no valid words found", maxRetries),
+			})
+		}
 	}
 
 	// Create session in learning_activities
@@ -187,40 +223,77 @@ func (h *WordBuilderHandler) RefreshKanji(c *fiber.Ctx) error {
 		})
 	}
 
-	// Get 6 new kanji, excluding used ones
+	// Get 6 new kanji with auto-refresh if no valid words found
+	// Retry up to 5 times to find kanji that form valid words
+	maxRetries := 5
+	var newKanji []KanjiData
+	var validWords []ValidWord
+	var kanjiDuration time.Duration
+	var wordsDuration time.Duration
+	excludeIDs := make([]int64, len(req.UsedKanjiIDs))
+	copy(excludeIDs, req.UsedKanjiIDs)
+	
 	kanjiStartTime := time.Now()
-	newKanji, err := h.getSimpleKanji(req.JLPTLevel, 6, req.UsedKanjiIDs)
-	kanjiDuration := time.Since(kanjiStartTime)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error":   "Failed to get new kanji",
-			"details": err.Error(),
-			"debug": map[string]interface{}{
-				"jlpt_level":    req.JLPTLevel,
-				"used_kanji_ids": req.UsedKanjiIDs,
-			},
-		})
-	}
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		// Get kanji (excluding previously tried sets)
+		kanjiAttemptStart := time.Now()
+		newKanji, err = h.getSimpleKanji(req.JLPTLevel, 6, excludeIDs)
+		kanjiDuration = time.Since(kanjiAttemptStart)
+		if err != nil {
+			if attempt == maxRetries-1 {
+				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+					"error":   "Failed to get new kanji after multiple attempts",
+					"details": err.Error(),
+					"debug": map[string]interface{}{
+						"jlpt_level":    req.JLPTLevel,
+						"used_kanji_ids": req.UsedKanjiIDs,
+					},
+				})
+			}
+			log.Printf("[RefreshKanji] Attempt %d: Failed to get kanji: %v, retrying...", attempt+1, err)
+			continue
+		}
 
-	// Pre-compute valid words from new kanji
-	wordsStartTime := time.Now()
-	validWords, err := h.ComputeValidWords(newKanji)
-	wordsDuration := time.Since(wordsStartTime)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error":   "Failed to compute valid words",
-			"details": err.Error(),
-			"debug": map[string]interface{}{
-				"kanji_count": len(newKanji),
-				"kanji_ids": func() []int64 {
-					ids := make([]int64, len(newKanji))
-					for i, k := range newKanji {
-						ids[i] = k.ID
-					}
-					return ids
-				}(),
-			},
-		})
+		// Pre-compute valid words from new kanji
+		wordsStartTime := time.Now()
+		validWords, err = h.ComputeValidWords(newKanji)
+		wordsDuration = time.Since(wordsStartTime)
+		if err != nil {
+			if attempt == maxRetries-1 {
+				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+					"error":   "Failed to compute valid words after multiple attempts",
+					"details": err.Error(),
+				})
+			}
+			log.Printf("[RefreshKanji] Attempt %d: Failed to compute valid words: %v, retrying...", attempt+1, err)
+			// Exclude these kanji and retry
+			for _, k := range newKanji {
+				excludeIDs = append(excludeIDs, k.ID)
+			}
+			continue
+		}
+
+		// If we found valid words, break out of retry loop
+		if len(validWords) > 0 {
+			if attempt > 0 {
+				log.Printf("[RefreshKanji] Auto-refresh succeeded on attempt %d (found %d valid words)", attempt+1, len(validWords))
+			}
+			break
+		}
+
+		// No valid words found - exclude these kanji and retry
+		log.Printf("[RefreshKanji] Attempt %d: Found 0 valid words, auto-refreshing kanji...", attempt+1)
+		for _, k := range newKanji {
+			excludeIDs = append(excludeIDs, k.ID)
+		}
+		
+		if attempt == maxRetries-1 {
+			// Last attempt failed - return error
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error":   "Could not find kanji that form valid words after multiple attempts",
+				"details": fmt.Sprintf("Tried %d times but no valid words found", maxRetries),
+			})
+		}
 	}
 
 	// Optionally update session if session_id is provided (for tracking purposes)
