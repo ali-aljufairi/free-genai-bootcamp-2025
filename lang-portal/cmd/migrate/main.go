@@ -1,20 +1,58 @@
 package main
 
 import (
+	"bufio"
 	"database/sql"
 	"flag"
 	"log"
 	"os"
+	"strings"
 
-	"github.com/pressly/goose/v3"
 	_ "github.com/lib/pq"
+	"github.com/pressly/goose/v3"
 )
 
 var (
 	flags   = flag.NewFlagSet("migrate", flag.ExitOnError)
 	dir     = flags.String("dir", "internal/database/migrations", "directory with migration files")
 	verbose = flags.Bool("v", false, "enable verbose mode")
+	envFile = flags.String("env", ".env", "Path to .env file")
 )
+
+// loadEnvFile loads environment variables from .env file
+func loadEnvFile(filename string) error {
+	file, err := os.Open(filename)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+
+		// Skip empty lines and comments
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+
+		// Split on first = sign
+		parts := strings.SplitN(line, "=", 2)
+		if len(parts) != 2 {
+			continue
+		}
+
+		key := strings.TrimSpace(parts[0])
+		value := strings.TrimSpace(parts[1])
+
+		// Only set if not already set by environment
+		if os.Getenv(key) == "" {
+			os.Setenv(key, value)
+		}
+	}
+
+	return scanner.Err()
+}
 
 func main() {
 	flags.Parse(os.Args[1:])
@@ -24,6 +62,11 @@ func main() {
 		flags.Usage()
 		log.Fatal("Usage: migrate [command] [args...]")
 		return
+	}
+
+	// Load .env file
+	if err := loadEnvFile(*envFile); err != nil {
+		log.Printf("Warning: Could not load .env file: %v", err)
 	}
 
 	command := args[0]
@@ -51,4 +94,3 @@ func main() {
 		log.Fatalf("migrate %v: %v", command, err)
 	}
 }
-

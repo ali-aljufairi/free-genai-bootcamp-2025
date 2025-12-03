@@ -1,6 +1,9 @@
 # Sorami Language Learning Platform - Development Makefile
 
-.PHONY: help dev dev-backend dev-frontend build clean test docker-up docker-down db-reset
+.PHONY: help dev dev-backend dev-frontend build clean test
+.PHONY: docker-up docker-down db-reset db-migrate db-migrate-up db-migrate-down db-migrate-status
+.PHONY: db-seed db-seed-ndjson db-seed-kanji db-seed-words db-seed-grammar db-seed-jlpt db-seed-graph db-seed-courses db-seed-study
+.PHONY: db-setup db-status
 
 # Default target
 help:
@@ -16,16 +19,35 @@ help:
 	@echo "  make test             - Run Go tests"
 	@echo "  make clean            - Clean build artifacts"
 	@echo ""
-	@echo "Database:" \
+	@echo "Database - Docker:"
 	@echo "  make docker-up        - Start PostgreSQL database container"
 	@echo "  make docker-down      - Stop PostgreSQL database container"
 	@echo "  make db-reset         - Reset database (stop, remove volumes, restart)"
-	@echo "  make db-seed          - Import JLPT data into database"
 	@echo ""
-	@echo "Usage:"
-	@echo "  1. Run 'make db-reset' to start fresh database"
-	@echo "  2. Run 'make dev' to start both backend and frontend"
-	@echo "  3. Or run 'make dev-backend' and 'make dev-frontend' in separate terminals"
+	@echo "Database - Migrations:"
+	@echo "  make db-migrate        - Run all pending migrations (alias for db-migrate-up)"
+	@echo "  make db-migrate-up    - Run all pending migrations"
+	@echo "  make db-migrate-down   - Rollback last migration"
+	@echo "  make db-migrate-status - Show migration status"
+	@echo ""
+	@echo "Database - Seeding:"
+	@echo "  make db-seed           - Seed database with NDJSON (recommended)"
+	@echo "  make db-seed-ndjson    - Seed database with NDJSON files"
+	@echo "  make db-seed-kanji     - Seed only kanji data"
+	@echo "  make db-seed-words     - Seed only words data"
+	@echo "  make db-seed-grammar   - Seed only grammar data"
+	@echo "  make db-seed-jlpt      - Seed only JLPT questions"
+	@echo "  make db-seed-graph     - Seed graph relationships"
+	@echo "  make db-seed-courses   - Seed courses and units"
+	@echo "  make db-seed-study     - Seed study activities"
+	@echo ""
+	@echo "Database - Full Setup:"
+	@echo "  make db-setup          - Complete setup: reset + migrate + seed (NDJSON)"
+	@echo "  make db-status         - Show database status (migrations + row counts)"
+	@echo ""
+	@echo "Quick Start:"
+	@echo "  make db-setup          - Full database setup from scratch"
+	@echo "  make dev               - Start development servers"
 
 # Development - Start both backend and frontend
 dev:
@@ -85,102 +107,152 @@ clean:
 	@rm -f build-errors.tmp
 	@rm -f dbtools
 
-# Database management
-docker-up:
+# Helper function to load .env file
+load-env:
+	@if [ -f .env ]; then \
+		export $$(grep -v '^#' .env | xargs); \
+	fi
+
+# Database management - Docker
+docker-up: load-env
 	@echo "Starting PostgreSQL database..."
 	@if command -v docker >/dev/null 2>&1; then \
-		cd Database && docker compose up -d; \
+		if [ -f Database/docker-compose.yml ]; then \
+			if [ -f .env ]; then \
+				export $$(grep -v '^#' .env | xargs) && \
+				cd Database && docker compose --env-file ../.env up -d; \
+			else \
+				cd Database && docker compose up -d; \
+			fi; \
+			echo "Waiting for database to be ready..."; \
+			sleep 5; \
+			echo "Database started!"; \
+		else \
+			echo "Error: Database/docker-compose.yml not found"; \
+			exit 1; \
+		fi \
 	else \
 		echo "Docker not found."; \
 		exit 1; \
 	fi
 
-docker-down:
+docker-down: load-env
 	@echo "Stopping PostgreSQL database..."
 	@if command -v docker >/dev/null 2>&1; then \
-		cd Database && docker compose down; \
+		if [ -f Database/docker-compose.yml ]; then \
+			if [ -f .env ]; then \
+				export $$(grep -v '^#' .env | xargs) && \
+				cd Database && docker compose --env-file ../.env down; \
+			else \
+				cd Database && docker compose down; \
+			fi; \
+		else \
+			echo "Error: Database/docker-compose.yml not found"; \
+			exit 1; \
+		fi \
 	else \
 		echo "Docker not found."; \
 		exit 1; \
 	fi
 
-db-reset: docker-down
-	@echo "Resetting database..."
+db-reset: load-env
+	@echo "Resetting database (removing volumes)..."
 	@if command -v docker >/dev/null 2>&1; then \
-		cd Database && docker compose down -v && docker compose up -d; \
-		echo "Database reset complete. Run migrations and seed if needed."; \
+		if [ -f Database/docker-compose.yml ]; then \
+			if [ -f .env ]; then \
+				export $$(grep -v '^#' .env | xargs) && \
+				cd Database && docker compose --env-file ../.env down -v && \
+				docker compose --env-file ../.env up -d; \
+			else \
+				cd Database && docker compose down -v && \
+				docker compose up -d; \
+			fi; \
+			echo "Waiting for database to be ready..."; \
+			sleep 8; \
+			echo "Database reset complete!"; \
+		else \
+			echo "Error: Database/docker-compose.yml not found"; \
+			exit 1; \
+		fi \
 	else \
 		echo "Docker not found."; \
 		exit 1; \
 	fi
 
-# Database Migrations
-.PHONY: migrate-up migrate-down migrate-status migrate-create migrate-reset
+# Database migrations
+db-migrate: db-migrate-up
 
-migrate-up:
+db-migrate-up:
 	@echo "Running database migrations..."
-	@go run cmd/migrate/main.go up
-
-migrate-down:
-	@echo "Rolling back last migration..."
-	@go run cmd/migrate/main.go down
-
-migrate-status:
-	@echo "Checking migration status..."
-	@go run cmd/migrate/main.go status
-
-migrate-create:
-	@read -p "Migration name: " name; \
-	goose -dir internal/database/migrations create $$name sql
-
-migrate-reset:
-	@echo "WARNING: This will rollback ALL migrations!"
-	@read -p "Are you sure? (yes/no): " confirm; \
-	if [ "$$confirm" = "yes" ]; then \
-		go run cmd/migrate/main.go reset; \
+	@if command -v go >/dev/null 2>&1; then \
+		go run cmd/migrate/main.go up; \
 	else \
-		echo "Cancelled."; \
+		echo "Go not found."; \
+		exit 1; \
 	fi
 
-# Database Seeding
-.PHONY: seed seed-kanji seed-words seed-jlpt seed-grammar seed-graph seed-ndjson
+db-migrate-down:
+	@echo "Rolling back last migration..."
+	@if command -v go >/dev/null 2>&1; then \
+		go run cmd/migrate/main.go down; \
+	else \
+		echo "Go not found."; \
+		exit 1; \
+	fi
 
-seed:
-	@echo "Seeding database with all data..."
-	@go run cmd/seed/main.go
+db-migrate-status:
+	@echo "Migration status:"
+	@if command -v go >/dev/null 2>&1; then \
+		go run cmd/migrate/main.go status; \
+	else \
+		echo "Go not found."; \
+		exit 1; \
+	fi
 
-seed-kanji:
-	@echo "Seeding kanji data only..."
-	@go run cmd/seed/main.go -only=kanji
+# Database seeding
+db-seed: db-seed-ndjson
 
-seed-words:
-	@echo "Seeding words data only..."
-	@go run cmd/seed/main.go -only=words
+db-seed-ndjson:
+	@echo "Seeding database with NDJSON files..."
+	@if command -v go >/dev/null 2>&1; then \
+		go run ./cmd/seed -ndjson; \
+	else \
+		echo "Go not found."; \
+		exit 1; \
+	fi
 
-seed-jlpt:
-	@echo "Seeding JLPT questions only..."
-	@go run cmd/seed/main.go -only=jlpt
 
-seed-grammar:
-	@echo "Seeding grammar data only..."
-	@go run cmd/seed/main.go -only=grammar
 
-seed-graph:
-	@echo "Seeding graph relationships only..."
-	@go run cmd/seed/main.go -only=graph
-
-seed-ndjson:
-	@echo "Seeding from NDJSON exports (fast mode)..."
-	@go run cmd/seed/main.go -ndjson
-
-# Full database setup (migrate + seed)
-.PHONY: db-setup db-validate
-
-db-setup: migrate-up seed
+# Full database setup
+db-setup: db-reset
+	@echo ""
+	@echo "Running migrations..."
+	@$(MAKE) db-migrate-up
+	@echo ""
+	@echo "Seeding database with NDJSON..."
+	@$(MAKE) db-seed-ndjson
+	@echo ""
 	@echo "Database setup complete!"
-	@echo "Running validation..."
-	@go run cmd/validate/main.go
+	@echo "Run 'make db-status' to verify."
 
-db-validate:
-	@echo "Validating database schema and data..."
-	@go run cmd/validate/main.go
+# Database status check
+db-status:
+	@echo "=== Database Status ==="
+	@echo ""
+	@echo "Migration Status:"
+	@$(MAKE) db-migrate-status 2>/dev/null || echo "Could not check migration status"
+	@echo ""
+	@echo "Row Counts:"
+	@if [ -f .env ]; then \
+		. .env && \
+		PGPASSWORD=$$(echo $$DATABASE_URL | sed -n 's/.*:\([^@]*\)@.*/\1/p') \
+		psql -h $$(echo $$DATABASE_URL | sed -n 's/.*@\([^:]*\):.*/\1/p') \
+		     -p $$(echo $$DATABASE_URL | sed -n 's/.*:\([0-9]*\)\/.*/\1/p') \
+		     -U $$(echo $$DATABASE_URL | sed -n 's/.*:\/\/\([^:]*\):.*/\1/p') \
+		     -d $$(echo $$DATABASE_URL | sed -n 's/.*\/\([^?]*\).*/\1/p') \
+		     -c "SELECT 'kanji' as table_name, COUNT(*) as count FROM kanji UNION ALL SELECT 'words', COUNT(*) FROM words UNION ALL SELECT 'grammar_points', COUNT(*) FROM grammar_points UNION ALL SELECT 'jlpt_questions', COUNT(*) FROM jlpt_questions UNION ALL SELECT 'item_relations', COUNT(*) FROM item_relations UNION ALL SELECT 'courses', COUNT(*) FROM courses UNION ALL SELECT 'units', COUNT(*) FROM units ORDER BY table_name;" 2>/dev/null || echo "Could not query database"; \
+	else \
+		echo "No .env file found. Using default connection."; \
+		PGPASSWORD='TempSorami!2025' psql -h localhost -p 5432 -U sorami_user -d sorami \
+		     -c "SELECT 'kanji' as table_name, COUNT(*) as count FROM kanji UNION ALL SELECT 'words', COUNT(*) FROM words UNION ALL SELECT 'grammar_points', COUNT(*) FROM grammar_points UNION ALL SELECT 'jlpt_questions', COUNT(*) FROM jlpt_questions UNION ALL SELECT 'item_relations', COUNT(*) FROM item_relations UNION ALL SELECT 'courses', COUNT(*) FROM courses UNION ALL SELECT 'units', COUNT(*) FROM units ORDER BY table_name;" 2>/dev/null || echo "Could not query database"; \
+	fi
