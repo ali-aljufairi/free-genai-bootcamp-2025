@@ -73,8 +73,7 @@ func (h *WordBuilderHandler) StartSession(c *fiber.Ctx) error {
 	var kanjiDuration time.Duration
 	var wordsDuration time.Duration
 	excludeIDs := []int64{}
-	
-	kanjiStartTime := time.Now()
+
 	for attempt := 0; attempt < maxRetries; attempt++ {
 		// Get kanji (excluding previously tried sets)
 		kanjiAttemptStart := time.Now()
@@ -232,8 +231,7 @@ func (h *WordBuilderHandler) RefreshKanji(c *fiber.Ctx) error {
 	var wordsDuration time.Duration
 	excludeIDs := make([]int64, len(req.UsedKanjiIDs))
 	copy(excludeIDs, req.UsedKanjiIDs)
-	
-	kanjiStartTime := time.Now()
+
 	for attempt := 0; attempt < maxRetries; attempt++ {
 		// Get kanji (excluding previously tried sets)
 		kanjiAttemptStart := time.Now()
