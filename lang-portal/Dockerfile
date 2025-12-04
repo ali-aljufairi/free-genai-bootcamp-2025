@@ -13,10 +13,7 @@ RUN go mod tidy && CGO_ENABLED=1 GOOS=linux go build -o main cmd/api/main.go
 
 FROM alpine:3.20.1 AS prod
 WORKDIR /app
-ARG BLUEPRINT_DB_URL=./words.db
-ENV BLUEPRINT_DB_URL=${BLUEPRINT_DB_URL}
 COPY --from=build /app/main /app/main
-COPY --from=build /app/words.db /app/words.db
 EXPOSE ${PORT}
 CMD ["./main"]
 

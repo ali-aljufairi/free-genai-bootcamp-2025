@@ -14,7 +14,7 @@ on:
             deploy_only:
                 description: "Skip build and deploy existing images"
                 required: false
-                default: "false"
+                default: false
                 type: boolean
 
 env:
