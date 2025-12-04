@@ -40,7 +40,7 @@ ENV SENTRY_AUTH_TOKEN=$SENTRY_AUTH_TOKEN
 
 # Build the application - run next build first, then try sentry upload (allow failure)
 # This ensures the build succeeds even if Sentry upload fails
-RUN npm run next build && \
+RUN npx next build && \
     (npm run sentry:sourcemaps || echo "Sentry source map upload failed, continuing...")
 
 # ================================
