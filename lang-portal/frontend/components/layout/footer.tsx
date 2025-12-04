@@ -12,6 +12,13 @@ export default function Footer() {
                         <span className="text-xs text-muted-foreground">空見</span>
                     </div>
                     <div className="flex flex-wrap justify-center gap-4 text-sm text-muted-foreground">
+                        <a
+                            href="mailto:support@aljufairi.org"
+                            className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                        >
+                            support@aljufairi.org
+                        </a>
+                        <span>•</span>
                         <Link href="/pricing" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
                             Pricing
                         </Link>
