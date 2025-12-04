@@ -1,20 +1,20 @@
 # ================================
 # Stage 1: Install dependencies
 # ================================
-FROM oven/bun:latest AS deps
+FROM node:24 AS deps
 
 WORKDIR /app
 
 # Copy only dependency files first for better caching
-COPY package.json bun.lock ./
+COPY package*.json ./
 
 # Install all dependencies (including devDependencies for build)
-RUN bun install 
+RUN npm install 
 
 # ================================
 # Stage 2: Build the application
 # ================================
-FROM oven/bun:latest AS builder
+FROM node:24 AS builder
 
 WORKDIR /app
 
@@ -40,8 +40,8 @@ ENV SENTRY_AUTH_TOKEN=$SENTRY_AUTH_TOKEN
 
 # Build the application - run next build first, then try sentry upload (allow failure)
 # This ensures the build succeeds even if Sentry upload fails
-RUN bun --bun run next build && \
-    (bun run sentry:sourcemaps || echo "Sentry source map upload failed, continuing...")
+RUN npm run next build && \
+    (npm run sentry:sourcemaps || echo "Sentry source map upload failed, continuing...")
 
 # ================================
 # Stage 3: Production runner with Watt
