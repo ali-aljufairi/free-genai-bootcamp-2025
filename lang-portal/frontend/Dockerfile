@@ -18,6 +18,9 @@ FROM oven/bun:latest AS builder
 
 WORKDIR /app
 
+# Install CA certificates for SSL connections (needed for Sentry)
+RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
+
 # Copy dependencies from deps stage
 COPY --from=deps /app/node_modules ./node_modules
 
@@ -32,8 +35,10 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ARG SENTRY_AUTH_TOKEN
 ENV SENTRY_AUTH_TOKEN=$SENTRY_AUTH_TOKEN
 
-# Build the application (uses standalone output from next.config.mjs)
-RUN bun --bun run build
+# Build the application - run next build first, then try sentry upload (allow failure)
+# This ensures the build succeeds even if Sentry upload fails
+RUN bun --bun run next build && \
+    (bun run sentry:sourcemaps || echo "Sentry source map upload failed, continuing...")
 
 # ================================
 # Stage 3: Production runner with Watt
