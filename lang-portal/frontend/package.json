@@ -4,8 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "next build",
-    "build:sentry": "next build && bun run sentry:sourcemaps",
+    "build": "next build && bun run sentry:sourcemaps",
     "start": "next start",
     "lint": "next lint",
     "test": "playwright test",

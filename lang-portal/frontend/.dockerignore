@@ -1,3 +1,46 @@
+# Dependencies
 node_modules/
+
+# Build outputs (we build fresh in Docker)
 .next/
+out/
+
+# Docker files
+Dockerfile*
 .dockerignore
+docker-compose*.yml
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Testing
+coverage/
+.playwright/
+playwright-report/
+test-results/
+
+# Environment files (secrets should be injected at runtime)
+.env*.local
+.env.development
+.env.test
+
+# Documentation
+*.md
+LICENSE
+
+# Misc
+.DS_Store
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Sentry CLI (not needed in container)
+.sentryclirc
