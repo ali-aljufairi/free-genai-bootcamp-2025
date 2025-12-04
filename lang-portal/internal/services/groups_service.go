@@ -20,9 +20,9 @@ func NewGroupsService(store *repositories.GroupsStore, db *gorm.DB) *GroupsServi
 	}
 }
 
-// CreateGroup creates a group with ownership check
+// CreateGroup creates a group with ownership check (idempotent - uses GetOrCreate)
 func (s *GroupsService) CreateGroup(name string, description *string, userID int64) (*models.Group, error) {
-	return s.Store.Create(name, description, userID)
+	return s.Store.GetOrCreate(name, description, userID)
 }
 
 // AddWord adds a word to a group with ownership check

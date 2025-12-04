@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"database/sql"
 	"flag"
+	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -71,9 +72,29 @@ func main() {
 
 	command := args[0]
 
+	// Try DATABASE_URL first, then fall back to constructing from DB_* variables (same as application)
 	dbString := os.Getenv("DATABASE_URL")
 	if dbString == "" {
-		log.Fatal("DATABASE_URL environment variable is required")
+		// Construct DSN the same way the application does
+		dbHost := os.Getenv("DB_HOST")
+		dbPort := os.Getenv("DB_PORT")
+		dbUser := os.Getenv("DB_USER")
+		dbPassword := os.Getenv("DB_PASSWORD")
+		dbName := os.Getenv("DB_NAME")
+
+		if dbHost == "" || dbUser == "" || dbName == "" {
+			log.Fatal("Either DATABASE_URL or DB_HOST/DB_USER/DB_NAME environment variables are required")
+		}
+
+		if dbPort == "" {
+			dbPort = "5432"
+		}
+
+		dbString = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+			dbHost, dbPort, dbUser, dbPassword, dbName)
+		log.Printf("Constructed database connection from DB_* variables")
+	} else {
+		log.Printf("Using DATABASE_URL for database connection")
 	}
 
 	db, err := sql.Open("postgres", dbString)

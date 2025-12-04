@@ -77,7 +77,7 @@ func (w *WordPartsJSON) Scan(value interface{}) error {
 // Group represents a thematic group of words
 type Group struct {
 	ID          int64     `json:"id" gorm:"primaryKey"`
-	Name        string    `json:"name" gorm:"not null;uniqueIndex"`
+	Name        string    `json:"name" gorm:"not null"`
 	Description *string   `json:"description"`
 	UserID      *int64    `json:"user_id" gorm:"column:user_id"`
 	CreatedAt   time.Time `json:"created_at" gorm:"autoCreateTime"`

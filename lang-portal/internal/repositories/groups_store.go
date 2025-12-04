@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"errors"
 	"lang-portal/internal/database/models"
 	"gorm.io/gorm"
 )
@@ -29,6 +30,25 @@ func (s *GroupsStore) Create(name string, description *string, userID int64) (*m
 	}
 	err := s.DB.Create(group).Error
 	return group, err
+}
+
+// GetOrCreate returns an existing group or creates a new one if it doesn't exist
+// Checks for existing group by user_id AND name (each user has their own groups)
+func (s *GroupsStore) GetOrCreate(name string, description *string, userID int64) (*models.Group, error) {
+	var group models.Group
+	// Check for existing group by user_id AND name (each user has their own groups)
+	err := s.DB.Where("user_id = ? AND name = ?", userID, name).First(&group).Error
+
+	if err == nil {
+		return &group, nil // Group exists for this user
+	}
+
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		// Group doesn't exist for this user, create it
+		return s.Create(name, description, userID)
+	}
+
+	return nil, err // Other error (e.g., sequence issue)
 }
 
 // GetByID returns a group by ID

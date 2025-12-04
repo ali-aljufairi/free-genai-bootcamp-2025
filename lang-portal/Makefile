@@ -32,15 +32,6 @@ help:
 	@echo ""
 	@echo "Database - Seeding:"
 	@echo "  make db-seed           - Seed database with NDJSON (recommended)"
-	@echo "  make db-seed-ndjson    - Seed database with NDJSON files"
-	@echo "  make db-seed-kanji     - Seed only kanji data"
-	@echo "  make db-seed-words     - Seed only words data"
-	@echo "  make db-seed-grammar   - Seed only grammar data"
-	@echo "  make db-seed-jlpt      - Seed only JLPT questions"
-	@echo "  make db-seed-graph     - Seed graph relationships"
-	@echo "  make db-seed-courses   - Seed courses and units"
-	@echo "  make db-seed-study     - Seed study activities"
-	@echo ""
 	@echo "Database - Full Setup:"
 	@echo "  make db-setup          - Complete setup: reset + migrate + seed (NDJSON)"
 	@echo "  make db-status         - Show database status (migrations + row counts)"
@@ -82,6 +73,8 @@ dev-backend:
 # Frontend development with bun
 dev-frontend:
 	@echo "Starting frontend with bun..."
+	@echo "Checking for existing processes on port 3000..."
+	@lsof -ti:3000 | xargs kill -9 2>/dev/null || echo "No existing process found on port 3000"
 	@if command -v bun >/dev/null 2>&1; then \
 		cd frontend && bun run dev; \
 	else \
