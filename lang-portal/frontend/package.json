@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "next build && npm run sentry:sourcemaps",
-    "start": "next start",
+    "build": "wattpm build",
+    "start": "wattpm start",
     "lint": "next lint",
     "test": "playwright test",
     "test:ui": "playwright test --ui",
@@ -21,6 +21,7 @@
     "@google/genai": "^1.28.0",
     "@hookform/resolvers": "^5.2.2",
     "@mantine/hooks": "^8.3.6",
+    "@platformatic/next": "^3.21.0",
     "@radix-ui/react-accordion": "^1.2.12",
     "@radix-ui/react-alert-dialog": "^1.1.15",
     "@radix-ui/react-aspect-ratio": "^1.1.8",
@@ -96,6 +97,7 @@
     "@types/react-dom": "^19",
     "postcss": "^8",
     "tailwindcss": "^4.1.16",
-    "typescript": "^5"
+    "typescript": "^5",
+    "wattpm": "^3.21.0"
   }
 }

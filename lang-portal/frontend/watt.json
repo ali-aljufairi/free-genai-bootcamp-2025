@@ -1,18 +1,13 @@
 {
-  "$schema": "https://platformatic.dev/schemas/v2.25.0/watt",
-  "server": {
-    "hostname": "0.0.0.0",
-    "port": 3000
-  },
-  "logger": {
-    "level": "info"
-  },
-  "web": [
-    {
-      "path": ".",
-      "id": "nextjs"
-    }
-  ],
-  "managementApi": false,
-  "preload": ["@platformatic/next"]
+  "$schema": "https://schemas.platformatic.dev/@platformatic/next/3.21.0.json",
+  "runtime": {
+    "logger": {
+      "level": "{PLT_SERVER_LOGGER_LEVEL}"
+    },
+    "server": {
+      "hostname": "0.0.0.0",
+      "port": "{PORT}"
+    },
+    "workers": "{PLT_NEXT_WORKERS}"
+  }
 }

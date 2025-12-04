@@ -1,88 +1,61 @@
 # ================================
-# Stage 1: Install dependencies
+# Stage 1: Build the application
 # ================================
-FROM node:24 AS deps
+FROM node:22-alpine AS builder
 
-WORKDIR /app
-
-# Copy only dependency files first for better caching
-COPY package*.json ./
-
-# Install all dependencies (including devDependencies for build)
-RUN npm install 
-
-# ================================
-# Stage 2: Build the application
-# ================================
-FROM node:24 AS builder
-
-WORKDIR /app
-
-# Install CA certificates for SSL connections (needed for Sentry)
-RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
-
-# Copy dependencies from deps stage
-COPY --from=deps /app/node_modules ./node_modules
-
-# Copy source files
-COPY . .
-
-# Set build-time environment variables
+ENV APP_HOME=/home/app
+ENV PORT=3000
+ENV PLT_SERVER_LOGGER_LEVEL="info"
+ENV PLT_NEXT_WORKERS="1"
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
 # Set Clerk publishable key for build-time (required by Clerk SDK to build)
 ENV NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_live_Y2xlcmsuc29yYW1pLmFsanVmYWlyaS5vcmck
 
+# Install pnpm globally
+RUN npm install -g pnpm
+
+WORKDIR $APP_HOME
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies
+RUN pnpm install
+
+# Copy source files
+COPY . .
+
 # Optional: Pass SENTRY_AUTH_TOKEN as build arg to upload source maps
 ARG SENTRY_AUTH_TOKEN
 ENV SENTRY_AUTH_TOKEN=$SENTRY_AUTH_TOKEN
 
-# Build the application - run next build first, then try sentry upload (allow failure)
-# This ensures the build succeeds even if Sentry upload fails
-RUN npx next build && \
+# Build the application using wattpm
+RUN pnpm run build && \
     (npm run sentry:sourcemaps || echo "Sentry source map upload failed, continuing...")
 
 # ================================
-# Stage 3: Production runner with Watt
+# Stage 2: Production runner
 # ================================
-FROM node:24-slim AS runner
+FROM node:22-alpine AS runner
 
-WORKDIR /app
-
+ENV APP_HOME=/home/app
+ENV PORT=3000
+ENV PLT_SERVER_LOGGER_LEVEL="info"
+ENV PLT_NEXT_WORKERS="1"
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# Create non-root user for security
-RUN addgroup --system --gid 1001 nodejs && \
-    adduser --system --uid 1001 nextjs
+# Install pnpm globally
+RUN npm install -g pnpm
 
-# Install Watt globally for production
-RUN npm install -g watt @platformatic/next
+WORKDIR $APP_HOME
 
-# Copy only the standalone output (much smaller than full node_modules)
-COPY --from=builder /app/public ./public
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-
-# Copy Watt configuration
-COPY --from=builder --chown=nextjs:nodejs /app/watt.json ./watt.json
-
-# Switch to non-root user
-USER nextjs
+# Copy everything from builder (wattpm needs full structure)
+COPY --from=builder $APP_HOME ./
 
 EXPOSE 3000
 
-# Default environment variables
-ENV PORT=3000
-ENV HOSTNAME="0.0.0.0"
-ENV LOG_LEVEL=info
-
-# Number of workers - set based on CPU allocation
-# For 2 CPU pods, use 2 workers. For 4 CPU pods, use 4 workers.
-ENV WORKERS=2
-
-# Use Watt to run Next.js with multi-worker SO_REUSEPORT support
-# This provides ~93% faster latency and near-perfect reliability under load
-# Use shell form to allow environment variable expansion
-CMD ["sh", "-c", "watt start --workers ${WORKERS:-2}"]
+# Start with wattpm
+CMD ["pnpm", "run", "start"]

@@ -11,7 +11,6 @@ import uvicorn
 from auth import verify_bearer, get_user_id_from_claims
 from utils.go_backend_client import get_random_kanji, save_kanji_trace
 
-# Setup logging
 logger = logging.getLogger("fastapi_app")
 logger.setLevel(logging.DEBUG)
 fh = logging.FileHandler("app.log")
