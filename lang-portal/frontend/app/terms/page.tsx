@@ -46,7 +46,7 @@ export default function TermsPage() {
             <div>
               <h2 className="text-2xl font-bold mb-4">4. Subscription and Payment</h2>
               <p className="text-muted-foreground mb-2">
-                Sorami offers both free and paid subscription plans. By subscribing to a paid plan, you agree to:
+                Sorami offers both free trial and paid subscription plans. By subscribing to any paid plan, you agree to:
               </p>
               <ul className="list-disc list-inside text-muted-foreground space-y-1 ml-4">
                 <li>Pay all fees associated with your subscription</li>
