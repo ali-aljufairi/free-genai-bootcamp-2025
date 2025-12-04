@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import { Sparkles } from "lucide-react"
 import { PricingTable } from "@clerk/nextjs"
+import { PricingComparison } from "@/components/pricing/pricing-comparison"
 
 export default function PricingPage() {
     const [isVisible, setIsVisible] = useState(false)
@@ -49,18 +50,36 @@ export default function PricingPage() {
                 </div>
             </section>
 
-            {/* Clerk Pricing Table - styled to match Sorami design */}
+            {/* Custom Pricing Comparison Table */}
             <section className="container mx-auto px-4">
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: isVisible ? 1 : 0, y: isVisible ? 0 : 20 }}
                     transition={{ duration: 0.5, delay: 0.3 }}
+                >
+                    <PricingComparison />
+                </motion.div>
+            </section>
+
+            {/* Clerk Pricing Table - styled to match Sorami design */}
+            <section className="container mx-auto px-4">
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: isVisible ? 1 : 0, y: isVisible ? 0 : 20 }}
+                    transition={{ duration: 0.5, delay: 0.4 }}
                     className="max-w-4xl mx-auto"
                 >
-                    {/* Note about annual billing savings - at the top */}
-                    <p className="text-center text-sm text-muted-foreground mb-6">
-                        💡 Toggle "Billed annually" to save up to 20%
-                    </p>
+                    <div className="text-center mb-6">
+                        <h2 className="text-2xl md:text-3xl font-bold mb-2">
+                            Ready to Get Started?
+                        </h2>
+                        <p className="text-muted-foreground mb-4">
+                            Select your plan below and start your Japanese learning journey today
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                            💡 Toggle "Billed annually" to save up to 20%
+                        </p>
+                    </div>
 
                     <PricingTable
                         appearance={{
