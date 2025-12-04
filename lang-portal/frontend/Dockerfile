@@ -31,6 +31,9 @@ COPY . .
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
+# Set Clerk publishable key for build-time (required by Clerk SDK to build)
+ENV NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_live_Y2xlcmsuc29yYW1pLmFsanVmYWlyaS5vcmck
+
 # Optional: Pass SENTRY_AUTH_TOKEN as build arg to upload source maps
 ARG SENTRY_AUTH_TOKEN
 ENV SENTRY_AUTH_TOKEN=$SENTRY_AUTH_TOKEN
@@ -81,4 +84,5 @@ ENV WORKERS=2
 
 # Use Watt to run Next.js with multi-worker SO_REUSEPORT support
 # This provides ~93% faster latency and near-perfect reliability under load
-CMD ["watt", "start", "--workers", "${WORKERS}"]
+# Use shell form to allow environment variable expansion
+CMD ["sh", "-c", "watt start --workers ${WORKERS:-2}"]

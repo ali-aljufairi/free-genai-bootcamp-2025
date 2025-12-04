@@ -2,10 +2,10 @@
   "$schema": "https://platformatic.dev/schemas/v2.25.0/watt",
   "server": {
     "hostname": "0.0.0.0",
-    "port": "{PORT}"
+    "port": 3000
   },
   "logger": {
-    "level": "{LOG_LEVEL}"
+    "level": "info"
   },
   "web": [
     {

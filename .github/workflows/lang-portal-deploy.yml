@@ -82,7 +82,6 @@ jobs:
         with:
           context: ./lang-portal
           file: ./lang-portal/Dockerfile
-          target: prod
           push: true
           tags: ${{ steps.meta-api.outputs.tags }}
           labels: ${{ steps.meta-api.outputs.labels }}
@@ -148,15 +147,9 @@ jobs:
 
       - name: Update Kubernetes deployments
         run: |
-          # Set image tags (use SHA for traceability, fallback to latest)
-          API_IMAGE="${{ env.REGISTRY }}/${{ env.OWNER }}/lang-portal-api:${{ env.IMAGE_TAG }}"
-          FRONTEND_IMAGE="${{ env.REGISTRY }}/${{ env.OWNER }}/lang-portal-frontend:${{ env.IMAGE_TAG }}"
-
-          # If deploy_only, use latest tag
-          if [ "${{ github.event.inputs.deploy_only }}" == "true" ]; then
-            API_IMAGE="${{ env.REGISTRY }}/${{ env.OWNER }}/lang-portal-api:latest"
-            FRONTEND_IMAGE="${{ env.REGISTRY }}/${{ env.OWNER }}/lang-portal-frontend:latest"
-          fi
+          # Always use latest tag on main branch (pushed by docker/build-push-action)
+          API_IMAGE="${{ env.REGISTRY }}/${{ env.OWNER }}/lang-portal-api:latest"
+          FRONTEND_IMAGE="${{ env.REGISTRY }}/${{ env.OWNER }}/lang-portal-frontend:latest"
 
           echo "Deploying API image: $API_IMAGE"
           echo "Deploying Frontend image: $FRONTEND_IMAGE"

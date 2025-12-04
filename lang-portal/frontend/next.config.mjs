@@ -20,6 +20,7 @@ const nextConfig = {
     parallelServerBuildTraces: true,
     parallelServerCompiles: true,
     viewTransition: true,
+    dynamicIO: true, // Enable dynamic I/O for better SSR
   },
   typescript: {
     ignoreBuildErrors: true,
