@@ -15,12 +15,11 @@ const userConfig = await getUserConfig();
 const nextConfig = {
   output: 'standalone',
   turbopack: {},
-  productionBrowserSourceMaps: false, // Disable source maps in production for performance
+  productionBrowserSourceMaps: false, 
   experimental: {
     parallelServerBuildTraces: true,
     parallelServerCompiles: true,
     viewTransition: true,
-    dynamicIO: true, // Enable dynamic I/O for better SSR
   },
   typescript: {
     ignoreBuildErrors: true,
