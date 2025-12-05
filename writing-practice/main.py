@@ -11,10 +11,8 @@ logging.basicConfig(
     filename="app.log",
 )
 
-# Load environment variables with dotenv
 load_dotenv()
 
-# Initialize session state if not already done
 if "app" not in st.session_state:
     st.session_state.app = JapaneseApp()
 
@@ -24,12 +22,10 @@ if "current_word" not in st.session_state:
 if "current_sentence" not in st.session_state:
     st.session_state.current_sentence = None
 
-# Set page config
 st.set_page_config(
     page_title="Japanese Learning Practice", page_icon="✍️", layout="wide"
 )
 
-# Custom CSS
 st.markdown(
     """
     <style>
