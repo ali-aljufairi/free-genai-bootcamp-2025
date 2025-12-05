@@ -136,8 +136,19 @@ jobs:
       - name: Configure kubectl for K3s via Tailscale
         run: |
           mkdir -p ~/.kube
-          echo "${{ secrets.KUBECONFIG }}" | base64 -d > ~/.kube/config
+          # Decode base64-encoded kubeconfig and write to file
+          # GitHub Actions automatically redacts secrets from logs
+          if ! echo "${{ secrets.KUBECONFIG }}" | base64 -d > ~/.kube/config; then
+            echo "ERROR: Failed to decode KUBECONFIG secret"
+            exit 1
+          fi
           chmod 600 ~/.kube/config
+          # Verify config file was created and is not empty
+          if [ ! -s ~/.kube/config ]; then
+            echo "ERROR: KUBECONFIG file is empty or missing"
+            exit 1
+          fi
+          echo "KUBECONFIG configured successfully"
 
       - name: Verify Kubernetes connection
         run: |
@@ -163,6 +174,15 @@ jobs:
             lang-portal-frontend=$FRONTEND_IMAGE \
             -n sorami
 
+          # Force rollout restart to ensure all pods are replaced
+          # This is necessary because using 'latest' tag doesn't trigger pod replacement
+          # when the tag hasn't changed, even with imagePullPolicy: Always
+          echo "Forcing rollout restart for API deployment..."
+          kubectl rollout restart deployment/lang-portal-api -n sorami
+
+          echo "Forcing rollout restart for Frontend deployment..."
+          kubectl rollout restart deployment/lang-portal-frontend -n sorami
+
       - name: Wait for rollout
         run: |
           echo "Waiting for API deployment rollout..."
@@ -177,7 +197,27 @@ jobs:
           kubectl get deployments -n sorami
           echo ""
           echo "=== Pod Status ==="
-          kubectl get pods -n sorami
+          kubectl get pods -n sorami -o wide
+          echo ""
+          echo "=== Pod Images Verification ==="
+          echo "API Pods:"
+          kubectl get pods -n sorami -l app=lang-portal-api -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.spec.containers[0].image}{"\t"}{.status.phase}{"\n"}{end}'
+          echo ""
+          echo "Frontend Pods:"
+          kubectl get pods -n sorami -l app=lang-portal-frontend -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.spec.containers[0].image}{"\t"}{.status.phase}{"\n"}{end}'
+          echo ""
+          echo "=== Verifying All Pods Are Running ==="
+          API_PODS=$(kubectl get pods -n sorami -l app=lang-portal-api --field-selector=status.phase=Running --no-headers | wc -l)
+          FRONTEND_PODS=$(kubectl get pods -n sorami -l app=lang-portal-frontend --field-selector=status.phase=Running --no-headers | wc -l)
+          API_REPLICAS=$(kubectl get deployment lang-portal-api -n sorami -o jsonpath='{.spec.replicas}')
+          FRONTEND_REPLICAS=$(kubectl get deployment lang-portal-frontend -n sorami -o jsonpath='{.spec.replicas}')
+          echo "API: $API_PODS/$API_REPLICAS pods running"
+          echo "Frontend: $FRONTEND_PODS/$FRONTEND_REPLICAS pods running"
+          if [ "$API_PODS" -lt "$API_REPLICAS" ] || [ "$FRONTEND_PODS" -lt "$FRONTEND_REPLICAS" ]; then
+            echo "ERROR: Not all pods are running!"
+            exit 1
+          fi
+          echo "All pods are running successfully"
           echo ""
           echo "=== Recent Events ==="
           kubectl get events -n sorami --sort-by='.lastTimestamp' | tail -20
@@ -186,7 +226,7 @@ jobs:
         run: |
           echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "✅ Successfully deployed to Kubernetes cluster via Tailscale" >> $GITHUB_STEP_SUMMARY
+          echo "Successfully deployed to Kubernetes cluster via Tailscale" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Images Deployed" >> $GITHUB_STEP_SUMMARY
           echo "- **API**: \`${{ env.REGISTRY }}/${{ env.OWNER }}/lang-portal-api:${{ env.IMAGE_TAG }}\`" >> $GITHUB_STEP_SUMMARY
