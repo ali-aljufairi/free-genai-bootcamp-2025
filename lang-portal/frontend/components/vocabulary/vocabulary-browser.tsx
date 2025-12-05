@@ -10,7 +10,7 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Plus, X, Loader2 } from "lucide-react";
+import { Plus, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useVocabularyBrowser } from "@/hooks/api/useVocabularyBrowser";
 import type { UnifiedItem } from "@/hooks/api/useVocabularyBrowser";
@@ -19,7 +19,6 @@ import { useAddToGroup, useAddToFavorites } from "@/hooks/api/useVocabularyActio
 import { useGroups, useCreateGroup, useUserProfile } from "@/hooks/api/useGroup";
 import { VocabularyFilterSidebar } from "./vocabulary-filter-sidebar";
 import { VocabularyGrid } from "./vocabulary-grid";
-import { VocabularyImportSection } from "./vocabulary-import-section";
 
 const getItemKey = (entry: UnifiedItem) => `${entry.kind}-${entry.item?.id ?? "unknown"}`;
 
@@ -42,7 +41,6 @@ const appendUniqueItems = (current: UnifiedItem[], incoming: UnifiedItem[]) => {
 
 export function VocabularyBrowser() {
   const searchParams = useSearchParams();
-  const [showImport, setShowImport] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [newGroupName, setNewGroupName] = useState("");
   const [newGroupDesc, setNewGroupDesc] = useState("");
@@ -147,6 +145,11 @@ export function VocabularyBrowser() {
   const { createGroup, isLoading: creatingGroup } = useCreateGroup();
   const { favoriteGroupId } = useUserProfile();
 
+  // Transform groups to match VocabularyGrid's expected type (id: number)
+  const transformedGroups = useMemo(() => {
+    return groups?.map(g => ({ id: parseInt(g.id, 10), name: g.name })) ?? undefined;
+  }, [groups]);
+
   // Track favorited items when they're added
   const handleAddToFavorites = useCallback(async (itemId: number, type: 'word' | 'kanji') => {
     const itemKey = `${type}-${itemId}`;
@@ -174,9 +177,7 @@ export function VocabularyBrowser() {
       setIsCreateOpen(false);
       setNewGroupName("");
       setNewGroupDesc("");
-      // Groups will be refetched automatically via useGroups hook
     } catch (error) {
-      // Error is already handled by useCreateGroup hook
     }
   };
 
@@ -185,7 +186,7 @@ export function VocabularyBrowser() {
       { groupId, itemId, type },
       {
         onSuccess: () => {
-          const groupName = (groups || []).find((g: any) => g.id === groupId)?.name;
+          const groupName = (groups || []).find((g) => parseInt(g.id, 10) === groupId)?.name;
           toast.success("Added to group", { description: groupName });
         },
       }
@@ -267,7 +268,7 @@ export function VocabularyBrowser() {
           kunyomi={filters.kunyomi}
           sortBy={filters.sortBy || 'default'}
           group={filters.group}
-          groups={groups}
+          groups={transformedGroups}
           selectedGroups={selectedGroups}
           onToggleGroup={handleToggleGroup}
           onSetSelectedGroups={handleSetSelectedGroups}
@@ -291,19 +292,6 @@ export function VocabularyBrowser() {
         />
       </div>
       <div className="flex gap-2 shrink-0">
-        <Button variant="outline" size="sm" onClick={() => setShowImport(!showImport)}>
-          {showImport ? (
-            <>
-              <X className="mr-2 h-4 w-4" />
-              Hide Import
-            </>
-          ) : (
-            <>
-              <Plus className="mr-2 h-4 w-4" />
-              Import Words
-            </>
-          )}
-        </Button>
         <DropdownMenu open={isCreateOpen} onOpenChange={setIsCreateOpen}>
           <DropdownMenuTrigger asChild>
             <Button size="sm">
@@ -379,14 +367,13 @@ export function VocabularyBrowser() {
     <div className="space-y-6">
       {/* Header - rendered once to avoid duplicate DropdownMenu instances */}
       {headerContent}
-      {showImport && <VocabularyImportSection />}
-      
+
       {/* Desktop: Main content layout */}
       <div className="hidden md:block space-y-6">
         <VocabularyGrid
           items={visibleItems}
           isLoading={isLoading}
-          groups={groups}
+          groups={transformedGroups}
           onAddToGroup={handleAddToGroup}
           onAddToFavorites={handleAddToFavorites}
           searchTerm={filters.search}
@@ -401,7 +388,7 @@ export function VocabularyBrowser() {
         <VocabularyGrid
           items={visibleItems}
           isLoading={isLoading}
-          groups={groups}
+          groups={transformedGroups}
           onAddToGroup={handleAddToGroup}
           onAddToFavorites={handleAddToFavorites}
           searchTerm={filters.search}
