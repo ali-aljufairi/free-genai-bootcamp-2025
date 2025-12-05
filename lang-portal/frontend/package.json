@@ -68,7 +68,7 @@
     "groq-sdk": "^0.34.0",
     "input-otp": "1.4.2",
     "lucide-react": "^0.552.0",
-    "next": "16.0.1",
+    "next": "latest",
     "next-themes": "latest",
     "react": "latest",
     "react-day-picker": "9.11.1",

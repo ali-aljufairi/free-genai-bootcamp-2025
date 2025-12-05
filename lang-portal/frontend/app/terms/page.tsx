@@ -109,6 +109,46 @@ export default function TermsPage() {
                 If you have any questions about these Terms of Service, please contact us through our support channels.
               </p>
             </div>
+
+            <div>
+              <h2 className="text-2xl font-bold mb-4">12. Specified Commercial Transactions Act (特定商取引法)</h2>
+              <p className="text-muted-foreground mb-4">
+                In accordance with Japan's Specified Commercial Transactions Act, the following information is provided:
+              </p>
+              <div className="space-y-3 text-muted-foreground">
+                <div>
+                  <h3 className="text-xl font-semibold mb-2">Business Information</h3>
+                  <ul className="list-disc list-inside space-y-1 ml-4">
+                    <li><strong>Business Name:</strong> Sorami</li>
+                    <li><strong>Representative:</strong> Ali Aljufairi</li>
+                    <li><strong>Contact Email:</strong> support@aljufairi.org</li>
+                    <li><strong>Contact Phone:</strong> 07069849009</li>
+                  </ul>
+                </div>
+                <div>
+                  <h3 className="text-xl font-semibold mb-2">Payment Methods</h3>
+                  <p className="mb-2">We accept the following payment methods:</p>
+                  <ul className="list-disc list-inside space-y-1 ml-4">
+                    <li>Credit card payments processed through Clerk billing with Stripe integration</li>
+                    <li>Subscription-based service plans</li>
+                  </ul>
+                </div>
+                <div>
+                  <h3 className="text-xl font-semibold mb-2">Refund and Cancellation Policy</h3>
+                  <p className="mb-2">
+                    As stated in Section 4 of these Terms of Service, we do not provide refunds for partial subscription periods.
+                    Subscriptions automatically renew unless cancelled. You may cancel your subscription at any time through your account settings.
+                  </p>
+                </div>
+                <div>
+                  <h3 className="text-xl font-semibold mb-2">Complaint Handling</h3>
+                  <p>
+                    For any complaints, inquiries, or disputes regarding transactions, please contact us at support@aljufairi.org.
+                    We will respond to your inquiry promptly and work to resolve any issues in accordance with applicable laws and regulations.
+                  </p>
+                </div>
+              </div>
+            </div>
           </section>
         </CardContent>
       </Card>

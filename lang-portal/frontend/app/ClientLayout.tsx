@@ -26,7 +26,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   const pathname = usePathname()
   const isHomePage = pathname === "/"
   const isAuthPage = pathname?.startsWith("/sign-in") || pathname?.startsWith("/sign-up")
-  const isPublicPage = pathname === "/pricing" || pathname === "/terms" || pathname === "/privacy"
+  const isPublicPage = pathname === "/pricing" || pathname === "/terms" || pathname === "/privacy" || pathname === "/business-info"
 
   if (isHomePage) {
     return (
