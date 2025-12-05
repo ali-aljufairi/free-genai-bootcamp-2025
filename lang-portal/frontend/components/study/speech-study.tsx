@@ -47,7 +47,7 @@ export function SpeechStudy({ sessionId, onComplete }: SpeechStudyProps) {
                         <div className="grid gap-4 pt-4">
                             <div className="flex flex-col items-center gap-4">
                                 <div className="relative w-full max-w-md">
-                                    <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-lg blur-xl"></div>
+                                    <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-blue-600/20 rounded-lg blur-xl"></div>
                                     <div className="relative bg-background/80 backdrop-blur-sm rounded-lg p-6 border border-border/50">
                                         <div className="flex flex-col items-center gap-4">
                                             <div className="w-full h-24 flex items-center justify-center">

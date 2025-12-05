@@ -25,15 +25,39 @@ export default clerkMiddleware(async (auth, req) => {
     return NextResponse.redirect(new URL('/', req.url));
   }
 
-  if (isPublicRoute(req)) return NextResponse.next();
-  
-  // Check if user is authenticated for protected routes
-  const { userId } = await auth();
-  if (!userId) {
-    return NextResponse.redirect(new URL('/sign-in', req.url));
+  // Check authentication for protected routes first
+  if (!isPublicRoute(req)) {
+    const { userId } = await auth();
+    if (!userId) {
+      return NextResponse.redirect(new URL('/sign-in', req.url));
+    }
   }
+
+  // Create response with security headers that allow Cloudflare Analytics
+  const response = NextResponse.next();
   
-  return NextResponse.next();
+  // Add Content Security Policy that allows Cloudflare Analytics
+  const cspHeader = [
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://static.cloudflareinsights.com https://*.cloudflare.com",
+    "connect-src 'self' https://static.cloudflareinsights.com https://*.cloudflare.com https://*.clerk.accounts.dev https://*.sentry.io wss://*.clerk.accounts.dev",
+    "img-src 'self' data: https: blob:",
+    "style-src 'self' 'unsafe-inline'",
+    "font-src 'self' data:",
+    "frame-src 'self' https://*.clerk.accounts.dev",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+    "upgrade-insecure-requests",
+  ].join('; ');
+
+  // Set security headers
+  response.headers.set('Content-Security-Policy', cspHeader);
+  response.headers.set('X-Content-Type-Options', 'nosniff');
+  response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+  
+  return response;
 });
 
 export const config = {

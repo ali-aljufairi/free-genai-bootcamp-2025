@@ -19,6 +19,16 @@ Sentry.init({
   // Set environment
   environment: process.env.NODE_ENV || 'development',
 
+  // Disable source map loading to prevent 404 errors
+  // Source maps are disabled in next.config.mjs (productionBrowserSourceMaps: false)
+  ignoreErrors: [
+    /Failed to fetch dynamically imported module/,
+    /Loading chunk/,
+    /ChunkLoadError/,
+    /Source map error/,
+    /request failed with status 404/,
+  ],
+
   // Before send hook to filter out certain errors
   beforeSend(event, hint) {
     // Filter out certain errors in development
@@ -31,6 +41,19 @@ Sentry.init({
         }
       }
     }
+    
+    // Filter out source map errors
+    if (event.exception && event.exception.values) {
+      const exception = event.exception.values[0];
+      if (exception.value && (
+        exception.value.includes('Source map error') ||
+        exception.value.includes('installHook.js.map') ||
+        exception.value.includes('request failed with status 404')
+      )) {
+        return null;
+      }
+    }
+    
     return event;
   },
 });

@@ -164,19 +164,19 @@ export default function TourGuide() {
           }
         },
         {
-          element: "#features-section",
+          element: "#ai-features-section",
           popover: {
-            title: "Core Features",
-            description: "Discover all the powerful tools we offer to make your language learning efficient and enjoyable.",
+            title: "AI-Powered Features",
+            description: "Discover all the powerful AI tools we offer to make your language learning efficient and enjoyable.",
             side: "bottom",
             align: "center",
           }
         },
         {
-          element: "#stats-section",
+          element: "#why-choose-section",
           popover: {
-            title: "Track Your Progress",
-            description: "View detailed statistics on your learning journey with our analytics dashboard.",
+            title: "Why Choose Sorami?",
+            description: "Explore the comprehensive features and benefits that make Sorami the perfect choice for your language learning journey.",
             side: "top",
             align: "center",
           }
@@ -184,8 +184,8 @@ export default function TourGuide() {
         {
           element: "#cta-section",
           popover: {
-            title: "Join Our Community",
-            description: "Sign up now to begin your personalized language learning experience with thousands of other learners.",
+            title: "Ready to Get Started?",
+            description: "Sign up now to begin your personalized language learning experience and unlock all features.",
             side: "top",
             align: "center",
           }
