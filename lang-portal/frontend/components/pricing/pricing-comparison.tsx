@@ -90,19 +90,21 @@ export function PricingComparison() {
                                     Features
                                 </th>
                                 <th className="text-center p-4 font-semibold text-sm md:text-base min-w-[120px]">
-                                    Basic
-                                </th>
-                                <th className="text-center p-4 font-semibold text-sm md:text-base min-w-[120px] relative">
-                                    <div className="flex items-center justify-center gap-2">
-                                        <Crown className="h-4 w-4 text-amber-500" />
-                                        <span>Pro</span>
+                                    <div className="flex flex-col items-center gap-1">
+                                        <span>Basic</span>
+                                        <span className="text-2xl font-bold text-foreground">$10</span>
+                                        <span className="text-xs text-muted-foreground font-normal">per month</span>
                                     </div>
-                                    <Badge
-                                        variant="outline"
-                                        className="absolute -top-2 right-2 text-xs bg-amber-500/10 text-amber-600 border-amber-500/30 dark:bg-amber-500/20 dark:text-amber-400"
-                                    >
-                                        Best Value
-                                    </Badge>
+                                </th>
+                                <th className="text-center p-4 font-semibold text-sm md:text-base min-w-[120px]">
+                                    <div className="flex flex-col items-center gap-1">
+                                        <div className="flex items-center justify-center gap-2">
+                                            <Crown className="h-4 w-4 text-amber-500" />
+                                            <span>Pro</span>
+                                        </div>
+                                        <span className="text-2xl font-bold text-foreground">$25</span>
+                                        <span className="text-xs text-muted-foreground font-normal">per month</span>
+                                    </div>
                                 </th>
                             </tr>
                         </thead>

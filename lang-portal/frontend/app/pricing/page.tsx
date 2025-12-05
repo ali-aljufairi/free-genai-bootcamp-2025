@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import { Sparkles } from "lucide-react"
-import { PricingTable } from "@clerk/nextjs"
 import { PricingComparison } from "@/components/pricing/pricing-comparison"
 
 export default function PricingPage() {
@@ -61,7 +60,8 @@ export default function PricingPage() {
                 </motion.div>
             </section>
 
-            {/* Clerk Pricing Table - styled to match Sorami design */}
+            {/* Clerk Pricing Table - temporarily hidden until Stripe verification is complete */}
+            {/* 
             <section className="container mx-auto px-4">
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
@@ -119,6 +119,7 @@ export default function PricingPage() {
                     />
                 </motion.div>
             </section>
+            */}
         </main>
     )
 }
