@@ -32,7 +32,7 @@ tmp/
 main
 *templ.go
 
-# OS X generated file
+
 .DS_Store
 
 jlpt_organized/
