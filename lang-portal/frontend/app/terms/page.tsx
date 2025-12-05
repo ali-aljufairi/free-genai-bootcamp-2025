@@ -110,7 +110,7 @@ export default function TermsPage() {
               </p>
             </div>
 
-            <div>
+            <div id="commercial-transactions-act">
               <h2 className="text-2xl font-bold mb-4">12. Specified Commercial Transactions Act (特定商取引法)</h2>
               <p className="text-muted-foreground mb-4">
                 In accordance with Japan's Specified Commercial Transactions Act, the following information is provided:
@@ -123,6 +123,7 @@ export default function TermsPage() {
                     <li><strong>Representative:</strong> Ali Aljufairi</li>
                     <li><strong>Contact Email:</strong> support@aljufairi.org</li>
                     <li><strong>Contact Phone:</strong> 07069849009</li>
+                    <li><strong>Business Address:</strong> Available upon request. Please contact us at support@aljufairi.org and we will provide our business address promptly.</li>
                   </ul>
                 </div>
                 <div>
@@ -138,6 +139,15 @@ export default function TermsPage() {
                   <p className="mb-2">
                     As stated in Section 4 of these Terms of Service, we do not provide refunds for partial subscription periods.
                     Subscriptions automatically renew unless cancelled. You may cancel your subscription at any time through your account settings.
+                  </p>
+                  <p className="mb-2">
+                    <strong>Cancellation:</strong> If you cancel your subscription, it will remain active and you will retain full access
+                    to all subscription features until the end of your current contract period (billing cycle). Cancellation will take
+                    effect at the end of your current billing period, and your subscription will not renew automatically.
+                  </p>
+                  <p className="text-sm italic">
+                    Note: We do not offer a cooling-off period. Once a subscription is activated, it will remain active until the
+                    end of the paid contract period, even if cancelled.
                   </p>
                 </div>
                 <div>

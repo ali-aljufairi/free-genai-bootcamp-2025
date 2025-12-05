@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
 import { userApi } from "@/services/api"
 import { useSubscription } from "@/components/subscription/subscription-gate"
+import Link from "next/link"
 
 export function AccountTab() {
     const { user: clerkUser, isLoaded: clerkLoaded } = useUser()
@@ -94,10 +95,10 @@ export function AccountTab() {
                                     <h4 className="text-sm font-medium">Subscription Status</h4>
                                     <span
                                         className={`text-xs px-2 py-1 rounded ${clerkSubscription?.status === "active"
-                                                ? "bg-green-500/10 text-green-600 dark:text-green-400"
-                                                : clerkSubscription?.status === "past_due"
-                                                    ? "bg-red-500/10 text-red-600 dark:text-red-400"
-                                                    : "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400"
+                                            ? "bg-green-500/10 text-green-600 dark:text-green-400"
+                                            : clerkSubscription?.status === "past_due"
+                                                ? "bg-red-500/10 text-red-600 dark:text-red-400"
+                                                : "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400"
                                             }`}
                                     >
                                         {clerkSubscription?.status ?? "active"}
@@ -153,6 +154,20 @@ export function AccountTab() {
                                         </p>
                                     </div>
                                 )}
+
+                                {/* Business Information Link */}
+                                <div className="pt-2 border-t border-border/50">
+                                    <p className="text-xs text-muted-foreground">
+                                        For business information and transaction details in accordance with the Specified Commercial Transactions Act (特定商取引法), please see{" "}
+                                        <Link
+                                            href="/terms#commercial-transactions-act"
+                                            className="text-blue-600 dark:text-blue-400 hover:underline"
+                                        >
+                                            Section 12 of our Terms of Service
+                                        </Link>
+                                        .
+                                    </p>
+                                </div>
 
                                 {/* Action Buttons */}
                                 <div className="flex flex-wrap gap-2 pt-2 border-t border-border/50">
