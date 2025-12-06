@@ -40,6 +40,7 @@ export default clerkMiddleware(async (auth, req) => {
   const cspHeader = [
     "default-src 'self'",
     "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://static.cloudflareinsights.com https://*.cloudflare.com https://*.sorami.aljufairi.org",
+    "worker-src 'self' blob:",
     "connect-src 'self' https://static.cloudflareinsights.com https://*.cloudflare.com https://*.clerk.accounts.dev https://*.sentry.io wss://*.clerk.accounts.dev https://*.sorami.aljufairi.org wss://*.sorami.aljufairi.org",
     "img-src 'self' data: https: blob:",
     "style-src 'self' 'unsafe-inline'",

@@ -100,6 +100,8 @@ export default function RootLayout({
       appearance={clerkAppearance}
       signInUrl="/sign-in"
       signUpUrl="/sign-up"
+      signInFallbackRedirectUrl="/study"
+      signUpFallbackRedirectUrl="/study"
       publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
     >
       <html lang="en" suppressHydrationWarning>

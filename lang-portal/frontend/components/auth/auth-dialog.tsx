@@ -30,11 +30,13 @@ export function AuthDialog({ mode, open, onOpenChange }: AuthDialogProps) {
             <SignIn
               appearance={appearance}
               signUpUrl="/sign-up"
+              fallbackRedirectUrl="/study"
             />
           ) : (
             <SignUp
               appearance={appearance}
               signInUrl="/sign-in"
+              fallbackRedirectUrl="/study"
             />
           )}
           <DialogClose className="absolute top-3 right-3 sm:top-4 sm:right-4 z-50 inline-flex h-9 w-9 items-center justify-center text-blue-200/80 transition-colors duration-200 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400">
