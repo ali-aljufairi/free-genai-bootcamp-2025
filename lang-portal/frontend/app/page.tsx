@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { StatsCards } from "@/components/dashboard/stats-cards"
 import { useRouter } from "next/navigation"
-import { SignUpButton, useUser } from "@clerk/nextjs"
+import { useUser } from "@clerk/nextjs"
+import Link from "next/link"
 import TourGuide from "@/components/common/tour-guide"
 
 // Common appearance settings for Clerk modals - matching navbar.tsx
@@ -196,7 +197,7 @@ export default function HomePage() {
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               ) : (
-                <SignUpButton mode="modal" appearance={clerkAppearance}>
+                <Link href="/sign-up">
                   <Button
                     size="lg"
                     className="px-8 bg-primary text-primary-foreground hover:brightness-95 border-0"
@@ -204,7 +205,7 @@ export default function HomePage() {
                     Get Started
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
-                </SignUpButton>
+                </Link>
               )}
             </motion.div>
           </div>
@@ -343,14 +344,14 @@ export default function HomePage() {
                     Get Started Free
                   </Button>
                 ) : (
-                  <SignUpButton mode="modal" appearance={clerkAppearance}>
+                  <Link href="/sign-up">
                     <Button
                       size="lg"
                       className="px-8 bg-primary text-primary-foreground hover:brightness-95 border-0"
                     >
                       Get Started Free
                     </Button>
-                  </SignUpButton>
+                  </Link>
                 )}
                 <Button
                   size="lg"

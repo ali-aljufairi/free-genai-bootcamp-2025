@@ -4,9 +4,8 @@ import { useEffect, useState } from "react"
 import { driver } from "driver.js"
 import "driver.js/dist/driver.css"
 import { useRouter } from "next/navigation"
-import { SignUpButton, useUser } from "@clerk/nextjs"
+import { useUser } from "@clerk/nextjs"
 import { Button } from "@/components/ui/button"
-import { clerkAppearance } from "@/lib/clerk-appearance"
 
 // Custom CSS to be injected for driver.js styling to match our site design
 const customStyles = `
@@ -196,12 +195,10 @@ export default function TourGuide() {
             description: "Sign up now to unlock all features and begin your language journey!",
             onNextClick: () => {
               if (!isSignedIn) {
-                // We'll show the signup modal after closing the tour
+                // Navigate to sign-up page after closing the tour
                 driverInstance.destroy()
-                // Small timeout to ensure driver has cleaned up
                 setTimeout(() => {
-                  const signupButton = document.getElementById("tour-signup-button")
-                  signupButton?.click()
+                  router.push("/sign-up")
                 }, 300)
                 return false // Prevents driver from moving to next step
               } else {
@@ -234,17 +231,8 @@ export default function TourGuide() {
   }
 
   return (
-    <>
-      <Button size="lg" variant="outline" className="px-8" onClick={startTour}>
-        Take a Tour
-      </Button>
-      {!isSignedIn && (
-        <div className="hidden">
-          <SignUpButton mode="modal" fallbackRedirectUrl="/study" appearance={clerkAppearance}>
-            <Button id="tour-signup-button">Sign Up</Button>
-          </SignUpButton>
-        </div>
-      )}
-    </>
+    <Button size="lg" variant="outline" className="px-8" onClick={startTour}>
+      Take a Tour
+    </Button>
   )
 }
