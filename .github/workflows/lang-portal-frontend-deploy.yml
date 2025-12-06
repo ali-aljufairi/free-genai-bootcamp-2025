@@ -29,7 +29,7 @@ jobs:
             packages: write
 
         outputs:
-            frontend_image: ${{ steps.meta-frontend.outputs.tags }}
+            frontend_image: ${{ steps.set-image-output.outputs.image }}
 
         steps:
             - name: Checkout repository
@@ -53,6 +53,18 @@ jobs:
                   tags: |
                       type=sha,prefix=
                       type=raw,value=latest,enable={{is_default_branch}}
+
+            - name: Extract SHA tag for output
+              id: set-image-output
+              run: |
+                  # Extract the SHA tag (first tag, which is the SHA without prefix)
+                  TAGS="${{ steps.meta-frontend.outputs.tags }}"
+                  # Get the first tag (SHA tag) and trim whitespace
+                  SHA_TAG=$(echo "$TAGS" | head -n1 | tr -d '[:space:]')
+                  # Construct full image path
+                  IMAGE="${{ env.REGISTRY }}/${{ env.OWNER }}/lang-portal-frontend:$SHA_TAG"
+                  echo "image=${IMAGE}" >> "$GITHUB_OUTPUT"
+                  echo "Extracted image tag: $IMAGE"
 
             - name: Prepare environment files
               run: |
@@ -134,7 +146,6 @@ jobs:
               run: |
                   # Use SHA tag if available from build step, otherwise fall back to latest
                   if [ "${{ needs.build-and-push-frontend.outputs.frontend_image }}" != "" ]; then
-                    # Extract the SHA tag from the output (format: ghcr.io/owner/repo:sha-abc123)
                     FRONTEND_IMAGE="${{ needs.build-and-push-frontend.outputs.frontend_image }}"
                     echo "Using build output image: $FRONTEND_IMAGE"
                   else
