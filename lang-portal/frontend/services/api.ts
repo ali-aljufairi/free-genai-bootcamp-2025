@@ -272,6 +272,7 @@ export function createApiService(client: ApiClient) {
 const defaultClient = createApiClient();
 const api = createApiService(defaultClient);
 
+export { api };
 export default api;
 
 export const dashboardApi = api.dashboard;
