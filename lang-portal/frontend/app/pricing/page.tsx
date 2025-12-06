@@ -58,12 +58,6 @@ export default function PricingPage() {
                     className="max-w-6xl mx-auto"
                 >
                     <div className="text-center mb-8">
-                        <h2 className="text-2xl md:text-3xl font-bold mb-2">
-                            Ready to Get Started?
-                        </h2>
-                        <p className="text-muted-foreground mb-4">
-                            Select your plan below and start your Japanese learning journey today
-                        </p>
                         <p className="text-sm text-muted-foreground">
                             💡 Toggle "Billed annually" to save up to 20%
                         </p>
