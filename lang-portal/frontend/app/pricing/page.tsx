@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import { Sparkles } from "lucide-react"
-import { PricingComparison } from "@/components/pricing/pricing-comparison"
 import { PricingTable } from "@clerk/nextjs"
 
 export default function PricingPage() {
@@ -50,26 +49,15 @@ export default function PricingPage() {
                 </div>
             </section>
 
-            {/* Custom Pricing Comparison Table */}
+            {/* Pricing Table Section */}
             <section className="container mx-auto px-4">
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: isVisible ? 1 : 0, y: isVisible ? 0 : 20 }}
                     transition={{ duration: 0.5, delay: 0.3 }}
+                    className="max-w-6xl mx-auto"
                 >
-                    <PricingComparison />
-                </motion.div>
-            </section>
-
-            {/* Clerk Pricing Table */}
-            <section className="container mx-auto px-4">
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: isVisible ? 1 : 0, y: isVisible ? 0 : 20 }}
-                    transition={{ duration: 0.5, delay: 0.4 }}
-                    className="max-w-4xl mx-auto"
-                >
-                    <div className="text-center mb-6">
+                    <div className="text-center mb-8">
                         <h2 className="text-2xl md:text-3xl font-bold mb-2">
                             Ready to Get Started?
                         </h2>
