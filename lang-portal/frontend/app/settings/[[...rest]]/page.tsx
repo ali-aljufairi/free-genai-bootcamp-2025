@@ -8,12 +8,21 @@ import { WordFlashcardSettings } from "@/components/settings/word-flashcard-sett
 import { KanjiFlashcardSettings } from "@/components/settings/kanji-flashcard-settings"
 import { GrammarQuizSettings } from "@/components/settings/grammar-quiz-settings"
 import { WordBuilderSettings } from "@/components/settings/word-builder-settings"
-import { User, Brain, Languages, CheckCircle, Puzzle, Settings } from "lucide-react"
+import { User, Brain, Languages, CheckCircle, Puzzle, Settings, Loader2 } from "lucide-react"
 import { useIsMobile } from "@/components/ui/use-mobile"
 import { MobileSettingsPage } from "@/components/settings/mobile/mobile-settings-page"
 
 export default function SettingsPage() {
   const isMobile = useIsMobile()
+
+  // Show loading state during SSR/hydration to prevent hydration mismatch
+  if (isMobile === undefined) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
 
   // Use separate mobile component for better maintainability
   if (isMobile) {

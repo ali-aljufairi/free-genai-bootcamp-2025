@@ -27,6 +27,9 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  serverExternalPackages: [
+    'require-in-the-middle',
+  ],
 };
 
 // Conditionally add rewrites only in development mode

@@ -45,16 +45,17 @@ export default clerkMiddleware(async (auth, req) => {
   
   // Build CSP directives using environment variables and wildcards
   // This allows configuration via K8s ConfigMap without code changes
+  // Note: CSP wildcards only work at the start of a domain, so we use https://*.clerk.accounts.dev format
   const cspDirectives = [
     "default-src 'self'",
-    `script-src 'self' 'unsafe-inline' 'unsafe-eval' https://static.cloudflareinsights.com https://*.cloudflare.com https://${appDomain} blob:`,
+    `script-src 'self' 'unsafe-inline' 'unsafe-eval' https://static.cloudflareinsights.com https://*.cloudflare.com https://*.clerk.accounts.dev https://${appDomain} blob:`,
     `worker-src 'self' blob: https://${appDomain}`,
-    `connect-src 'self' https://static.cloudflareinsights.com https://*.cloudflare.com https://${clerkDomain} https://*.sentry.io wss://${clerkDomain} https://${appDomain} wss://${appDomain} https://${cloudfrontDomain}`,
+    `connect-src 'self' https://static.cloudflareinsights.com https://*.cloudflare.com https://*.clerk.accounts.dev https://*.sentry.io wss://*.clerk.accounts.dev https://${appDomain} wss://${appDomain} https://${cloudfrontDomain}`,
     `media-src 'self' https://${cloudfrontDomain} blob: data:`,
     "img-src 'self' data: https: blob:",
     "style-src 'self' 'unsafe-inline'",
     "font-src 'self' data: https:",
-    `frame-src 'self' https://${clerkDomain} https://${appDomain}`,
+    `frame-src 'self' https://*.clerk.accounts.dev https://${appDomain}`,
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",
