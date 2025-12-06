@@ -1,10 +1,6 @@
 import { NextRequest } from 'next/server'
 import { proxyToBackend } from '@/lib/api-proxy'
 
-// Catch-all proxy for all /api/langportal/* requests
-// Forwards method, headers, query, and body to the Go backend while handling Clerk auth
-
-// Helper to extract path from params (handles Next.js 16 Promise params)
 async function getSubPath(params: Promise<{ path: string[] }> | { path: string[] }): Promise<string> {
   const resolvedParams = params instanceof Promise ? await params : params;
   return '/' + (resolvedParams.path?.join('/') || '');

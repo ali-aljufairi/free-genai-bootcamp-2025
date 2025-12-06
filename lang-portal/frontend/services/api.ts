@@ -1,26 +1,3 @@
-/**
- * API Service for Lang Portal
- * Handles all communication with the backend API
- * 
- * Uses the unified API client for consistent authentication and error handling.
- * 
- * Usage in hooks:
- * ```ts
- * const apiClient = useApiClient();
- * const api = createApiService(apiClient);
- * const data = await api.dashboard.getQuickStats();
- * ```
- * 
- * Or use the default export (requires useApiClient in the calling component):
- * ```ts
- * import { useApiClient } from '@/hooks/useApiClient';
- * import api from '@/services/api';
- * 
- * const apiClient = useApiClient();
- * // Note: Default export uses a client without auth - use createApiService instead
- * ```
- */
-
 import {
   StudySession,
   Word,
@@ -57,22 +34,12 @@ import { ApiClient, createApiClient } from '@/lib/api-client';
 
 const API_BASE_URL = '/api/langportal';
 
-/**
- * Helper to build full endpoint URL
- */
 function endpoint(path: string): string {
   const cleanPath = path.startsWith('/') ? path : `/${path}`;
   return `${API_BASE_URL}${cleanPath}`;
 }
 
-/**
- * Creates API service methods using the provided API client
- * 
- * @param client - ApiClient instance (typically from useApiClient hook)
- * @returns API service object with all API methods
- */
 export function createApiService(client: ApiClient) {
-  // Dashboard API calls
   const dashboardApi = {
     getLastStudySession: () => client.get<StudySession>(endpoint('/dashboard/last_study_session')),
     getStudyProgress: () => client.get<StudyProgress>(endpoint('/dashboard/study_progress')),
@@ -82,7 +49,6 @@ export function createApiService(client: ApiClient) {
       client.get<RecentActivitiesResponse>(endpoint(`/dashboard/recent_activities${limit ? `?limit=${limit}` : ''}`)),
   };
 
-  // Study Activity API calls
   const studyActivityApi = {
     getStudyActivities: (page: number = 1, pageSize: number = 20) => 
       client.get<{ items: StudyActivity[], total: number, page: number }>(
@@ -94,7 +60,6 @@ export function createApiService(client: ApiClient) {
       client.post<StudyActivity>(endpoint('/study_activities'), data),
   };
 
-  // Word API calls
   const wordApi = {
     getWords: (page: number = 1, pageSize: number = 20) => 
       client.get<WordsResponse>(endpoint(`/words?page=${page}&pageSize=${pageSize}`)),
@@ -123,7 +88,6 @@ export function createApiService(client: ApiClient) {
     },
   };
 
-  // Kanji API calls
   const kanjiApi = {
     search: (params: {
       q?: string;
@@ -160,7 +124,6 @@ export function createApiService(client: ApiClient) {
     },
   };
 
-  // Groups API
   const groupApi = {
     getGroups: () => client.get<any[]>(endpoint('/groups')),
     createGroup: (data: { name: string; description?: string }) => 
@@ -175,7 +138,6 @@ export function createApiService(client: ApiClient) {
       client.delete<{ success: boolean }>(endpoint(`/groups/${groupId}/kanji/${kanjiId}`)),
   };
 
-  // User API
   const userApi = {
     getMe: () => client.get<any>(endpoint('/users/me')),
     setFavoriteGroup: (groupId: number | null) => 
@@ -206,7 +168,6 @@ export function createApiService(client: ApiClient) {
     }>(endpoint(`/users/${userId}/settings`), data),
   };
 
-  // Flashcards API
   const flashcardsV2Api = {
     start: (config: FlashcardConfig) => 
       client.post<FlashcardSession>('/api/flashcards/start', config),
@@ -219,7 +180,6 @@ export function createApiService(client: ApiClient) {
       client.get<Unit[]>(`/api/flashcards/courses/${courseId}/units`),
   };
 
-  // Grammar Quiz API
   const grammarApi = {
     start: (config: GrammarQuizConfig) => 
       client.post<GrammarQuizSession>(endpoint('/grammar/start'), config),
@@ -264,7 +224,6 @@ export function createApiService(client: ApiClient) {
       client.post<{ message: string; grammar_id: number }>(endpoint(`/grammar/${id}/learned`)),
   };
 
-  // Chat API
   const chatApi = {
     saveSession: (request: SaveChatSessionRequest) => 
       client.post<{ id: number; session_id: string; created?: boolean; updated?: boolean }>(
@@ -276,7 +235,6 @@ export function createApiService(client: ApiClient) {
       client.post<ChatSession>(endpoint(`/chat/sessions/${sessionId}/assessment`), assessment),
   };
 
-  // Word Builder API
   const wordBuilderApi = {
     start: (config: WordBuilderConfig) => 
       client.post<WordBuilderSession>(endpoint('/word-builder/start'), config),
@@ -286,7 +244,6 @@ export function createApiService(client: ApiClient) {
       client.post<WordBuilderSubmitResponse>(endpoint('/word-builder/submit'), results),
   };
 
-  // Subscription API
   const subscriptionApi = {
     getUsageCount: () => client.get<{
       session_count: number;
@@ -312,14 +269,11 @@ export function createApiService(client: ApiClient) {
   };
 }
 
-// Default export: Creates API service with a client without auth (for backward compatibility)
-// NOTE: This will fail for authenticated endpoints. Use createApiService(useApiClient()) instead.
 const defaultClient = createApiClient();
 const api = createApiService(defaultClient);
 
 export default api;
 
-// Export individual APIs for backward compatibility (deprecated - use createApiService instead)
 export const dashboardApi = api.dashboard;
 export const studyActivityApi = api.studyActivity;
 export const wordApi = api.word;

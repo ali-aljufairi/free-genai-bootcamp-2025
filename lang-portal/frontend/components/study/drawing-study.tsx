@@ -113,8 +113,8 @@ export function DrawingStudy() {
                 }
             }
 
-            const data = await apiClient.post<any>(endpoint, requestBody)
-            if (studyMode === 'kanji') {
+            const data = await apiClient.post<{ feedback: string; accuracy?: number; grade?: string }>(endpoint, requestBody)
+            if (studyMode === 'kanji' && data.accuracy !== undefined && data.grade) {
                 setFeedback(`Accuracy: ${data.accuracy.toFixed(1)}% - Grade: ${data.grade}\n${data.feedback}`)
             } else {
                 setFeedback(data.feedback)
