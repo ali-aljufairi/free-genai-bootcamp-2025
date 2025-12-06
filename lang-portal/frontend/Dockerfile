@@ -52,7 +52,6 @@ RUN npm install -g pnpm
 
 WORKDIR $APP_HOME
 
-# Copy everything from builder (wattpm needs full structure)
 COPY --from=builder $APP_HOME ./
 
 EXPOSE 3000

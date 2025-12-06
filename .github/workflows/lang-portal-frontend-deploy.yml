@@ -1,225 +1,225 @@
 name: Deploy Lang Portal Frontend
 
 on:
-    push:
-        branches: [main]
-        paths:
-            - "lang-portal/frontend/**"
-            - "k8s/service.yaml"
-            - ".github/workflows/lang-portal-frontend-deploy.yml"
-    workflow_dispatch:
-        inputs:
-            deploy_only:
-                description: "Skip build and deploy existing images"
-                required: false
-                default: false
-                type: boolean
+  push:
+    branches: [main]
+    paths:
+      - "lang-portal/frontend/**"
+      - "k8s/service.yaml"
+      - ".github/workflows/lang-portal-frontend-deploy.yml"
+  workflow_dispatch:
+    inputs:
+      deploy_only:
+        description: "Skip build and deploy existing images"
+        required: false
+        default: false
+        type: boolean
 
 env:
-    REGISTRY: ghcr.io
-    OWNER: ali-aljufairi  # Matches hardcoded value in k8s/service.yaml
-    IMAGE_TAG: latest
+  REGISTRY: ghcr.io
+  OWNER: ali-aljufairi # Matches hardcoded value in k8s/service.yaml
+  IMAGE_TAG: latest
 
 jobs:
-    build-and-push-frontend:
-        runs-on: ubuntu-latest
-        if: ${{ github.event.inputs.deploy_only != 'true' }}
-        permissions:
-            contents: read
-            packages: write
+  build-and-push-frontend:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.deploy_only != 'true' }}
+    permissions:
+      contents: read
+      packages: write
 
-        outputs:
-            frontend_image: ${{ steps.set-image-output.outputs.image }}
+    outputs:
+      frontend_image: ${{ steps.set-image-output.outputs.image }}
 
-        steps:
-            - name: Checkout repository
-              uses: actions/checkout@v4
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-            - name: Log in to the Container registry
-              uses: docker/login-action@v3
-              with:
-                  registry: ${{ env.REGISTRY }}
-                  username: ${{ github.actor }}
-                  password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-            - name: Set up Docker Buildx
-              uses: docker/setup-buildx-action@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-            - name: Extract metadata for Frontend
-              id: meta-frontend
-              uses: docker/metadata-action@v5
-              with:
-                  images: ${{ env.REGISTRY }}/${{ env.OWNER }}/lang-portal-frontend
-                  tags: |
-                      type=sha,prefix=
-                      type=raw,value=latest,enable={{is_default_branch}}
+      - name: Extract metadata for Frontend
+        id: meta-frontend
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.OWNER }}/lang-portal-frontend
+          tags: |
+            type=sha,prefix=
+            type=raw,value=latest,enable={{is_default_branch}}
 
-            - name: Extract SHA tag for output
-              id: set-image-output
-              run: |
-                  # Extract the SHA tag (first tag, which is the SHA without prefix)
-                  TAGS="${{ steps.meta-frontend.outputs.tags }}"
-                  # Get the first tag (SHA tag) and trim whitespace
-                  SHA_TAG=$(echo "$TAGS" | head -n1 | tr -d '[:space:]')
-                  # Construct full image path
-                  IMAGE="${{ env.REGISTRY }}/${{ env.OWNER }}/lang-portal-frontend:$SHA_TAG"
-                  echo "image=${IMAGE}" >> "$GITHUB_OUTPUT"
-                  echo "Extracted image tag: $IMAGE"
+      - name: Extract SHA tag for output
+        id: set-image-output
+        run: |
+          # Extract the SHA tag (first tag, which is the SHA without prefix)
+          TAGS="${{ steps.meta-frontend.outputs.tags }}"
+          # Get the first tag (SHA tag) and trim whitespace
+          SHA_TAG=$(echo "$TAGS" | head -n1 | tr -d '[:space:]')
+          # Construct full image path
+          IMAGE="${{ env.REGISTRY }}/${{ env.OWNER }}/lang-portal-frontend:$SHA_TAG"
+          echo "image=${IMAGE}" >> "$GITHUB_OUTPUT"
+          echo "Extracted image tag: $IMAGE"
 
-            - name: Prepare environment files
-              run: |
-                  cd lang-portal/frontend
-                  if [ -f .env.example ]; then
-                    cp .env.example .env
-                  fi
+      - name: Prepare environment files
+        run: |
+          cd lang-portal/frontend
+          if [ -f .env.example ]; then
+            cp .env.example .env
+          fi
 
-            - name: Build and push Frontend image
-              uses: docker/build-push-action@v5
-              with:
-                  context: ./lang-portal/frontend
-                  file: ./lang-portal/frontend/Dockerfile
-                  push: true
-                  tags: ${{ steps.meta-frontend.outputs.tags }}
-                  labels: ${{ steps.meta-frontend.outputs.labels }}
-                  cache-from: type=gha
-                  cache-to: type=gha,mode=max
-                  build-args: |
-                      SENTRY_AUTH_TOKEN=${{ secrets.SENTRY_AUTH_TOKEN }}
+      - name: Build and push Frontend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./lang-portal/frontend
+          file: ./lang-portal/frontend/Dockerfile
+          push: true
+          tags: ${{ steps.meta-frontend.outputs.tags }}
+          labels: ${{ steps.meta-frontend.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            SENTRY_AUTH_TOKEN=${{ secrets.SENTRY_AUTH_TOKEN }}
 
-    deploy-frontend:
-        runs-on: ubuntu-latest
-        needs: [build-and-push-frontend]
-        if: always() && (needs.build-and-push-frontend.result == 'success' || github.event.inputs.deploy_only == 'true') && github.ref == 'refs/heads/main'
-        permissions:
-            contents: read
-            id-token: write
+  deploy-frontend:
+    runs-on: ubuntu-latest
+    needs: [build-and-push-frontend]
+    if: always() && (needs.build-and-push-frontend.result == 'success' || github.event.inputs.deploy_only == 'true') && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      id-token: write
 
-        steps:
-            - name: Checkout repository
-              uses: actions/checkout@v4
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-            - name: Connect to Tailscale
-              uses: tailscale/github-action@v4
-              with:
-                  oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
-                  oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
-                  tags: tag:ci
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
 
-            - name: Verify Tailscale connection
-              run: |
-                  echo "Tailscale status:"
-                  tailscale status
-                  echo ""
-                  echo "Tailscale IP:"
-                  tailscale ip -4
+      - name: Verify Tailscale connection
+        run: |
+          echo "Tailscale status:"
+          tailscale status
+          echo ""
+          echo "Tailscale IP:"
+          tailscale ip -4
 
-            - name: Set up kubectl
-              uses: azure/setup-kubectl@v4
-              with:
-                  version: "latest"
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: "latest"
 
-            - name: Configure kubectl for K3s via Tailscale
-              run: |
-                  mkdir -p ~/.kube
-                  # Decode base64-encoded kubeconfig and write to file
-                  # GitHub Actions automatically redacts secrets from logs
-                  if ! echo "${{ secrets.KUBECONFIG }}" | base64 -d > ~/.kube/config; then
-                    echo "ERROR: Failed to decode KUBECONFIG secret"
-                    exit 1
-                  fi
-                  chmod 600 ~/.kube/config
-                  # Verify config file was created and is not empty
-                  if [ ! -s ~/.kube/config ]; then
-                    echo "ERROR: KUBECONFIG file is empty or missing"
-                    exit 1
-                  fi
-                  echo "KUBECONFIG configured successfully"
+      - name: Configure kubectl for K3s via Tailscale
+        run: |
+          mkdir -p ~/.kube
+          # Decode base64-encoded kubeconfig and write to file
+          # GitHub Actions automatically redacts secrets from logs
+          if ! echo "${{ secrets.KUBECONFIG }}" | base64 -d > ~/.kube/config; then
+            echo "ERROR: Failed to decode KUBECONFIG secret"
+            exit 1
+          fi
+          chmod 600 ~/.kube/config
+          # Verify config file was created and is not empty
+          if [ ! -s ~/.kube/config ]; then
+            echo "ERROR: KUBECONFIG file is empty or missing"
+            exit 1
+          fi
+          echo "KUBECONFIG configured successfully"
 
-            - name: Verify Kubernetes connection
-              run: |
-                  echo "Testing kubectl connection..."
-                  kubectl cluster-info
-                  kubectl get nodes
+      - name: Verify Kubernetes connection
+        run: |
+          echo "Testing kubectl connection..."
+          kubectl cluster-info
+          kubectl get nodes
 
-            - name: Get Frontend image tag
-              id: get-image
-              run: |
-                  # Use SHA tag if available from build step, otherwise fall back to latest
-                  if [ "${{ needs.build-and-push-frontend.outputs.frontend_image }}" != "" ]; then
-                    FRONTEND_IMAGE="${{ needs.build-and-push-frontend.outputs.frontend_image }}"
-                    echo "Using build output image: $FRONTEND_IMAGE"
-                  else
-                    # Fallback to latest tag for manual deployments
-                    FRONTEND_IMAGE="${{ env.REGISTRY }}/${{ env.OWNER }}/lang-portal-frontend:latest"
-                    echo "Using latest tag: $FRONTEND_IMAGE"
-                  fi
-                  echo "image=$FRONTEND_IMAGE" >> $GITHUB_OUTPUT
-                  echo "Deploying Frontend image: $FRONTEND_IMAGE"
+      - name: Get Frontend image tag
+        id: get-image
+        run: |
+          # Use SHA tag if available from build step, otherwise fall back to latest
+          if [ "${{ needs.build-and-push-frontend.outputs.frontend_image }}" != "" ]; then
+            FRONTEND_IMAGE="${{ needs.build-and-push-frontend.outputs.frontend_image }}"
+            echo "Using build output image: $FRONTEND_IMAGE"
+          else
+            # Fallback to latest tag for manual deployments
+            FRONTEND_IMAGE="${{ env.REGISTRY }}/${{ env.OWNER }}/lang-portal-frontend:latest"
+            echo "Using latest tag: $FRONTEND_IMAGE"
+          fi
+          echo "image=$FRONTEND_IMAGE" >> $GITHUB_OUTPUT
+          echo "Deploying Frontend image: $FRONTEND_IMAGE"
 
-            - name: Update Frontend deployment
-              run: |
-                  FRONTEND_IMAGE="${{ steps.get-image.outputs.image }}"
-                  
-                  echo "Deploying Frontend image: $FRONTEND_IMAGE"
+      - name: Update Frontend deployment
+        run: |
+          FRONTEND_IMAGE="${{ steps.get-image.outputs.image }}"
 
-                  # Update deployment with new image (this triggers a new pull)
-                  kubectl set image deployment/lang-portal-frontend \
-                    lang-portal-frontend=$FRONTEND_IMAGE \
-                    -n sorami
+          echo "Deploying Frontend image: $FRONTEND_IMAGE"
 
-                  # Add timestamp annotation to force pod recreation
-                  kubectl annotate deployment/lang-portal-frontend \
-                    deployment.kubernetes.io/revision-time="$(date +%s)" \
-                    -n sorami --overwrite || true
+          # Update deployment with new image (this triggers a new pull)
+          kubectl set image deployment/lang-portal-frontend \
+            lang-portal-frontend=$FRONTEND_IMAGE \
+            -n sorami
 
-                  # Force rollout restart to ensure pods are replaced one by one
-                  echo "Forcing rollout restart for Frontend deployment (one-by-one)..."
-                  kubectl rollout restart deployment/lang-portal-frontend -n sorami
-                  
-                  # Ensure imagePullPolicy is Always to force pull of latest images
-                  kubectl patch deployment lang-portal-frontend -n sorami \
-                    --type='json' \
-                    -p='[{"op": "replace", "path": "/spec/template/spec/containers/0/imagePullPolicy", "value": "Always"}]' || true
+          # Add timestamp annotation to force pod recreation
+          kubectl annotate deployment/lang-portal-frontend \
+            deployment.kubernetes.io/revision-time="$(date +%s)" \
+            -n sorami --overwrite || true
 
-            - name: Wait for Frontend rollout
-              run: |
-                  echo "Waiting for Frontend deployment rollout (one-by-one)..."
-                  kubectl rollout status deployment/lang-portal-frontend -n sorami --timeout=600s
+          # Force rollout restart to ensure pods are replaced one by one
+          echo "Forcing rollout restart for Frontend deployment (one-by-one)..."
+          kubectl rollout restart deployment/lang-portal-frontend -n sorami
 
-            - name: Verify Frontend deployment
-              run: |
-                  echo "=== Frontend Deployment Status ==="
-                  kubectl get deployment lang-portal-frontend -n sorami
-                  echo ""
-                  echo "=== Frontend Pod Status ==="
-                  kubectl get pods -n sorami -l app=lang-portal-frontend -o wide
-                  echo ""
-                  echo "=== Frontend Pod Image Verification ==="
-                  kubectl get pods -n sorami -l app=lang-portal-frontend -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.spec.containers[0].image}{"\t"}{.status.phase}{"\n"}{end}'
-                  echo ""
-                  echo "=== Verifying Frontend Pods Are Running ==="
-                  FRONTEND_PODS=$(kubectl get pods -n sorami -l app=lang-portal-frontend --field-selector=status.phase=Running --no-headers | wc -l)
-                  FRONTEND_REPLICAS=$(kubectl get deployment lang-portal-frontend -n sorami -o jsonpath='{.spec.replicas}')
-                  echo "Frontend: $FRONTEND_PODS/$FRONTEND_REPLICAS pods running"
-                  if [ "$FRONTEND_PODS" -lt "$FRONTEND_REPLICAS" ]; then
-                    echo "ERROR: Not all Frontend pods are running!"
-                    exit 1
-                  fi
-                  echo "Frontend deployment successful (one-by-one rollout completed)"
-                  echo ""
-                  echo "=== Recent Events ==="
-                  kubectl get events -n sorami --sort-by='.lastTimestamp' | tail -10
+          # Ensure imagePullPolicy is Always to force pull of latest images
+          kubectl patch deployment lang-portal-frontend -n sorami \
+            --type='json' \
+            -p='[{"op": "replace", "path": "/spec/template/spec/containers/0/imagePullPolicy", "value": "Always"}]' || true
 
-            - name: Post Frontend deployment summary
-              run: |
-                  echo "## Frontend Deployment Summary" >> $GITHUB_STEP_SUMMARY
-                  echo "" >> $GITHUB_STEP_SUMMARY
-                  echo "Successfully deployed Frontend to Kubernetes cluster via Tailscale (one-by-one rollout)" >> $GITHUB_STEP_SUMMARY
-                  echo "" >> $GITHUB_STEP_SUMMARY
-                  echo "### Image Deployed" >> $GITHUB_STEP_SUMMARY
-                  echo "- **Frontend**: \`${{ env.REGISTRY }}/${{ env.OWNER }}/lang-portal-frontend:${{ env.IMAGE_TAG }}\`" >> $GITHUB_STEP_SUMMARY
-                  echo "" >> $GITHUB_STEP_SUMMARY
-                  echo "### Deployment" >> $GITHUB_STEP_SUMMARY
-                  echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-                  kubectl get deployment lang-portal-frontend -n sorami -o wide >> $GITHUB_STEP_SUMMARY
-                  echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+      - name: Wait for Frontend rollout
+        run: |
+          echo "Waiting for Frontend deployment rollout (one-by-one)..."
+          kubectl rollout status deployment/lang-portal-frontend -n sorami --timeout=600s
+
+      - name: Verify Frontend deployment
+        run: |
+          echo "=== Frontend Deployment Status ==="
+          kubectl get deployment lang-portal-frontend -n sorami
+          echo ""
+          echo "=== Frontend Pod Status ==="
+          kubectl get pods -n sorami -l app=lang-portal-frontend -o wide
+          echo ""
+          echo "=== Frontend Pod Image Verification ==="
+          kubectl get pods -n sorami -l app=lang-portal-frontend -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.spec.containers[0].image}{"\t"}{.status.phase}{"\n"}{end}'
+          echo ""
+          echo "=== Verifying Frontend Pods Are Running ==="
+          FRONTEND_PODS=$(kubectl get pods -n sorami -l app=lang-portal-frontend --field-selector=status.phase=Running --no-headers | wc -l)
+          FRONTEND_REPLICAS=$(kubectl get deployment lang-portal-frontend -n sorami -o jsonpath='{.spec.replicas}')
+          echo "Frontend: $FRONTEND_PODS/$FRONTEND_REPLICAS pods running"
+          if [ "$FRONTEND_PODS" -lt "$FRONTEND_REPLICAS" ]; then
+            echo "ERROR: Not all Frontend pods are running!"
+            exit 1
+          fi
+          echo "Frontend deployment successful (one-by-one rollout completed)"
+          echo ""
+          echo "=== Recent Events ==="
+          kubectl get events -n sorami --sort-by='.lastTimestamp' | tail -10
+
+      - name: Post Frontend deployment summary
+        run: |
+          echo "## Frontend Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Successfully deployed Frontend to Kubernetes cluster via Tailscale (one-by-one rollout)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Image Deployed" >> $GITHUB_STEP_SUMMARY
+          echo "- **Frontend**: \`${{ env.REGISTRY }}/${{ env.OWNER }}/lang-portal-frontend:${{ env.IMAGE_TAG }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Deployment" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          kubectl get deployment lang-portal-frontend -n sorami -o wide >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
