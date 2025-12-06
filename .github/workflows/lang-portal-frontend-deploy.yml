@@ -57,12 +57,11 @@ jobs:
       - name: Extract SHA tag for output
         id: set-image-output
         run: |
-          # Extract the SHA tag (first tag, which is the SHA without prefix)
+          # Extract the first tag from metadata (already includes registry)
           TAGS="${{ steps.meta-frontend.outputs.tags }}"
-          # Get the first tag (SHA tag) and trim whitespace
-          SHA_TAG=$(echo "$TAGS" | head -n1 | tr -d '[:space:]')
-          # Construct full image path
-          IMAGE="${{ env.REGISTRY }}/${{ env.OWNER }}/lang-portal-frontend:$SHA_TAG"
+          # Get the first tag (full image with SHA) and trim whitespace
+          IMAGE=$(echo "$TAGS" | head -n1 | tr -d '[:space:]')
+          # Output the complete image reference
           echo "image=${IMAGE}" >> "$GITHUB_OUTPUT"
           echo "Extracted image tag: $IMAGE"
 
@@ -184,7 +183,19 @@ jobs:
       - name: Wait for Frontend rollout
         run: |
           echo "Waiting for Frontend deployment rollout (one-by-one)..."
-          kubectl rollout status deployment/lang-portal-frontend -n sorami --timeout=600s
+          # Increased timeout to 15 minutes for startup probe to complete
+          kubectl rollout status deployment/lang-portal-frontend -n sorami --timeout=900s || {
+            echo "\n=== Rollout Status Debug Info ==="
+            echo "Deployment status:"
+            kubectl describe deployment lang-portal-frontend -n sorami
+            echo ""
+            echo "Pod status:"
+            kubectl get pods -n sorami -l app=lang-portal-frontend -o wide
+            echo ""
+            echo "Pod events:"
+            kubectl describe pods -n sorami -l app=lang-portal-frontend
+            exit 1
+          }
 
       - name: Verify Frontend deployment
         run: |
@@ -197,6 +208,9 @@ jobs:
           echo "=== Frontend Pod Image Verification ==="
           kubectl get pods -n sorami -l app=lang-portal-frontend -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.spec.containers[0].image}{"\t"}{.status.phase}{"\n"}{end}'
           echo ""
+          echo "=== Checking Pod Health Probes ==="
+          kubectl describe pods -n sorami -l app=lang-portal-frontend | grep -A 5 "Liveness\|Readiness\|Startup"
+          echo ""
           echo "=== Verifying Frontend Pods Are Running ==="
           FRONTEND_PODS=$(kubectl get pods -n sorami -l app=lang-portal-frontend --field-selector=status.phase=Running --no-headers | wc -l)
           FRONTEND_REPLICAS=$(kubectl get deployment lang-portal-frontend -n sorami -o jsonpath='{.spec.replicas}')
@@ -208,7 +222,7 @@ jobs:
           echo "Frontend deployment successful (one-by-one rollout completed)"
           echo ""
           echo "=== Recent Events ==="
-          kubectl get events -n sorami --sort-by='.lastTimestamp' | tail -10
+          kubectl get events -n sorami --sort-by='.lastTimestamp' | tail -15
 
       - name: Post Frontend deployment summary
         run: |
