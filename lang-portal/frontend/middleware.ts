@@ -36,15 +36,15 @@ export default clerkMiddleware(async (auth, req) => {
   // Create response with security headers that allow Cloudflare Analytics
   const response = NextResponse.next();
   
-  // Add Content Security Policy that allows Cloudflare Analytics
+  // Add Content Security Policy that allows Cloudflare Analytics and custom Clerk domain
   const cspHeader = [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://static.cloudflareinsights.com https://*.cloudflare.com",
-    "connect-src 'self' https://static.cloudflareinsights.com https://*.cloudflare.com https://*.clerk.accounts.dev https://*.sentry.io wss://*.clerk.accounts.dev",
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://static.cloudflareinsights.com https://*.cloudflare.com https://*.sorami.aljufairi.org",
+    "connect-src 'self' https://static.cloudflareinsights.com https://*.cloudflare.com https://*.clerk.accounts.dev https://*.sentry.io wss://*.clerk.accounts.dev https://*.sorami.aljufairi.org wss://*.sorami.aljufairi.org",
     "img-src 'self' data: https: blob:",
     "style-src 'self' 'unsafe-inline'",
     "font-src 'self' data:",
-    "frame-src 'self' https://*.clerk.accounts.dev",
+    "frame-src 'self' https://*.clerk.accounts.dev https://*.sorami.aljufairi.org",
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",
