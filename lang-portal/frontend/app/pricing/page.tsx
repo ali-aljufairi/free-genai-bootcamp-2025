@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import { Sparkles } from "lucide-react"
 import { PricingComparison } from "@/components/pricing/pricing-comparison"
-import { PricingTable } from "@clerk/nextjs/experimental"
+import { PricingTable } from "@clerk/nextjs"
 
 export default function PricingPage() {
     const [isVisible, setIsVisible] = useState(false)
