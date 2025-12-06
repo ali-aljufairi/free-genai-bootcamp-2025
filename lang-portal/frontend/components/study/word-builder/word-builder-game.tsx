@@ -14,7 +14,7 @@ import { WordBuilderStats } from "./word-builder-stats"
 import { WordBuilderResults } from "./word-builder-results"
 import { useRefreshKanji, useSubmitWordBuilder } from "@/hooks/api/use-word-builder"
 import { Button } from "@/components/ui/button"
-import { RefreshCw } from "lucide-react"
+import { RefreshCw, Settings } from "lucide-react"
 import { useIsMobile } from "@/hooks/use-mobile"
 
 interface WordBuilderGameProps {
@@ -23,6 +23,7 @@ interface WordBuilderGameProps {
     validWords: any[]
     timeLimit: number
     onComplete: () => void
+    onShowSettings?: () => void
 }
 
 export function WordBuilderGame({
@@ -31,6 +32,7 @@ export function WordBuilderGame({
     validWords,
     timeLimit,
     onComplete,
+    onShowSettings,
 }: WordBuilderGameProps) {
     const containerRef = useRef<HTMLDivElement>(null)
     const swapyInstance = useRef<Swapy | null>(null)
@@ -466,16 +468,29 @@ export function WordBuilderGame({
                     <div className="flex-[2] min-h-0 flex flex-col space-y-2">
                         <div className="flex items-center justify-between shrink-0">
                             <h3 className="text-sm font-medium text-muted-foreground">Kanji Pool</h3>
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={handleRefreshKanji}
-                                disabled={refreshKanjiMutation.isPending}
-                                className="h-8 w-8"
-                                title="Refresh Kanji Pool"
-                            >
-                                <RefreshCw className={`h-4 w-4 ${refreshKanjiMutation.isPending ? 'animate-spin' : ''}`} />
-                            </Button>
+                            <div className="flex items-center gap-2">
+                                {onShowSettings && (
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={onShowSettings}
+                                        className="h-8 w-8"
+                                        title="Settings"
+                                    >
+                                        <Settings className="h-4 w-4" />
+                                    </Button>
+                                )}
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={handleRefreshKanji}
+                                    disabled={refreshKanjiMutation.isPending}
+                                    className="h-8 w-8"
+                                    title="Refresh Kanji Pool"
+                                >
+                                    <RefreshCw className={`h-4 w-4 ${refreshKanjiMutation.isPending ? 'animate-spin' : ''}`} />
+                                </Button>
+                            </div>
                         </div>
                         <div className="flex-1 min-h-0 overflow-hidden" key={`kanji-pool-${poolRenderKey}`}>
                             {isMobile ? (

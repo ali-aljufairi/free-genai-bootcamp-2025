@@ -23,6 +23,27 @@ import { FlashcardOptionList } from "./shared/flashcard-option-list"
 import { Button } from "@/components/ui/button"
 import { Settings, Clock } from "lucide-react"
 
+const defaultGrammarPreferences = {
+    level: 5,
+    questionType: 'all' as const,
+    useSRS: false,
+    count: 10,
+    requiredCorrectCount: 3,
+    timerDuration: 0,
+}
+
+// Check if preferences differ from defaults (user has configured)
+function hasConfiguredGrammarPreferences(prefs: typeof defaultGrammarPreferences): boolean {
+    return (
+        prefs.level !== defaultGrammarPreferences.level ||
+        prefs.questionType !== defaultGrammarPreferences.questionType ||
+        prefs.useSRS !== defaultGrammarPreferences.useSRS ||
+        prefs.count !== defaultGrammarPreferences.count ||
+        prefs.requiredCorrectCount !== defaultGrammarPreferences.requiredCorrectCount ||
+        prefs.timerDuration !== defaultGrammarPreferences.timerDuration
+    )
+}
+
 export function GrammarQuiz() {
     const isMobile = useIsMobile()
 
@@ -54,13 +75,22 @@ export function GrammarQuiz() {
         setLevel, setQuestionType, setUseSRS, setCount, setRequiredCorrectCount, setTimerDuration
     } = store
 
-    // Show config on mount - don't auto-start
+    // Auto-start if user has configured preferences, otherwise show config
     useEffect(() => {
         if (!hasAutoStarted) {
-            setShowConfig(true)
-            setHasAutoStarted(true)
+            const prefs = { level, questionType, useSRS, count, requiredCorrectCount, timerDuration }
+            if (hasConfiguredGrammarPreferences(prefs)) {
+                // User has configured preferences - auto-start
+                setHasAutoStarted(true)
+                startSession()
+            } else {
+                // First time or default preferences - show config
+                setShowConfig(true)
+                setHasAutoStarted(true)
+            }
         }
-    }, [hasAutoStarted])
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
 
     // Timer countdown effect
     useEffect(() => {

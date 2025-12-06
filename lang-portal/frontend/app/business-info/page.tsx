@@ -204,3 +204,5 @@ export default function BusinessInfoPage() {
     </main>
   )
 }
+
+

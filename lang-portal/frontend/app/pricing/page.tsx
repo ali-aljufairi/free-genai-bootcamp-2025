@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import { Sparkles } from "lucide-react"
 import { PricingComparison } from "@/components/pricing/pricing-comparison"
+import { PricingTable } from "@clerk/nextjs/experimental"
 
 export default function PricingPage() {
     const [isVisible, setIsVisible] = useState(false)
@@ -60,8 +61,7 @@ export default function PricingPage() {
                 </motion.div>
             </section>
 
-            {/* Clerk Pricing Table - temporarily hidden until Stripe verification is complete */}
-            {/* 
+            {/* Clerk Pricing Table */}
             <section className="container mx-auto px-4">
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
@@ -119,7 +119,6 @@ export default function PricingPage() {
                     />
                 </motion.div>
             </section>
-            */}
         </main>
     )
 }

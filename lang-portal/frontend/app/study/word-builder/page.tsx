@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 import { WordBuilderConfig } from "@/components/study/configs/word-builder-config"
 import { WordBuilderGame } from "@/components/study/word-builder/word-builder-game"
 import { useStartWordBuilder } from "@/hooks/api/use-word-builder"
@@ -9,12 +9,32 @@ import { useWordBuilderStore } from "@/stores/word-builder-store"
 import { toast } from "sonner"
 import { SubscriptionGate } from "@/components/subscription/subscription-gate"
 
+const defaultPreferences = {
+    jlpt_level: 5,
+    time_limit: 300,
+    show_hints: true,
+    auto_validate: true,
+    auto_clear_on_success: true,
+}
+
+// Check if preferences differ from defaults (user has configured)
+function hasConfiguredPreferences(prefs: typeof defaultPreferences): boolean {
+    return (
+        prefs.jlpt_level !== defaultPreferences.jlpt_level ||
+        prefs.time_limit !== defaultPreferences.time_limit ||
+        prefs.show_hints !== defaultPreferences.show_hints ||
+        prefs.auto_validate !== defaultPreferences.auto_validate ||
+        prefs.auto_clear_on_success !== defaultPreferences.auto_clear_on_success
+    )
+}
+
 export default function WordBuilderPage() {
     const [showConfig, setShowConfig] = useState(true)
     const [sessionData, setSessionData] = useState<any>(null)
     const isMobile = useIsMobile()
     const { preferences } = useWordBuilderStore()
     const startMutation = useStartWordBuilder()
+    const hasAutoStartedRef = useRef(false)
 
     const handleStart = async () => {
         try {
@@ -54,6 +74,20 @@ export default function WordBuilderPage() {
         useWordBuilderStore.getState().resetGame()
     }
 
+    // Auto-start if user has configured preferences
+    useEffect(() => {
+        if (!hasAutoStartedRef.current && hasConfiguredPreferences(preferences) && !startMutation.isPending) {
+            hasAutoStartedRef.current = true
+            handleStart()
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
+
+    const handleShowSettings = () => {
+        setShowConfig(true)
+        setSessionData(null)
+    }
+
     if (showConfig) {
         return (
             <SubscriptionGate feature="Word Builder">
@@ -87,6 +121,7 @@ export default function WordBuilderPage() {
                     validWords={sessionData.valid_words}
                     timeLimit={sessionData.time_limit}
                     onComplete={handleComplete}
+                    onShowSettings={handleShowSettings}
                 />
             </div>
         </SubscriptionGate>
