@@ -1,5 +1,17 @@
 /**
  * Token Cache Utility
+ * 
+ * @deprecated This file is deprecated. Use the unified API client (lib/api-client.ts) 
+ * with useApiClient() hook instead. The unified client uses Clerk's recommended 
+ * useAuth().getToken() pattern and handles token management automatically.
+ * 
+ * This file is kept for backward compatibility during migration but will be removed
+ * in a future version.
+ * 
+ * Migration guide:
+ * - Replace: getCachedToken(session) 
+ * - With: useApiClient() hook which automatically handles authentication
+ * 
  * Reduces unnecessary Clerk token requests by caching tokens with expiration
  */
 

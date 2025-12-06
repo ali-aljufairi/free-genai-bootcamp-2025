@@ -1,34 +1,28 @@
+"use client";
+
 import { useState, useRef, useEffect } from 'react';
 import { toast } from "@/components/ui/sonner";
 import { generateImageFromText } from '@/services/google-ai';
 import { transcribeAudio } from '@/app/actions/transcribe';
+import { useApiClient } from '@/hooks/useApiClient';
 
 // Function to save speech study session to database
-async function saveSpeechStudySession(data: {
-    sessionId: string;
-    transcription: string;
-    analysis: string;
-    imageUrl: string;
-    recordingDurationSeconds: number;
-    modelUsed: string;
-}) {
-    const response = await fetch('/api/speech-study/save', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-    });
-
-    if (!response.ok) {
-        const error = await response.json().catch(() => ({ error: 'Unknown error' }));
-        throw new Error(error.error || 'Failed to save speech study session');
+async function saveSpeechStudySession(
+    apiClient: ReturnType<typeof useApiClient>,
+    data: {
+        sessionId: string;
+        transcription: string;
+        analysis: string;
+        imageUrl: string;
+        recordingDurationSeconds: number;
+        modelUsed: string;
     }
-
-    return await response.json();
+) {
+    return apiClient.post('/api/speech-study/save', data);
 }
 
 export function useSpeechStudy(sessionId?: string) {
+    const apiClient = useApiClient();
     const [transcription, setTranscription] = useState<string>('');
     const [generatedImage, setGeneratedImage] = useState<string>('');
     const [analysisResult, setAnalysisResult] = useState<string>('');
@@ -238,20 +232,7 @@ export function useSpeechStudy(sessionId?: string) {
         
         setIsAnalyzing(true);
         try {
-            const response = await fetch('/api/analyze-speech', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ transcript }),
-            });
-
-            if (!response.ok) {
-                throw new Error(`Failed to analyze speech: ${response.status}`);
-            }
-
-            // Parse the JSON response
-            const data = await response.json();
+            const data = await apiClient.post<{ success: boolean; analysis: string }>('/api/analyze-speech', { transcript });
             
             if (!data.success) {
                 throw new Error('Analysis failed on the server');
@@ -350,7 +331,7 @@ export function useSpeechStudy(sessionId?: string) {
                         .then(([imageUrl, analysis]) => {
                             // Only save if we have at least transcription
                             if (result.text) {
-                                saveSpeechStudySession({
+                                saveSpeechStudySession(apiClient, {
                                     sessionId: sessionId || `speech-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
                                     transcription: result.text,
                                     analysis: analysis || '',

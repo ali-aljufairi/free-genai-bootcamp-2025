@@ -1,6 +1,9 @@
+"use client";
+
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Word } from "@/types/api";
 import { toast } from "sonner";
+import { useApiClient } from "@/hooks/useApiClient";
 
 interface UseWordImportReturn {
   addWord: (wordData: Partial<Word>) => Promise<Word>;
@@ -8,26 +11,14 @@ interface UseWordImportReturn {
   isLoading: boolean;
   error: Error | null;
 }
-const API_URL = "api/langportal"
+
 export function useWordImport(): UseWordImportReturn {
   const queryClient = useQueryClient();
+  const apiClient = useApiClient();
   
   const mutation = useMutation({
     mutationFn: async (wordData: Partial<Word>): Promise<Word> => {
-      const response = await fetch(`${API_URL}/words`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(wordData),
-      });
-      
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
-        throw new Error(error.message || `Failed to add word: ${response.status}`);
-      }
-      
-      return response.json();
+      return apiClient.post<Word>(`/api/langportal/words`, wordData);
     },
     onSuccess: () => {
       // Invalidate the words query to trigger a refetch

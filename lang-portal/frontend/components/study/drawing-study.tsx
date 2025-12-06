@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useEffect, useRef } from 'react'
-import { useAuth } from "@clerk/nextjs"
 import { ReactSketchCanvas, ReactSketchCanvasRef } from 'react-sketch-canvas'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -10,7 +9,7 @@ import { Eraser, Pencil, RotateCcw, Send, Trash2, RefreshCw } from 'lucide-react
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { KanjiStrokeGuide } from './kanji-stroke-guide'
 import { Eye, EyeOff } from 'lucide-react'
-import { getCachedToken } from '@/lib/token-cache'
+import { useApiClient } from '@/hooks/useApiClient'
 
 interface Word {
     id: number
@@ -41,7 +40,7 @@ interface Kanji {
 }
 
 export function DrawingStudy() {
-    const { getToken } = useAuth()
+    const apiClient = useApiClient()
     const [word, setWord] = useState<Word | null>(null)
     const [sentence, setSentence] = useState<Sentence | null>(null)
     const [kanji, setKanji] = useState<Kanji | null>(null)
@@ -52,52 +51,9 @@ export function DrawingStudy() {
     const [showKanjiGuide, setShowKanjiGuide] = useState(true)
     const canvasRef = useRef<ReactSketchCanvasRef | null>(null)
 
-    const getAuthHeaders = async () => {
-        const headers: HeadersInit = {
-            "Content-Type": "application/json",
-        }
-
-        // Use cached token as primary method to reduce API calls
-        try {
-            if (typeof window !== 'undefined') {
-                const clerk: any = (window as any).Clerk;
-                const session = clerk?.session;
-                if (session) {
-                    const token = await getCachedToken(session);
-                    if (token) {
-                        headers['Authorization'] = `Bearer ${token}`;
-                        return headers;
-                    }
-                }
-            }
-        } catch (error) {
-            console.warn('Failed to get cached token:', error);
-        }
-
-        // Fallback to useAuth hook if cached token is not available
-        try {
-            const token = await getToken();
-            if (token) {
-                headers['Authorization'] = `Bearer ${token}`;
-            } else {
-                console.warn('No token available from Clerk');
-            }
-        } catch (error) {
-            console.error('Failed to get auth token:', error);
-        }
-
-        return headers
-    }
-
     const fetchRandomWord = async () => {
         try {
-            const headers = await getAuthHeaders()
-            const response = await fetch(`/api/langportal/words/random`, {
-                headers,
-                credentials: 'omit',
-                cache: 'no-store',
-            })
-            const data = await response.json()
+            const data = await apiClient.get<Word>(`/api/langportal/words/random`)
             setWord(data)
         } catch (error) {
             console.error('Error fetching word:', error)
@@ -106,22 +62,7 @@ export function DrawingStudy() {
 
     const fetchRandomSentence = async () => {
         try {
-            const headers = await getAuthHeaders()
-            const response = await fetch(`/api/writing/random-sentence`, {
-                headers
-            })
-            if (!response.ok) {
-                const errorText = await response.text()
-                let errorMessage = `Failed to fetch sentence: ${response.status}`
-                try {
-                    const errorData = JSON.parse(errorText)
-                    errorMessage = errorData.error || errorData.detail || errorMessage
-                } catch {
-                    errorMessage = errorText || errorMessage
-                }
-                throw new Error(errorMessage)
-            }
-            const data = await response.json()
+            const data = await apiClient.get<Sentence>(`/api/writing/random-sentence`)
             setSentence(data)
         } catch (error) {
             console.error('Error fetching sentence:', error)
@@ -131,22 +72,7 @@ export function DrawingStudy() {
     const fetchRandomKanji = async () => {
         try {
             setIsLoading(true)
-            const headers = await getAuthHeaders()
-            const response = await fetch(`/api/writing/kanji/random`, {
-                headers
-            })
-            if (!response.ok) {
-                const errorText = await response.text()
-                let errorMessage = `Failed to fetch kanji: ${response.status}`
-                try {
-                    const errorData = JSON.parse(errorText)
-                    errorMessage = errorData.error || errorData.detail || errorMessage
-                } catch {
-                    errorMessage = errorText || errorMessage
-                }
-                throw new Error(errorMessage)
-            }
-            const data = await response.json()
+            const data = await apiClient.get<Kanji>(`/api/writing/kanji/random`)
             setKanji(data)
         } catch (error) {
             console.error('Error fetching kanji:', error)
