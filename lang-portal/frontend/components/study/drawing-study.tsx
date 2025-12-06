@@ -113,26 +113,7 @@ export function DrawingStudy() {
                 }
             }
 
-            const headers = await getAuthHeaders()
-            const response = await fetch(endpoint, {
-                method: 'POST',
-                headers,
-                body: JSON.stringify(requestBody)
-            })
-
-            if (!response.ok) {
-                const errorText = await response.text()
-                let errorMessage = `Failed to submit drawing: ${response.status}`
-                try {
-                    const errorData = JSON.parse(errorText)
-                    errorMessage = errorData.error || errorData.detail || errorMessage
-                } catch {
-                    errorMessage = errorText || errorMessage
-                }
-                throw new Error(errorMessage)
-            }
-
-            const data = await response.json()
+            const data = await apiClient.post<any>(endpoint, requestBody)
             if (studyMode === 'kanji') {
                 setFeedback(`Accuracy: ${data.accuracy.toFixed(1)}% - Grade: ${data.grade}\n${data.feedback}`)
             } else {

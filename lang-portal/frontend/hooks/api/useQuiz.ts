@@ -50,14 +50,12 @@ export function useGenerateQuiz() {
  * Hook to fetch a quiz by ID
  */
 export function useQuiz(id: string) {
+  const apiClient = useApiClient();
+  
   return useQuery({
     queryKey: ["quiz", id],
     queryFn: async (): Promise<QuizResponse> => {
-      const response = await fetch(`http://localhost:8000/quiz/${id}`);
-      if (!response.ok) {
-        throw new Error("Failed to fetch quiz");
-      }
-      return response.json();
+      return apiClient.get<QuizResponse>(`/api/quiz-gen/quiz/${id}`);
     },
     enabled: !!id,
   });
