@@ -27,10 +27,6 @@ export default function Footer() {
                             Terms of Service
                         </Link>
                         <span>•</span>
-                        <Link href="/terms#commercial-transactions-act" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
-                            Business Info (特定商取引法)
-                        </Link>
-                        <span>•</span>
                         <Link href="/privacy" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
                             Privacy Policy
                         </Link>

@@ -6,6 +6,7 @@ on:
         paths:
             - "lang-portal/frontend/**"
             - "k8s/service.yaml"
+            - ".github/workflows/lang-portal-frontend-deploy.yml"
     workflow_dispatch:
         inputs:
             deploy_only:
@@ -16,7 +17,7 @@ on:
 
 env:
     REGISTRY: ghcr.io
-    OWNER: ${{ github.repository_owner }}
+    OWNER: ali-aljufairi  # Matches hardcoded value in k8s/service.yaml
     IMAGE_TAG: latest
 
 jobs:
@@ -128,21 +129,46 @@ jobs:
                   kubectl cluster-info
                   kubectl get nodes
 
-            - name: Update Frontend deployment
+            - name: Get Frontend image tag
+              id: get-image
               run: |
-                  # Always use latest tag on main branch (pushed by docker/build-push-action)
-                  FRONTEND_IMAGE="${{ env.REGISTRY }}/${{ env.OWNER }}/lang-portal-frontend:latest"
-
+                  # Use SHA tag if available from build step, otherwise fall back to latest
+                  if [ "${{ needs.build-and-push-frontend.outputs.frontend_image }}" != "" ]; then
+                    # Extract the SHA tag from the output (format: ghcr.io/owner/repo:sha-abc123)
+                    FRONTEND_IMAGE="${{ needs.build-and-push-frontend.outputs.frontend_image }}"
+                    echo "Using build output image: $FRONTEND_IMAGE"
+                  else
+                    # Fallback to latest tag for manual deployments
+                    FRONTEND_IMAGE="${{ env.REGISTRY }}/${{ env.OWNER }}/lang-portal-frontend:latest"
+                    echo "Using latest tag: $FRONTEND_IMAGE"
+                  fi
+                  echo "image=$FRONTEND_IMAGE" >> $GITHUB_OUTPUT
                   echo "Deploying Frontend image: $FRONTEND_IMAGE"
 
-                  # Update deployment with new image
+            - name: Update Frontend deployment
+              run: |
+                  FRONTEND_IMAGE="${{ steps.get-image.outputs.image }}"
+                  
+                  echo "Deploying Frontend image: $FRONTEND_IMAGE"
+
+                  # Update deployment with new image (this triggers a new pull)
                   kubectl set image deployment/lang-portal-frontend \
                     lang-portal-frontend=$FRONTEND_IMAGE \
                     -n sorami
 
+                  # Add timestamp annotation to force pod recreation
+                  kubectl annotate deployment/lang-portal-frontend \
+                    deployment.kubernetes.io/revision-time="$(date +%s)" \
+                    -n sorami --overwrite || true
+
                   # Force rollout restart to ensure pods are replaced one by one
                   echo "Forcing rollout restart for Frontend deployment (one-by-one)..."
                   kubectl rollout restart deployment/lang-portal-frontend -n sorami
+                  
+                  # Ensure imagePullPolicy is Always to force pull of latest images
+                  kubectl patch deployment lang-portal-frontend -n sorami \
+                    --type='json' \
+                    -p='[{"op": "replace", "path": "/spec/template/spec/containers/0/imagePullPolicy", "value": "Always"}]' || true
 
             - name: Wait for Frontend rollout
               run: |
