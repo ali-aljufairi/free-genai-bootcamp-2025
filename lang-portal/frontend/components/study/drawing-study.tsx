@@ -1,7 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from 'react'
-import { useAuth } from "@clerk/nextjs"
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { ReactSketchCanvas, ReactSketchCanvasRef } from 'react-sketch-canvas'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -10,7 +9,7 @@ import { Eraser, Pencil, RotateCcw, Send, Trash2, RefreshCw } from 'lucide-react
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { KanjiStrokeGuide } from './kanji-stroke-guide'
 import { Eye, EyeOff } from 'lucide-react'
-import { getCachedToken } from '@/lib/token-cache'
+import { useApiClient } from '@/hooks/useApiClient'
 
 interface Word {
     id: number
@@ -41,7 +40,7 @@ interface Kanji {
 }
 
 export function DrawingStudy() {
-    const { getToken } = useAuth()
+    const apiClient = useApiClient()
     const [word, setWord] = useState<Word | null>(null)
     const [sentence, setSentence] = useState<Sentence | null>(null)
     const [kanji, setKanji] = useState<Kanji | null>(null)
@@ -52,165 +51,63 @@ export function DrawingStudy() {
     const [showKanjiGuide, setShowKanjiGuide] = useState(true)
     const canvasRef = useRef<ReactSketchCanvasRef | null>(null)
 
-    const getAuthHeaders = async () => {
-        const headers: HeadersInit = {
-            "Content-Type": "application/json",
-        }
-
-        // Use cached token as primary method to reduce API calls
+    const fetchRandomWord = useCallback(async () => {
         try {
-            if (typeof window !== 'undefined') {
-                const clerk: any = (window as any).Clerk;
-                const session = clerk?.session;
-                if (session) {
-                    const token = await getCachedToken(session);
-                    if (token) {
-                        headers['Authorization'] = `Bearer ${token}`;
-                        return headers;
-                    }
-                }
-            }
-        } catch (error) {
-            console.warn('Failed to get cached token:', error);
-        }
-
-        // Fallback to useAuth hook if cached token is not available
-        try {
-            const token = await getToken();
-            if (token) {
-                headers['Authorization'] = `Bearer ${token}`;
-            } else {
-                console.warn('No token available from Clerk');
-            }
-        } catch (error) {
-            console.error('Failed to get auth token:', error);
-        }
-
-        return headers
-    }
-
-    const fetchRandomWord = async () => {
-        try {
-            const headers = await getAuthHeaders()
-            const response = await fetch(`/api/langportal/words/random`, {
-                headers,
-                credentials: 'omit',
-                cache: 'no-store',
-            })
-            const data = await response.json()
+            const data = await apiClient.get<Word>(`/api/langportal/words/random`)
             setWord(data)
         } catch (error) {
             console.error('Error fetching word:', error)
         }
-    }
+    }, [apiClient])
 
-    const fetchRandomSentence = async () => {
+    const fetchRandomSentence = useCallback(async () => {
         try {
-            const headers = await getAuthHeaders()
-            const response = await fetch(`/api/writing/random-sentence`, {
-                headers
-            })
-            if (!response.ok) {
-                const errorText = await response.text()
-                let errorMessage = `Failed to fetch sentence: ${response.status}`
-                try {
-                    const errorData = JSON.parse(errorText)
-                    errorMessage = errorData.error || errorData.detail || errorMessage
-                } catch {
-                    errorMessage = errorText || errorMessage
-                }
-                throw new Error(errorMessage)
-            }
-            const data = await response.json()
+            const data = await apiClient.get<Sentence>(`/api/writing/random-sentence`)
             setSentence(data)
         } catch (error) {
             console.error('Error fetching sentence:', error)
         }
-    }
+    }, [apiClient])
 
-    const fetchRandomKanji = async () => {
+    const fetchRandomKanji = useCallback(async () => {
         try {
             setIsLoading(true)
-            const headers = await getAuthHeaders()
-            const response = await fetch(`/api/writing/kanji/random`, {
-                headers
-            })
-            if (!response.ok) {
-                const errorText = await response.text()
-                let errorMessage = `Failed to fetch kanji: ${response.status}`
-                try {
-                    const errorData = JSON.parse(errorText)
-                    errorMessage = errorData.error || errorData.detail || errorMessage
-                } catch {
-                    errorMessage = errorText || errorMessage
-                }
-                throw new Error(errorMessage)
-            }
-            const data = await response.json()
+            const data = await apiClient.get<Kanji>(`/api/writing/kanji/random`)
             setKanji(data)
         } catch (error) {
             console.error('Error fetching kanji:', error)
         } finally {
             setIsLoading(false)
         }
-    }
+    }, [apiClient])
 
     const handleSubmit = async () => {
         try {
             if (!canvasRef.current) return
 
-            const canvas = canvasRef.current as any
-            const base64Image = await canvas.exportImage('base64')
-
-            let endpoint: string
-            let requestBody: any
+            const canvas = canvasRef.current
+            const base64Image = await canvas.exportImage('png')
+            const imageData = base64Image.split(',')[1]
 
             if (studyMode === 'word') {
-                endpoint = `/api/writing/feedback-word`
-                requestBody = {
-                    image: base64Image.split(',')[1],
+                const data = await apiClient.post<{ feedback: string }>(`/api/writing/feedback-word`, {
+                    image: imageData,
                     target_word: word?.japanese
-                }
+                })
+                setFeedback(data.feedback)
             } else if (studyMode === 'sentence') {
-                endpoint = `/api/writing/feedback-sentence`
-                requestBody = {
-                    image: base64Image.split(',')[1],
+                const data = await apiClient.post<{ feedback: string }>(`/api/writing/feedback-sentence`, {
+                    image: imageData,
                     target_sentence: sentence?.sentence
-                }
+                })
+                setFeedback(data.feedback)
             } else {
-                // Kanji mode
-                endpoint = `/api/writing/kanji/feedback`
-                requestBody = {
-                    image: base64Image.split(',')[1],
+                const data = await apiClient.post<{ feedback: string; accuracy: number; grade: string }>(`/api/writing/kanji/feedback`, {
+                    image: imageData,
                     kanji_id: kanji?.id,
                     character: kanji?.character
-                }
-            }
-
-            const headers = await getAuthHeaders()
-            const response = await fetch(endpoint, {
-                method: 'POST',
-                headers,
-                body: JSON.stringify(requestBody)
-            })
-
-            if (!response.ok) {
-                const errorText = await response.text()
-                let errorMessage = `Failed to submit drawing: ${response.status}`
-                try {
-                    const errorData = JSON.parse(errorText)
-                    errorMessage = errorData.error || errorData.detail || errorMessage
-                } catch {
-                    errorMessage = errorText || errorMessage
-                }
-                throw new Error(errorMessage)
-            }
-
-            const data = await response.json()
-            if (studyMode === 'kanji') {
+                })
                 setFeedback(`Accuracy: ${data.accuracy.toFixed(1)}% - Grade: ${data.grade}\n${data.feedback}`)
-            } else {
-                setFeedback(data.feedback)
             }
         } catch (error) {
             console.error('Error submitting drawing:', error)
@@ -240,10 +137,9 @@ export function DrawingStudy() {
         fetchRandomWord()
         fetchRandomSentence()
         fetchRandomKanji()
-    }, [])
+    }, [fetchRandomWord, fetchRandomSentence, fetchRandomKanji])
 
     useEffect(() => {
-        // Fetch new content when mode changes
         if (studyMode === 'word' && !word) {
             fetchRandomWord()
         } else if (studyMode === 'sentence' && !sentence) {
@@ -251,7 +147,7 @@ export function DrawingStudy() {
         } else if (studyMode === 'kanji' && !kanji) {
             fetchRandomKanji()
         }
-    }, [studyMode])
+    }, [studyMode, word, sentence, kanji, fetchRandomWord, fetchRandomSentence, fetchRandomKanji])
 
     if ((studyMode === 'word' && !word) || (studyMode === 'sentence' && !sentence) || (studyMode === 'kanji' && !kanji)) {
         return (

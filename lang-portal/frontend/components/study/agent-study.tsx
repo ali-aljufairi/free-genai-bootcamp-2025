@@ -1,6 +1,6 @@
 "use client"
 import { useState } from 'react'
-import { useUser, useAuth } from "@clerk/nextjs"
+import { useUser } from "@clerk/nextjs"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -11,7 +11,7 @@ import {
     AlertCircle,
     CheckCircle2
 } from "lucide-react"
-import { getCachedToken } from "@/lib/token-cache"
+import { useApiClient } from "@/hooks/useApiClient"
 
 interface AgentStudyProps {
     sessionId: string;
@@ -21,52 +21,12 @@ interface AgentStudyProps {
 
 export function AgentStudy({ sessionId, onComplete }: AgentStudyProps) {
     const { user } = useUser()
-    const { getToken } = useAuth()
+    const apiClient = useApiClient()
     const [learningGoal, setLearningGoal] = useState("")
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [emailSent, setEmailSent] = useState(false)
     const [emailRecipient, setEmailRecipient] = useState<string | null>(null)
-
-    const resourceApiUrl = "/api/agent"
-
-    const getAuthHeaders = async () => {
-        const headers: HeadersInit = {
-            "Content-Type": "application/json",
-            "accept": "application/json"
-        }
-
-        // Use cached token as primary method to reduce API calls
-        try {
-            if (typeof window !== 'undefined') {
-                const clerk: any = (window as any).Clerk;
-                const session = clerk?.session;
-                if (session) {
-                    const token = await getCachedToken(session);
-                    if (token) {
-                        headers['Authorization'] = `Bearer ${token}`;
-                        return headers;
-                    }
-                }
-            }
-        } catch (error) {
-            console.warn('Failed to get cached token:', error);
-        }
-
-        // Fallback to useAuth hook if cached token is not available
-        try {
-            const token = await getToken();
-            if (token) {
-                headers['Authorization'] = `Bearer ${token}`;
-            } else {
-                console.warn('No token available from Clerk');
-            }
-        } catch (error) {
-            console.error('Failed to get auth token:', error);
-        }
-
-        return headers
-    }
 
     const handleGeneratePlan = async () => {
         setIsLoading(true)
@@ -75,22 +35,17 @@ export function AgentStudy({ sessionId, onComplete }: AgentStudyProps) {
         setEmailRecipient(null)
 
         try {
-            const headers = await getAuthHeaders()
-            const response = await fetch(`${resourceApiUrl}/plan/generate`, {
-                method: "POST",
-                headers,
-                body: JSON.stringify({
-                    learning_goal: learningGoal || undefined
-                })
+            const responseData = await apiClient.post<{
+                status: string;
+                data?: {
+                    email_sent?: boolean;
+                    email_recipient?: string;
+                    [key: string]: any;
+                };
+                [key: string]: any;
+            }>("/api/agent/plan/generate", {
+                learning_goal: learningGoal || undefined
             })
-
-            const responseData = await response.json()
-
-            if (!response.ok) {
-                const errorMessage = responseData.detail || responseData.message || "Failed to generate learning plan"
-                setError(errorMessage)
-                throw new Error(errorMessage)
-            }
 
             // Handle API response structure: {status: "success", data: {...}}
             const data = responseData.data || responseData

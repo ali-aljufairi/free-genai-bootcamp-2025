@@ -1,6 +1,7 @@
 "use client";
 
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { useApiClient } from "@/hooks/useApiClient";
 
 interface QuizQuestion {
   grammar_point: string;
@@ -32,22 +33,15 @@ interface GenerateQuizParams {
  * Hook to generate a quiz with specific parameters
  */
 export function useGenerateQuiz() {
+  const apiClient = useApiClient();
+  
   return useMutation({
     mutationFn: async (params: GenerateQuizParams): Promise<QuizResponse> => {
-      const response = await fetch("/api/quiz-gen/quiz/generate", {
-        method: "POST",
+      return apiClient.post<QuizResponse>("/api/quiz-gen/quiz/generate", params, {
         headers: {
-          "Content-Type": "application/json",
           "Accept": "application/json",
         },
-        body: JSON.stringify(params),
       });
-
-      if (!response.ok) {
-        throw new Error("Failed to generate quiz");
-      }
-
-      return response.json();
     },
   });
 }
@@ -56,14 +50,12 @@ export function useGenerateQuiz() {
  * Hook to fetch a quiz by ID
  */
 export function useQuiz(id: string) {
+  const apiClient = useApiClient();
+  
   return useQuery({
     queryKey: ["quiz", id],
     queryFn: async (): Promise<QuizResponse> => {
-      const response = await fetch(`http://localhost:8000/quiz/${id}`);
-      if (!response.ok) {
-        throw new Error("Failed to fetch quiz");
-      }
-      return response.json();
+      return apiClient.get<QuizResponse>(`/api/quiz-gen/quiz/${id}`);
     },
     enabled: !!id,
   });

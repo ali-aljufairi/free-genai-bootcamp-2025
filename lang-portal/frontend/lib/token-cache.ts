@@ -1,6 +1,5 @@
 /**
- * Token Cache Utility
- * Reduces unnecessary Clerk token requests by caching tokens with expiration
+ * @deprecated Use useApiClient() hook instead
  */
 
 type CachedToken = {

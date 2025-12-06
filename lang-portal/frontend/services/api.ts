@@ -1,9 +1,3 @@
-/**
- * API Service for Lang Portal
- * Handles all communication with the backend API
- */
-
-import * as Sentry from '@sentry/nextjs';
 import {
   StudySession,
   Word,
@@ -36,392 +30,174 @@ import {
   WordBuilderSubmitResponse
 } from "@/types/api";
 
-import { getCachedToken } from '@/lib/token-cache';
+import { ApiClient, createApiClient } from '@/lib/api-client';
 
 const API_BASE_URL = '/api/langportal';
 
-/**
- * Basic fetch wrapper with error handling
- */
-async function fetchData<T>(
-  endpoint: string, 
-  options: RequestInit = {}
-): Promise<T> {
-  const url = `${API_BASE_URL}${endpoint}`;
-  
-  const defaultHeaders: Record<string, string> = {
-    'Content-Type': 'application/json',
-  };
-
-  // If running in browser, attach a compact Clerk session token so Next API doesn't need cookies
-  if (typeof window !== 'undefined') {
-    try {
-      const clerk: any = (window as any).Clerk;
-      const session = clerk?.session;
-      if (session) {
-        // Use cached token to reduce unnecessary Clerk API calls
-        const token = await getCachedToken(session);
-        if (token) {
-          defaultHeaders['Authorization'] = `Bearer ${token}`;
-        }
-      }
-    } catch {}
-  }
-
-  try {
-    const response = await fetch(url, {
-      ...options,
-      // Prevent sending cookies to Next.js API (avoids 431 due to large Clerk cookies)
-      credentials: 'omit',
-      cache: 'no-store',
-      headers: {
-        ...defaultHeaders,
-        ...options.headers,
-      },
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      const error = new Error(errorData.message || `API request failed with status ${response.status}`);
-      
-      // Report API errors to Sentry
-      Sentry.captureException(error, {
-        tags: {
-          location: 'api-service',
-          endpoint: endpoint,
-          method: options.method || 'GET',
-        },
-        extra: {
-          url: url,
-          status: response.status,
-          statusText: response.statusText,
-          errorData: errorData,
-        },
-      });
-      
-      throw error;
-    }
-
-    return response.json();
-  } catch (error) {
-    // Report network errors to Sentry
-    Sentry.captureException(error, {
-      tags: {
-        location: 'api-service',
-        endpoint: endpoint,
-        method: options.method || 'GET',
-        errorType: 'network',
-      },
-      extra: {
-        url: url,
-        options: options,
-      },
-    });
-    
-    throw error;
-  }
+function endpoint(path: string): string {
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  return `${API_BASE_URL}${cleanPath}`;
 }
 
-// Dashboard API calls
-export const dashboardApi = {
-  getLastStudySession: () => fetchData<StudySession>('/dashboard/last_study_session'),
-  getStudyProgress: () => fetchData<StudyProgress>('/dashboard/study_progress'),
-  getQuickStats: () => fetchData<QuickStats>('/dashboard/quick-stats'),
-  getActivityDates: () => fetchData<ActivityDatesResponse>('/dashboard/activity_dates'),
-  getRecentActivities: (limit?: number) => fetchData<RecentActivitiesResponse>(`/dashboard/recent_activities${limit ? `?limit=${limit}` : ''}`),
-};
+export function createApiService(client: ApiClient) {
+  const dashboardApi = {
+    getLastStudySession: () => client.get<StudySession>(endpoint('/dashboard/last_study_session')),
+    getStudyProgress: () => client.get<StudyProgress>(endpoint('/dashboard/study_progress')),
+    getQuickStats: () => client.get<QuickStats>(endpoint('/dashboard/quick-stats')),
+    getActivityDates: () => client.get<ActivityDatesResponse>(endpoint('/dashboard/activity_dates')),
+    getRecentActivities: (limit?: number) => 
+      client.get<RecentActivitiesResponse>(endpoint(`/dashboard/recent_activities${limit ? `?limit=${limit}` : ''}`)),
+  };
 
-// Study Session API calls
-// export const studySessionApi = {
-//   getStudySessions: () => fetchData<StudySession[]>('/study_sessions'),
-//   getStudySession: (id: string) => fetchData<StudySession>(`/study_sessions/${id}`),
-//   getStudySessionWords: (id: string) => fetchData<Word[]>(`/study_sessions/${id}/words`),
-//   createStudySession: (data: Partial<StudySession>) => fetchData<StudySession>('/study_sessions', {
-//     method: 'POST',
-//     body: JSON.stringify(data),
-//   }),
-//   reviewWord: (sessionId: string, wordId: string, data: { proficiency: number }) => 
-//     fetchData<{ success: boolean }>(`/study_sessions/${sessionId}/words/${wordId}/review`, {
-//       method: 'POST',
-//       body: JSON.stringify(data),
-//     }),
-// };
+  const studyActivityApi = {
+    getStudyActivities: (page: number = 1, pageSize: number = 20) => 
+      client.get<{ items: StudyActivity[], total: number, page: number }>(
+        endpoint(`/study_activities?page=${page}&per_page=${pageSize}`)
+      ),
+    getStudyActivity: (id: string) => client.get<StudyActivity>(endpoint(`/study_activities/${id}`)),
+    getStudyActivitySessions: (id: string) => client.get<StudySession[]>(endpoint(`/study_activities/${id}/sessions`)),
+    createStudyActivity: (data: Partial<StudyActivity>) => 
+      client.post<StudyActivity>(endpoint('/study_activities'), data),
+  };
 
-// Group API calls
-// export const groupApi = {
-//   getGroups: () => fetchData<Group[]>('/groups'),
-//   getGroup: (id: string) => fetchData<Group>(`/groups/${id}`),
-//   getGroupWords: (id: string) => fetchData<Word[]>(`/groups/${id}/words`),
-//   getGroupStudySessions: (id: string) => fetchData<StudySession[]>(`/groups/${id}/study_sessions`),
-// };
+  const wordApi = {
+    getWords: (page: number = 1, pageSize: number = 20) => 
+      client.get<WordsResponse>(endpoint(`/words?page=${page}&pageSize=${pageSize}`)),
+    search: (params: {
+      q?: string;
+      jlpt?: number;
+      part_of_speech?: string;
+      level?: number;
+      has_kanji?: boolean;
+      correct_count?: number;
+      group_id?: number;
+      limit?: number;
+      offset?: number;
+    }) => {
+      const usp = new URLSearchParams();
+      if (params.q) usp.set('q', params.q);
+      if (params.jlpt != null) usp.set('jlpt', String(params.jlpt));
+      if (params.part_of_speech) usp.set('part_of_speech', params.part_of_speech);
+      if (params.level != null) usp.set('level', String(params.level));
+      if (params.has_kanji != null) usp.set('has_kanji', String(params.has_kanji));
+      if (params.correct_count != null) usp.set('correct_count', String(params.correct_count));
+      if (params.group_id != null) usp.set('group_id', String(params.group_id));
+      if (params.limit != null) usp.set('limit', String(params.limit));
+      if (params.offset != null) usp.set('offset', String(params.offset));
+      return client.get<{ items: any[]; total: number }>(endpoint(`/words/search?${usp.toString()}`));
+    },
+  };
 
-// Study Activity API calls
-export const studyActivityApi = {
-  getStudyActivities: (page: number = 1, pageSize: number = 20) => 
-    fetchData<{ items: StudyActivity[], total: number, page: number }>(`/study_activities?page=${page}&per_page=${pageSize}`),
-  getStudyActivity: (id: string) => fetchData<StudyActivity>(`/study_activities/${id}`),
-  getStudyActivitySessions: (id: string) => fetchData<StudySession[]>(`/study_activities/${id}/sessions`),
-  createStudyActivity: (data: Partial<StudyActivity>) => fetchData<StudyActivity>('/study_activities', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  }),
-};
+  const kanjiApi = {
+    search: (params: {
+      q?: string;
+      jlpt?: number;
+      strokes_min?: number;
+      strokes_max?: number;
+      has_svg?: boolean;
+      frequency_min?: number;
+      frequency_max?: number;
+      onyomi?: boolean;
+      kunyomi?: boolean;
+      components?: string;
+      group_id?: number;
+      page?: number;
+      pageSize?: number;
+    }) => {
+      const usp = new URLSearchParams();
+      if (params.q) usp.set('q', params.q);
+      if (params.jlpt != null) usp.set('jlpt', String(params.jlpt));
+      if (params.strokes_min != null) usp.set('strokes_min', String(params.strokes_min));
+      if (params.strokes_max != null) usp.set('strokes_max', String(params.strokes_max));
+      if (params.has_svg != null) usp.set('has_svg', String(params.has_svg));
+      if (params.frequency_min != null) usp.set('frequency_min', String(params.frequency_min));
+      if (params.frequency_max != null) usp.set('frequency_max', String(params.frequency_max));
+      if (params.onyomi != null) usp.set('onyomi', String(params.onyomi));
+      if (params.kunyomi != null) usp.set('kunyomi', String(params.kunyomi));
+      if (params.components) usp.set('components', params.components);
+      if (params.group_id != null) usp.set('group_id', String(params.group_id));
+      if (params.page != null) usp.set('page', String(params.page));
+      if (params.pageSize != null) usp.set('pageSize', String(params.pageSize));
+      return client.get<{ items: any[]; total: number; page: number; pageSize: number; totalPages: number }>(
+        endpoint(`/kanji?${usp.toString()}`)
+      );
+    },
+  };
 
-// Word API calls (via unified /api/langportal proxy)
-export const wordApi = {
-  getWords: (page: number = 1, pageSize: number = 20) => 
-    fetchData<WordsResponse>(`/words?page=${page}&pageSize=${pageSize}`),
-  // Optionally support search with filters
-  search: (params: {
-    q?: string;
-    jlpt?: number;
-    part_of_speech?: string;
-    level?: number;
-    has_kanji?: boolean;
-    correct_count?: number;
-    group_id?: number;
-    limit?: number;
-    offset?: number;
-  }) => {
-    const usp = new URLSearchParams()
-    if (params.q) usp.set('q', params.q)
-    if (params.jlpt != null) usp.set('jlpt', String(params.jlpt))
-    if (params.part_of_speech) usp.set('part_of_speech', params.part_of_speech)
-    if (params.level != null) usp.set('level', String(params.level))
-    if (params.has_kanji != null) usp.set('has_kanji', String(params.has_kanji))
-    if (params.correct_count != null) usp.set('correct_count', String(params.correct_count))
-    if (params.group_id != null) usp.set('group_id', String(params.group_id))
-    if (params.limit != null) usp.set('limit', String(params.limit))
-    if (params.offset != null) usp.set('offset', String(params.offset))
-    return fetchData<{ items: any[]; total: number }>(`/words/search?${usp.toString()}`)
-  },
-};
+  const groupApi = {
+    getGroups: () => client.get<any[]>(endpoint('/groups')),
+    createGroup: (data: { name: string; description?: string }) => 
+      client.post<any>(endpoint('/groups'), data),
+    addWord: (groupId: number, wordId: number) => 
+      client.post<{ success: boolean }>(endpoint(`/groups/${groupId}/words`), { word_id: wordId }),
+    removeWord: (groupId: number, wordId: number) => 
+      client.delete<{ success: boolean }>(endpoint(`/groups/${groupId}/words/${wordId}`)),
+    addKanji: (groupId: number, kanjiId: number) => 
+      client.post<{ success: boolean }>(endpoint(`/groups/${groupId}/kanji`), { kanji_id: kanjiId }),
+    removeKanji: (groupId: number, kanjiId: number) => 
+      client.delete<{ success: boolean }>(endpoint(`/groups/${groupId}/kanji/${kanjiId}`)),
+  };
 
-// Kanji API calls (via unified /api/langportal proxy)
-export const kanjiApi = {
-  search: (params: {
-    q?: string;
-    jlpt?: number;
-    strokes_min?: number;
-    strokes_max?: number;
-    has_svg?: boolean;
-    frequency_min?: number;
-    frequency_max?: number;
-    onyomi?: boolean;
-    kunyomi?: boolean;
-    components?: string;
-    group_id?: number;
-    page?: number;
-    pageSize?: number;
-  }) => {
-    const usp = new URLSearchParams()
-    if (params.q) usp.set('q', params.q)
-    if (params.jlpt != null) usp.set('jlpt', String(params.jlpt))
-    if (params.strokes_min != null) usp.set('strokes_min', String(params.strokes_min))
-    if (params.strokes_max != null) usp.set('strokes_max', String(params.strokes_max))
-    if (params.has_svg != null) usp.set('has_svg', String(params.has_svg))
-    if (params.frequency_min != null) usp.set('frequency_min', String(params.frequency_min))
-    if (params.frequency_max != null) usp.set('frequency_max', String(params.frequency_max))
-    if (params.onyomi != null) usp.set('onyomi', String(params.onyomi))
-    if (params.kunyomi != null) usp.set('kunyomi', String(params.kunyomi))
-    if (params.components) usp.set('components', params.components)
-    if (params.group_id != null) usp.set('group_id', String(params.group_id))
-    if (params.page != null) usp.set('page', String(params.page))
-    if (params.pageSize != null) usp.set('pageSize', String(params.pageSize))
-    return fetchData<{ items: any[]; total: number; page: number; pageSize: number; totalPages: number }>(`/kanji?${usp.toString()}`)
-  },
-};
+  const userApi = {
+    getMe: () => client.get<any>(endpoint('/users/me')),
+    setFavoriteGroup: (groupId: number | null) => 
+      client.put<{ success: boolean }>(endpoint('/users/me/favorite_group'), { group_id: groupId }),
+    updateUser: (userId: string, data: { display_name?: string | null; email?: string | null }) => 
+      client.put<{ message: string }>(endpoint(`/users/${userId}`), data),
+    getUserSettings: (userId: string) => client.get<{
+      user_id: number;
+      hide_english: boolean;
+      ui_language: string;
+      timezone: string;
+      daily_review_target: number;
+      current_jlpt_level: number;
+    }>(endpoint(`/users/${userId}/settings`)),
+    updateUserSettings: (userId: string, data: {
+      hide_english?: boolean;
+      ui_language?: string;
+      timezone?: string;
+      daily_review_target?: number;
+      current_jlpt_level?: number;
+    }) => client.put<{
+      user_id: number;
+      hide_english: boolean;
+      ui_language: string;
+      timezone: string;
+      daily_review_target: number;
+      current_jlpt_level: number;
+    }>(endpoint(`/users/${userId}/settings`), data),
+  };
 
-// Groups API (via unified /api/langportal proxy)
-export const groupApi = {
-  getGroups: () => fetchData<any[]>('/groups'),
-  createGroup: (data: { name: string; description?: string }) => fetchData<any>('/groups', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  }),
-  addWord: (groupId: number, wordId: number) => fetchData<{ success: boolean }>(`/groups/${groupId}/words`, {
-    method: 'POST',
-    body: JSON.stringify({ word_id: wordId }),
-  }),
-  removeWord: (groupId: number, wordId: number) => fetchData<{ success: boolean }>(`/groups/${groupId}/words/${wordId}`, {
-    method: 'DELETE',
-  }),
-  addKanji: (groupId: number, kanjiId: number) => fetchData<{ success: boolean }>(`/groups/${groupId}/kanji`, {
-    method: 'POST',
-    body: JSON.stringify({ kanji_id: kanjiId }),
-  }),
-  removeKanji: (groupId: number, kanjiId: number) => fetchData<{ success: boolean }>(`/groups/${groupId}/kanji/${kanjiId}`, {
-    method: 'DELETE',
-  }),
-};
+  const flashcardsV2Api = {
+    start: (config: FlashcardConfig) => 
+      client.post<FlashcardSession>('/api/flashcards/start', config),
+    submit: (submission: FlashcardSubmission) => 
+      client.post<FlashcardResult>('/api/flashcards/submit', submission),
+    history: (page: number = 1, pageSize: number = 10) => 
+      client.get(`/api/flashcards/history?page=${page}&pageSize=${pageSize}`),
+    courses: () => client.get<Course[]>('/api/flashcards/courses'),
+    units: (courseId: number) => 
+      client.get<Unit[]>(`/api/flashcards/courses/${courseId}/units`),
+  };
 
-// User API (favorite group)
-export const userApi = {
-  getMe: () => fetchData<any>(`/users/me`), // Return type is UserProfile but defined in useGroup.ts
-  setFavoriteGroup: (groupId: number | null) => fetchData<{ success: boolean }>(`/users/me/favorite_group`, {
-    method: 'PUT',
-    body: JSON.stringify({ group_id: groupId }),
-  }),
-  updateUser: (userId: string, data: { display_name?: string | null; email?: string | null }) => 
-    fetchData<{ message: string }>(`/users/${userId}`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    }),
-  getUserSettings: (userId: string) => fetchData<{
-    user_id: number;
-    hide_english: boolean;
-    ui_language: string;
-    timezone: string;
-    daily_review_target: number;
-    current_jlpt_level: number;
-  }>(`/users/${userId}/settings`),
-  updateUserSettings: (userId: string, data: {
-    hide_english?: boolean;
-    ui_language?: string;
-    timezone?: string;
-    daily_review_target?: number;
-    current_jlpt_level?: number;
-  }) => fetchData<{
-    user_id: number;
-    hide_english: boolean;
-    ui_language: string;
-    timezone: string;
-    daily_review_target: number;
-    current_jlpt_level: number;
-  }>(`/users/${userId}/settings`, {
-    method: 'PUT',
-    body: JSON.stringify(data),
-  }),
-};
-
-
-
-// Flashcards API using Next.js API routes for proper server-side authentication
-export const flashcardsV2Api = {
-  start: async (config: FlashcardConfig): Promise<FlashcardSession> => {
-    const response = await fetch('/api/flashcards/start', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(config),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
-      throw new Error(errorData.message || `Failed to start flashcard session: ${response.status}`);
-    }
-
-    const result = await response.json();
-    console.log("Raw API response:", result); // Debug log
-    
-    // Handle wrapped response from Next.js API route
-    if (result.success && result.data) {
-      return result.data;
-    }
-    
-    // Handle direct response (fallback)
-    return result;
-  },
-
-  submit: async (submission: FlashcardSubmission): Promise<FlashcardResult> => {
-    const response = await fetch('/api/flashcards/submit', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(submission),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
-      throw new Error(errorData.message || `Failed to submit flashcard session: ${response.status}`);
-    }
-
-    const result = await response.json();
-    console.log("Raw submit API response:", result); // Debug log
-    
-    // Handle wrapped response from Next.js API route
-    if (result.success && result.data) {
-      return result.data;
-    }
-    
-    // Handle direct response (fallback)
-    return result;
-  },
-
-  history: async (page: number = 1, pageSize: number = 10) => {
-    const response = await fetch(`/api/flashcards/history?page=${page}&pageSize=${pageSize}`);
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
-      throw new Error(errorData.message || `Failed to fetch flashcard history: ${response.status}`);
-    }
-
-    return response.json();
-  },
-
-  courses: async (): Promise<Course[]> => {
-    const response = await fetch('/api/flashcards/courses');
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
-      throw new Error(errorData.message || `Failed to fetch courses: ${response.status}`);
-    }
-
-    const result = await response.json();
-    // Handle wrapped response from api-proxy
-    return result.data || result;
-  },
-
-  units: async (courseId: number): Promise<Unit[]> => {
-    const response = await fetch(`/api/flashcards/courses/${courseId}/units`);
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
-      throw new Error(errorData.message || `Failed to fetch units: ${response.status}`);
-    }
-
-    const result = await response.json();
-    // Handle wrapped response from api-proxy
-    return result.data || result;
-  },
-};
-
-// Grammar Quiz API using langportal proxy
-export const grammarApi = {
-  start: async (config: GrammarQuizConfig): Promise<GrammarQuizSession> => {
-    return fetchData<GrammarQuizSession>('/grammar/start', {
-      method: 'POST',
-      body: JSON.stringify(config),
-    });
-  },
-
-  submit: async (submission: GrammarSubmission): Promise<GrammarResult> => {
-    return fetchData<GrammarResult>('/grammar/submit', {
-      method: 'POST',
-      body: JSON.stringify(submission),
-    });
-  },
-
-  history: async (page: number = 1, pageSize: number = 10) => {
-    return fetchData<{ sessions: GrammarQuizSession[], total: number, page: number, pageSize: number, totalPages: number }>(`/grammar/history?page=${page}&pageSize=${pageSize}`);
-  },
-
-  // Grammar browsing API
-  list: async () => {
-    return fetchData<Array<{
+  const grammarApi = {
+    start: (config: GrammarQuizConfig) => 
+      client.post<GrammarQuizSession>(endpoint('/grammar/start'), config),
+    submit: (submission: GrammarSubmission) => 
+      client.post<GrammarResult>(endpoint('/grammar/submit'), submission),
+    history: (page: number = 1, pageSize: number = 10) => 
+      client.get<{ sessions: GrammarQuizSession[], total: number, page: number, pageSize: number, totalPages: number }>(
+        endpoint(`/grammar/history?page=${page}&pageSize=${pageSize}`)
+      ),
+    list: () => client.get<Array<{
       id: number;
       key: string;
       base_form: string;
       level: string;
       structure?: string;
       is_learned?: boolean;
-    }>>('/grammar');
-  },
-
-  getDetail: async (id: number) => {
-    return fetchData<{
+    }>>(endpoint('/grammar')),
+    getDetail: (id: number) => client.get<{
       id: number;
       key: string;
       base_form: string;
@@ -443,87 +219,69 @@ export const grammarApi = {
         reading: string;
         position: number;
       }>;
-    }>(`/grammar/${id}`);
-  },
+    }>(endpoint(`/grammar/${id}`)),
+    markAsLearned: (id: number) => 
+      client.post<{ message: string; grammar_id: number }>(endpoint(`/grammar/${id}/learned`)),
+  };
 
-  markAsLearned: async (id: number) => {
-    return fetchData<{ message: string; grammar_id: number }>(`/grammar/${id}/learned`, {
-      method: 'POST',
-    });
-  },
-};
+  const chatApi = {
+    saveSession: (request: SaveChatSessionRequest) => 
+      client.post<{ id: number; session_id: string; created?: boolean; updated?: boolean }>(
+        endpoint('/chat/sessions'), 
+        request
+      ),
+    getHistory: () => client.get<ChatSession[]>(endpoint('/chat/sessions')),
+    saveSkillAssessment: (sessionId: string, assessment: SaveSkillAssessmentRequest) => 
+      client.post<ChatSession>(endpoint(`/chat/sessions/${sessionId}/assessment`), assessment),
+  };
 
-// Chat API using langportal proxy
-export const chatApi = {
-  saveSession: async (request: SaveChatSessionRequest): Promise<{ id: number; session_id: string; created?: boolean; updated?: boolean }> => {
-    return fetchData<{ id: number; session_id: string; created?: boolean; updated?: boolean }>('/chat/sessions', {
-      method: 'POST',
-      body: JSON.stringify(request),
-    });
-  },
+  const wordBuilderApi = {
+    start: (config: WordBuilderConfig) => 
+      client.post<WordBuilderSession>(endpoint('/word-builder/start'), config),
+    refresh: (request: WordBuilderRefreshRequest) => 
+      client.post<WordBuilderRefreshResponse>(endpoint('/word-builder/refresh'), request),
+    submit: (results: WordBuilderResults) => 
+      client.post<WordBuilderSubmitResponse>(endpoint('/word-builder/submit'), results),
+  };
 
-  getHistory: async (): Promise<ChatSession[]> => {
-    return fetchData<ChatSession[]>('/chat/sessions');
-  },
-
-  saveSkillAssessment: async (sessionId: string, assessment: SaveSkillAssessmentRequest): Promise<ChatSession> => {
-    return fetchData<ChatSession>(`/chat/sessions/${sessionId}/assessment`, {
-      method: 'POST',
-      body: JSON.stringify(assessment),
-    });
-  },
-};
-
-// Word Builder API using langportal proxy
-export const wordBuilderApi = {
-  start: async (config: WordBuilderConfig): Promise<WordBuilderSession> => {
-    return fetchData<WordBuilderSession>('/word-builder/start', {
-      method: 'POST',
-      body: JSON.stringify(config),
-    });
-  },
-
-  refresh: async (request: WordBuilderRefreshRequest): Promise<WordBuilderRefreshResponse> => {
-    return fetchData<WordBuilderRefreshResponse>('/word-builder/refresh', {
-      method: 'POST',
-      body: JSON.stringify(request),
-    });
-  },
-
-  submit: async (results: WordBuilderResults): Promise<WordBuilderSubmitResponse> => {
-    return fetchData<WordBuilderSubmitResponse>('/word-builder/submit', {
-      method: 'POST',
-      body: JSON.stringify(results),
-    });
-  },
-};
-
-// Subscription API using langportal proxy
-export const subscriptionApi = {
-  getUsageCount: async () => {
-    return fetchData<{
+  const subscriptionApi = {
+    getUsageCount: () => client.get<{
       session_count: number;
       month_year: string;
       plan: string;
       limit: number;
       remaining: number;
-    }>('/subscription/usage');
-  },
-};
+    }>(endpoint('/subscription/usage')),
+  };
 
-export const api = {
-  dashboard: dashboardApi,
-  // studySession: studySessionApi,
-  group: groupApi,
-  studyActivity: studyActivityApi,
-  word: wordApi,
-  kanji: kanjiApi,
-  user: userApi,
-  flashcardsV2: flashcardsV2Api,
-  grammar: grammarApi,
-  chat: chatApi,
-  wordBuilder: wordBuilderApi,
-  subscription: subscriptionApi,
-};
+  return {
+    dashboard: dashboardApi,
+    studyActivity: studyActivityApi,
+    word: wordApi,
+    kanji: kanjiApi,
+    group: groupApi,
+    user: userApi,
+    flashcardsV2: flashcardsV2Api,
+    grammar: grammarApi,
+    chat: chatApi,
+    wordBuilder: wordBuilderApi,
+    subscription: subscriptionApi,
+  };
+}
+
+const defaultClient = createApiClient();
+const api = createApiService(defaultClient);
 
 export default api;
+
+export const dashboardApi = api.dashboard;
+export const studyActivityApi = api.studyActivity;
+export const wordApi = api.word;
+export const kanjiApi = api.kanji;
+export const groupApi = api.group;
+export const userApi = api.user;
+export const flashcardsV2Api = api.flashcardsV2;
+export const grammarApi = api.grammar;
+export const chatApi = api.chat;
+export const wordBuilderApi = api.wordBuilder;
+export const subscriptionApi = api.subscription;
