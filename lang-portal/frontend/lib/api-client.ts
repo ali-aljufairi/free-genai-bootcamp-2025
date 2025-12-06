@@ -5,11 +5,18 @@ export interface ApiClientOptions extends RequestInit {
   unwrapResponse?: boolean;
 }
 
-export interface ApiError {
-  message: string;
+export class ApiError extends Error {
   code?: string;
   status?: number;
   details?: unknown;
+
+  constructor(message: string, options?: { code?: string; status?: number; details?: unknown }) {
+    super(message);
+    this.name = 'ApiError';
+    this.code = options?.code;
+    this.status = options?.status;
+    this.details = options?.details;
+  }
 }
 
 async function getTokenFromBrowser(): Promise<string | null> {
@@ -76,14 +83,12 @@ export class ApiClient {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        const error: ApiError = {
-          message: errorData.message || errorData.error || `API request failed with status ${response.status}`,
-          code: errorData.code,
-          status: response.status,
-          details: errorData,
-        };
+        const error = new ApiError(
+          errorData.message || errorData.error || `API request failed with status ${response.status}`,
+          { code: errorData.code, status: response.status, details: errorData }
+        );
         
-        Sentry.captureException(new Error(error.message), {
+        Sentry.captureException(error, {
           tags: {
             location: 'api-client',
             endpoint: url,
@@ -102,26 +107,24 @@ export class ApiClient {
         if (data.success) {
           return data.data as T;
         }
-        const error: ApiError = {
-          message: data.error?.error || data.error?.message || 'API request failed',
-          code: data.error?.code,
-          details: data.error,
-        };
-        throw error;
+        throw new ApiError(
+          data.error?.error || data.error?.message || 'API request failed',
+          { code: data.error?.code, details: data.error }
+        );
       }
 
       return data as T;
     } catch (error) {
-      if (error && typeof error === 'object' && 'message' in error) {
+      if (error instanceof ApiError) {
         throw error;
       }
 
-      const networkError: ApiError = {
-        message: error instanceof Error ? error.message : 'Network error occurred',
-        code: 'NETWORK_ERROR',
-      };
+      const networkError = new ApiError(
+        error instanceof Error ? error.message : 'Network error occurred',
+        { code: 'NETWORK_ERROR' }
+      );
 
-      Sentry.captureException(error instanceof Error ? error : new Error(networkError.message), {
+      Sentry.captureException(networkError, {
         tags: {
           location: 'api-client',
           endpoint: url,

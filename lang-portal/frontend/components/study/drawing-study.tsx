@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { ReactSketchCanvas, ReactSketchCanvasRef } from 'react-sketch-canvas'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -51,25 +51,25 @@ export function DrawingStudy() {
     const [showKanjiGuide, setShowKanjiGuide] = useState(true)
     const canvasRef = useRef<ReactSketchCanvasRef | null>(null)
 
-    const fetchRandomWord = async () => {
+    const fetchRandomWord = useCallback(async () => {
         try {
             const data = await apiClient.get<Word>(`/api/langportal/words/random`)
             setWord(data)
         } catch (error) {
             console.error('Error fetching word:', error)
         }
-    }
+    }, [apiClient])
 
-    const fetchRandomSentence = async () => {
+    const fetchRandomSentence = useCallback(async () => {
         try {
             const data = await apiClient.get<Sentence>(`/api/writing/random-sentence`)
             setSentence(data)
         } catch (error) {
             console.error('Error fetching sentence:', error)
         }
-    }
+    }, [apiClient])
 
-    const fetchRandomKanji = async () => {
+    const fetchRandomKanji = useCallback(async () => {
         try {
             setIsLoading(true)
             const data = await apiClient.get<Kanji>(`/api/writing/kanji/random`)
@@ -79,45 +79,35 @@ export function DrawingStudy() {
         } finally {
             setIsLoading(false)
         }
-    }
+    }, [apiClient])
 
     const handleSubmit = async () => {
         try {
             if (!canvasRef.current) return
 
-            const canvas = canvasRef.current as any
-            const base64Image = await canvas.exportImage('base64')
-
-            let endpoint: string
-            let requestBody: any
+            const canvas = canvasRef.current
+            const base64Image = await canvas.exportImage('png')
+            const imageData = base64Image.split(',')[1]
 
             if (studyMode === 'word') {
-                endpoint = `/api/writing/feedback-word`
-                requestBody = {
-                    image: base64Image.split(',')[1],
+                const data = await apiClient.post<{ feedback: string }>(`/api/writing/feedback-word`, {
+                    image: imageData,
                     target_word: word?.japanese
-                }
+                })
+                setFeedback(data.feedback)
             } else if (studyMode === 'sentence') {
-                endpoint = `/api/writing/feedback-sentence`
-                requestBody = {
-                    image: base64Image.split(',')[1],
+                const data = await apiClient.post<{ feedback: string }>(`/api/writing/feedback-sentence`, {
+                    image: imageData,
                     target_sentence: sentence?.sentence
-                }
+                })
+                setFeedback(data.feedback)
             } else {
-                // Kanji mode
-                endpoint = `/api/writing/kanji/feedback`
-                requestBody = {
-                    image: base64Image.split(',')[1],
+                const data = await apiClient.post<{ feedback: string; accuracy: number; grade: string }>(`/api/writing/kanji/feedback`, {
+                    image: imageData,
                     kanji_id: kanji?.id,
                     character: kanji?.character
-                }
-            }
-
-            const data = await apiClient.post<{ feedback: string; accuracy?: number; grade?: string }>(endpoint, requestBody)
-            if (studyMode === 'kanji' && data.accuracy !== undefined && data.grade) {
+                })
                 setFeedback(`Accuracy: ${data.accuracy.toFixed(1)}% - Grade: ${data.grade}\n${data.feedback}`)
-            } else {
-                setFeedback(data.feedback)
             }
         } catch (error) {
             console.error('Error submitting drawing:', error)
@@ -147,10 +137,9 @@ export function DrawingStudy() {
         fetchRandomWord()
         fetchRandomSentence()
         fetchRandomKanji()
-    }, [])
+    }, [fetchRandomWord, fetchRandomSentence, fetchRandomKanji])
 
     useEffect(() => {
-        // Fetch new content when mode changes
         if (studyMode === 'word' && !word) {
             fetchRandomWord()
         } else if (studyMode === 'sentence' && !sentence) {
@@ -158,7 +147,7 @@ export function DrawingStudy() {
         } else if (studyMode === 'kanji' && !kanji) {
             fetchRandomKanji()
         }
-    }, [studyMode])
+    }, [studyMode, word, sentence, kanji, fetchRandomWord, fetchRandomSentence, fetchRandomKanji])
 
     if ((studyMode === 'word' && !word) || (studyMode === 'sentence' && !sentence) || (studyMode === 'kanji' && !kanji)) {
         return (
