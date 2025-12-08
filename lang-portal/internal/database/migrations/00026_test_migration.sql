@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS migration_test (
     test_value TEXT
 );
 
--- Insert a test record
+-- Insert a test records
 INSERT INTO migration_test (test_name, test_value) 
 VALUES ('GitHub Actions Migration Test', 'Migration workflow is working correctly!');
 
