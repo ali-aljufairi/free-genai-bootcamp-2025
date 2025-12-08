@@ -25,7 +25,10 @@ jobs:
           tags: tag:ci
 
       - name: Verify Tailscale connection
-        run: tailscale status
+        run: |
+          tailscale status
+          # Verify we can reach Kubernetes DNS
+          nslookup kubernetes.default.svc.cluster.local || true
 
       - name: Set up kubectl
         uses: azure/setup-kubectl@v4
@@ -53,12 +56,20 @@ jobs:
             cp .env.example .env
           fi
 
+      - name: Get database connection details from Kubernetes
+        run: |
+          # Get the Tailscale IP of the postgres pod
+          POD_IP=$(kubectl get pods -n sorami -l cnpg.io/cluster=sorami-postgres -o jsonpath='{.items[0].status.podIP}')
+          # Mask the IP from logs to prevent exposure
+          echo "::add-mask::$POD_IP"
+          echo "DB_ENDPOINT=$POD_IP" >> $GITHUB_ENV
+
       - name: Check migration status
         run: |
           cd lang-portal
           make db-migrate-status
         env:
-          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_HOST: ${{ env.DB_ENDPOINT }}
           DB_PORT: ${{ secrets.DB_PORT }}
           DB_USER: ${{ secrets.DB_USER }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
@@ -70,7 +81,7 @@ jobs:
           make db-migrate
         timeout-minutes: 10
         env:
-          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_HOST: ${{ env.DB_ENDPOINT }}
           DB_PORT: ${{ secrets.DB_PORT }}
           DB_USER: ${{ secrets.DB_USER }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
@@ -81,7 +92,7 @@ jobs:
           cd lang-portal
           make db-migrate-status
         env:
-          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_HOST: ${{ env.DB_ENDPOINT }}
           DB_PORT: ${{ secrets.DB_PORT }}
           DB_USER: ${{ secrets.DB_USER }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
