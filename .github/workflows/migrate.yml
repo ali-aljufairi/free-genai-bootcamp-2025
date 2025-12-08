@@ -56,13 +56,22 @@ jobs:
             cp .env.example .env
           fi
 
-      - name: Get database connection details from Kubernetes
+      - name: Setup database port-forward tunnel
         run: |
-          # Get the Tailscale IP of the postgres pod
-          POD_IP=$(kubectl get pods -n sorami -l cnpg.io/cluster=sorami-postgres -o jsonpath='{.items[0].status.podIP}')
-          # Mask the IP from logs to prevent exposure
-          echo "::add-mask::$POD_IP"
-          echo "DB_ENDPOINT=$POD_IP" >> $GITHUB_ENV
+          # Start kubectl port-forward in background to tunnel to database
+          kubectl port-forward -n sorami service/sorami-postgres-rw 5432:5432 &
+          PF_PID=$!
+          echo "PF_PID=$PF_PID" >> $GITHUB_ENV
+          
+          # Wait for port-forward to be ready
+          sleep 3
+          
+          # Test the tunnel
+          echo "Testing port-forward tunnel..."
+          nc -zv localhost 5432 || true
+          
+          # Use localhost as the endpoint
+          echo "DB_ENDPOINT=localhost" >> $GITHUB_ENV
 
       - name: Check migration status
         run: |
