@@ -68,7 +68,7 @@ export default function MobileBottomNav() {
             className="md:hidden fixed bottom-0 left-0 right-0 z-40 border-t bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm"
             style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
         >
-            <div className="flex items-center justify-around h-16 px-2">
+            <div className="flex items-stretch justify-center gap-1 h-16 px-1 sm:px-2">
                 {primaryRoutes.map((route) => {
                     const Icon = route.icon
                     const isActive = pathname === route.path
@@ -78,19 +78,19 @@ export default function MobileBottomNav() {
                             key={route.path}
                             href={route.path}
                             className={cn(
-                                "relative flex flex-col items-center justify-center gap-1 flex-1 h-full rounded-md transition-colors min-w-0",
+                                "relative flex flex-col items-center justify-center gap-0.5 flex-1 rounded-lg transition-colors",
                                 isActive
                                     ? "text-blue-600 dark:text-blue-400"
-                                    : "text-muted-foreground hover:text-foreground"
+                                    : "text-muted-foreground hover:text-foreground hover:bg-gray-100/50 dark:hover:bg-slate-800/50"
                             )}
                         >
                             <Icon className={cn(
-                                "h-5 w-5 transition-colors shrink-0",
+                                "h-6 w-6 transition-colors flex-shrink-0",
                                 isActive && "text-blue-600 dark:text-blue-400"
                             )} />
-                            <span className="text-xs font-medium truncate w-full text-center">{route.name}</span>
+                            <span className="text-xs font-medium text-center leading-tight">{route.name}</span>
                             {isActive && (
-                                <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-1/2 h-0.5 bg-blue-600 dark:bg-blue-400 rounded-t-full" />
+                                <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-2/3 h-1 bg-blue-600 dark:bg-blue-400 rounded-t-full" />
                             )}
                         </Link>
                     )
@@ -102,19 +102,19 @@ export default function MobileBottomNav() {
                         <Button
                             variant="ghost"
                             className={cn(
-                                "relative flex flex-col items-center justify-center gap-1 flex-1 h-full rounded-md transition-colors min-w-0",
+                                "relative flex flex-col items-center justify-center gap-0.5 flex-1 rounded-lg transition-colors p-0 h-auto hover:bg-gray-100/50 dark:hover:bg-slate-800/50",
                                 pathname === "/grammar" || pathname === "/groups"
                                     ? "text-blue-600 dark:text-blue-400"
                                     : "text-muted-foreground hover:text-foreground"
                             )}
                         >
                             <MoreVertical className={cn(
-                                "h-5 w-5 transition-colors shrink-0",
+                                "h-6 w-6 transition-colors flex-shrink-0",
                                 (pathname === "/grammar" || pathname === "/groups") && "text-blue-600 dark:text-blue-400"
                             )} />
-                            <span className="text-xs font-medium truncate w-full text-center">More</span>
+                            <span className="text-xs font-medium text-center leading-tight">More</span>
                             {(pathname === "/grammar" || pathname === "/groups") && (
-                                <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-1/2 h-0.5 bg-blue-600 dark:bg-blue-400 rounded-t-full" />
+                                <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-2/3 h-1 bg-blue-600 dark:bg-blue-400 rounded-t-full" />
                             )}
                         </Button>
                     </DropdownMenuTrigger>
