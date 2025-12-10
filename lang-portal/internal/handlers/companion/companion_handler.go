@@ -3,74 +3,37 @@ package companion
 import (
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
-	"os"
+	"lang-portal/internal/services"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
 )
 
-// ClerkUser represents user data from Clerk API
-type ClerkUser struct {
-	ID             string                 `json:"id"`
-	PublicMetadata map[string]interface{} `json:"public_metadata"`
-}
-
 // CompanionHandler handles companion study operations
 type CompanionHandler struct {
-	db        *gorm.DB
-	secretKey string
+	db                  *gorm.DB
+	subscriptionService *services.SubscriptionService
 }
 
 // NewCompanionHandler creates a new instance of CompanionHandler
 func NewCompanionHandler(db *gorm.DB) (*CompanionHandler, error) {
-	secretKey := os.Getenv("CLERK_SECRET_KEY")
-	// Return handler even without secret key for development
+	// Initialize subscription service (may fail in dev, but that's OK)
+	subscriptionService, err := services.NewSubscriptionService()
+	if err != nil {
+		// In development, allow handler to be created without subscription service
+		// The checkCompanionStudyLimit will handle this gracefully
+		fmt.Printf("Warning: Failed to initialize subscription service: %v (continuing without it)\n", err)
+		return &CompanionHandler{
+			db:                  db,
+			subscriptionService: nil,
+		}, nil
+	}
+
 	return &CompanionHandler{
-		db:        db,
-		secretKey: secretKey,
+		db:                  db,
+		subscriptionService: subscriptionService,
 	}, nil
-}
-
-// fetchClerkUser fetches user data from Clerk API
-func (h *CompanionHandler) fetchClerkUser(userID string) (*ClerkUser, error) {
-	if h.secretKey == "" {
-		return nil, fmt.Errorf("CLERK_SECRET_KEY not configured")
-	}
-
-	url := fmt.Sprintf("https://api.clerk.com/v1/users/%s", userID)
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-
-	req.Header.Set("Authorization", "Bearer "+h.secretKey)
-	req.Header.Set("Content-Type", "application/json")
-
-	client := &http.Client{Timeout: 10 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to make request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("clerk API returned status %d", resp.StatusCode)
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response: %w", err)
-	}
-
-	var user ClerkUser
-	if err := json.Unmarshal(body, &user); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &user, nil
 }
 
 // SaveCompanionStudySession saves a companion study session to the database
@@ -100,7 +63,7 @@ func (h *CompanionHandler) SaveCompanionStudySession(c *fiber.Ctx) error {
 	}
 
 	// Check subscription limit before saving
-	if h.secretKey != "" {
+	if h.subscriptionService != nil {
 		canStart, err := h.checkCompanionStudyLimit(c, userID)
 		if err != nil {
 			// Log error but don't block in case of Clerk API issues
@@ -179,32 +142,34 @@ func (h *CompanionHandler) SaveCompanionStudySession(c *fiber.Ctx) error {
 
 // checkCompanionStudyLimit checks if user can start a companion study session
 func (h *CompanionHandler) checkCompanionStudyLimit(c *fiber.Ctx, userID int64) (bool, error) {
-	clerkUserID, ok := c.Locals("clerk_user_id").(string)
-	if !ok || clerkUserID == "" || h.secretKey == "" {
-		// If no Clerk secret key or user ID, allow (for development)
+	// If subscription service is not initialized, allow (for development)
+	if h.subscriptionService == nil {
 		return true, nil
 	}
 
-	// Fetch user from Clerk to check subscription
-	user, err := h.fetchClerkUser(clerkUserID)
-	if err != nil {
-		return false, fmt.Errorf("failed to fetch user: %w", err)
+	clerkUserID, ok := c.Locals("clerk_user_id").(string)
+	if !ok || clerkUserID == "" {
+		// If no Clerk user ID, allow (for development)
+		return true, nil
 	}
 
-	// Check if user has Pro plan (unlimited access)
-	hasProPlan := false
-	if user.PublicMetadata != nil {
-		if plan, ok := user.PublicMetadata["subscription_plan"].(string); ok {
-			hasProPlan = plan == "pro"
-		}
+	// Get subscription plan using the service (with caching)
+	ctx := c.Context()
+	plan, hasActive, err := h.subscriptionService.GetSubscriptionPlan(ctx, clerkUserID)
+	if err != nil {
+		// On error, log but allow access (graceful degradation)
+		fmt.Printf("Warning: Failed to check subscription: %v (allowing access)\n", err)
+		// Continue to check usage limits as fallback
+		plan = "none"
+		hasActive = false
 	}
 
 	// If Pro plan, allow unlimited
-	if hasProPlan {
+	if hasActive && plan == "pro" {
 		return true, nil
 	}
 
-	// For Basic plan, check usage count
+	// For Basic plan or no plan, check usage count
 	currentMonth := time.Now().Format("2006-01")
 	var usage struct {
 		SessionCount int `gorm:"column:session_count"`

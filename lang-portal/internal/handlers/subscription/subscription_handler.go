@@ -1,75 +1,31 @@
 package subscription
 
 import (
-	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
-	"os"
+	"lang-portal/internal/services"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
 )
 
-// ClerkUser represents user data from Clerk API
-type ClerkUser struct {
-	ID             string                 `json:"id"`
-	PublicMetadata map[string]interface{} `json:"public_metadata"`
-}
-
 // SubscriptionHandler handles subscription-related operations
 type SubscriptionHandler struct {
-	db        *gorm.DB
-	secretKey string
+	db                  *gorm.DB
+	subscriptionService *services.SubscriptionService
 }
 
 // NewSubscriptionHandler creates a new instance of SubscriptionHandler
 func NewSubscriptionHandler(db *gorm.DB) (*SubscriptionHandler, error) {
-	secretKey := os.Getenv("CLERK_SECRET_KEY")
-	if secretKey == "" {
-		return nil, fmt.Errorf("CLERK_SECRET_KEY environment variable not set")
+	subscriptionService, err := services.NewSubscriptionService()
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize subscription service: %w", err)
 	}
 
 	return &SubscriptionHandler{
-		db:        db,
-		secretKey: secretKey,
+		db:                  db,
+		subscriptionService: subscriptionService,
 	}, nil
-}
-
-// fetchClerkUser fetches user data from Clerk API
-func (h *SubscriptionHandler) fetchClerkUser(userID string) (*ClerkUser, error) {
-	url := fmt.Sprintf("https://api.clerk.com/v1/users/%s", userID)
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-
-	req.Header.Set("Authorization", "Bearer "+h.secretKey)
-	req.Header.Set("Content-Type", "application/json")
-
-	client := &http.Client{Timeout: 10 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to make request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("clerk API returned status %d", resp.StatusCode)
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response: %w", err)
-	}
-
-	var user ClerkUser
-	if err := json.Unmarshal(body, &user); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &user, nil
 }
 
 // CheckCompanionStudyLimit checks if user can start a companion study session
@@ -90,29 +46,18 @@ func (h *SubscriptionHandler) CheckCompanionStudyLimit(c *fiber.Ctx) error {
 		})
 	}
 
-	// Fetch user from Clerk to check subscription
-	user, err := h.fetchClerkUser(clerkUserID)
+	// Get subscription plan using the service (with caching)
+	ctx := c.Context()
+	plan, hasActive, err := h.subscriptionService.GetSubscriptionPlan(ctx, clerkUserID)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to fetch user subscription",
-		})
+		// Log error but don't block - allow access with basic plan limits as fallback
+		// This ensures service continues to work if Clerk API is temporarily unavailable
+		plan = "none"
+		hasActive = false
 	}
-
-	// Check if user has Pro plan (unlimited access)
-	hasProPlan := false
-	if user.PublicMetadata != nil {
-		if plan, ok := user.PublicMetadata["subscription_plan"].(string); ok {
-			hasProPlan = plan == "pro"
-		}
-	}
-
-	// Also check Clerk's subscription data if available
-	// Note: Clerk Billing stores subscription info differently, we need to check the actual subscription
-	// For now, we'll use a helper to check if user has the "pro" plan via Clerk's has() method
-	// Since we're in Go backend, we'll check the subscription items directly
 
 	// If Pro plan, allow unlimited
-	if hasProPlan {
+	if hasActive && plan == "pro" {
 		return c.JSON(fiber.Map{
 			"can_start": true,
 			"reason":    "unlimited",
@@ -120,7 +65,7 @@ func (h *SubscriptionHandler) CheckCompanionStudyLimit(c *fiber.Ctx) error {
 		})
 	}
 
-	// For Basic plan, check usage count
+	// For Basic plan or no plan, check usage count
 	currentMonth := time.Now().Format("2006-01")
 	var usage struct {
 		SessionCount int `gorm:"column:session_count"`
@@ -139,10 +84,16 @@ func (h *SubscriptionHandler) CheckCompanionStudyLimit(c *fiber.Ctx) error {
 	limit := 10
 	canStart := sessionCount < limit
 
+	// If no active subscription, still check limit but return appropriate plan
+	responsePlan := plan
+	if !hasActive {
+		responsePlan = "none"
+	}
+
 	return c.JSON(fiber.Map{
 		"can_start":     canStart,
 		"reason":        "usage_limit",
-		"plan":          "basic",
+		"plan":          responsePlan,
 		"session_count": sessionCount,
 		"limit":         limit,
 		"remaining":     limit - sessionCount,
@@ -174,18 +125,21 @@ func (h *SubscriptionHandler) GetUsageCount(c *fiber.Ctx) error {
 		sessionCount = usage.SessionCount
 	}
 
-	// Get user's plan from Clerk
+	// Get user's plan from subscription service (with caching)
 	clerkUserID, _ := c.Locals("clerk_user_id").(string)
 	plan := "none"
 	limit := 0
 
 	if clerkUserID != "" {
-		user, err := h.fetchClerkUser(clerkUserID)
-		if err == nil && user.PublicMetadata != nil {
-			if planStr, ok := user.PublicMetadata["subscription_plan"].(string); ok {
-				plan = planStr
+		ctx := c.Context()
+		planStr, hasActive, err := h.subscriptionService.GetSubscriptionPlan(ctx, clerkUserID)
+		if err == nil {
+			plan = planStr
+			if !hasActive {
+				plan = "none"
 			}
 		}
+		// If error, plan remains "none" as fallback
 	}
 
 	if plan == "basic" {
