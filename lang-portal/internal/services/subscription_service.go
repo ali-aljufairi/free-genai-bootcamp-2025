@@ -17,7 +17,7 @@ import (
 
 // SubscriptionInfo represents cached subscription information
 type SubscriptionInfo struct {
-	Plan         string // "basic", "pro", or "none"
+	Plan         string // "basic", "pro", "free", or "none"
 	HasActiveSub bool
 	CachedAt     time.Time
 }
@@ -63,7 +63,7 @@ func NewSubscriptionService() (*SubscriptionService, error) {
 }
 
 // GetSubscriptionPlan retrieves the user's subscription plan with caching
-// Returns: plan ("basic", "pro", or "none"), hasActiveSub (bool), error
+// Returns: plan ("basic", "pro", "free", or "none"), hasActiveSub (bool), error
 func (s *SubscriptionService) GetSubscriptionPlan(ctx context.Context, clerkUserID string) (string, bool, error) {
 	if !s.initialized {
 		return "none", false, fmt.Errorf("subscription service not initialized")
@@ -98,6 +98,57 @@ func (s *SubscriptionService) GetSubscriptionPlan(ctx context.Context, clerkUser
 	return plan, hasActive, nil
 }
 
+// matchPlanIdentifier checks if a plan identifier matches "basic", "pro", or "free"
+// This matches what Clerk's has({ plan: 'basic' }) expects
+// Returns: isPro, isBasic, isFree
+func matchPlanIdentifier(identifier string) (isPro bool, isBasic bool, isFree bool) {
+	identifier = strings.ToLower(strings.TrimSpace(identifier))
+	
+	// Exact matches (most reliable)
+	if identifier == "pro" {
+		return true, false, false
+	}
+	if identifier == "basic" {
+		return false, true, false
+	}
+	if identifier == "free" {
+		return false, false, true
+	}
+	
+	// Common variations with separators
+	// Match "pro-plan", "pro_plan", "plan-pro", etc.
+	if strings.HasPrefix(identifier, "pro-") || 
+		strings.HasPrefix(identifier, "pro_") ||
+		strings.HasSuffix(identifier, "-pro") ||
+		strings.HasSuffix(identifier, "_pro") ||
+		identifier == "pro_plan" ||
+		identifier == "proplan" {
+		return true, false, false
+	}
+	
+	// Match "basic-plan", "basic_plan", "plan-basic", etc.
+	if strings.HasPrefix(identifier, "basic-") || 
+		strings.HasPrefix(identifier, "basic_") ||
+		strings.HasSuffix(identifier, "-basic") ||
+		strings.HasSuffix(identifier, "_basic") ||
+		identifier == "basic_plan" ||
+		identifier == "basicplan" {
+		return false, true, false
+	}
+	
+	// Match "free-plan", "free_plan", "plan-free", etc.
+	if strings.HasPrefix(identifier, "free-") || 
+		strings.HasPrefix(identifier, "free_") ||
+		strings.HasSuffix(identifier, "-free") ||
+		strings.HasSuffix(identifier, "_free") ||
+		identifier == "free_plan" ||
+		identifier == "freeplan" {
+		return false, false, true
+	}
+	
+	return false, false, false
+}
+
 // fetchSubscriptionFromClerk fetches subscription from Clerk Billing API
 func (s *SubscriptionService) fetchSubscriptionFromClerk(ctx context.Context, clerkUserID string) (string, bool, error) {
 	// List subscription items for the user
@@ -127,46 +178,60 @@ func (s *SubscriptionService) fetchSubscriptionFromClerk(ctx context.Context, cl
 	}
 
 	// Determine plan from subscription items
-	// Look for plan identifiers in the subscription items
+	// Clerk Billing uses exact plan identifiers that match what has({ plan: 'basic' }) expects
 	hasPro := false
 	hasBasic := false
+	hasFree := false
 
 	for _, item := range subscriptionItems.Data {
 		// Check the plan identifier
 		// Clerk Billing stores plan info in the Plan field
 		if item.Plan != nil {
-			// Check plan ID (it's a string, not a pointer)
+			// Check plan ID first (most reliable - this is what Clerk uses for has({ plan: 'basic' }))
 			if item.Plan.ID != "" {
-				planID := strings.ToLower(item.Plan.ID)
-				if strings.Contains(planID, "pro") {
+				isPro, isBasic, isFreePlan := matchPlanIdentifier(item.Plan.ID)
+				if isPro {
 					hasPro = true
-				} else if strings.Contains(planID, "basic") {
+				}
+				if isBasic {
 					hasBasic = true
 				}
+				if isFreePlan {
+					hasFree = true
+				}
 			}
-			// Also check plan name if available (it's a string, not a pointer)
+			// Also check plan name as fallback
 			if item.Plan.Name != "" {
-				planName := strings.ToLower(item.Plan.Name)
-				if strings.Contains(planName, "pro") {
+				isPro, isBasic, isFreePlan := matchPlanIdentifier(item.Plan.Name)
+				if isPro {
 					hasPro = true
-				} else if strings.Contains(planName, "basic") {
+				}
+				if isBasic {
 					hasBasic = true
+				}
+				if isFreePlan {
+					hasFree = true
 				}
 			}
 		}
 	}
 
-	// Pro takes precedence over Basic
+	// Pro and Free take precedence over Basic (both have unlimited access)
 	if hasPro {
 		return "pro", true, nil
+	}
+	if hasFree {
+		return "free", true, nil
 	}
 	if hasBasic {
 		return "basic", true, nil
 	}
 
-	// If we have active items but can't determine plan, assume basic
+	// If we have active items but can't determine plan, log warning and fallback to metadata
 	if len(subscriptionItems.Data) > 0 {
-		return "basic", true, nil
+		log.Printf("Warning: Found active subscription items for user %s but couldn't determine plan type", clerkUserID)
+		// Fallback to metadata check instead of assuming basic
+		return s.checkPublicMetadata(ctx, clerkUserID)
 	}
 
 	// Fallback to metadata check
@@ -196,6 +261,9 @@ func (s *SubscriptionService) checkPublicMetadata(ctx context.Context, clerkUser
 					if plan == "pro" {
 						return "pro", true, nil
 					}
+					if plan == "free" {
+						return "free", true, nil
+					}
 					if plan == "basic" {
 						return "basic", true, nil
 					}
@@ -224,6 +292,25 @@ func (s *SubscriptionService) HasProPlan(ctx context.Context, clerkUserID string
 	return hasActive && plan == "pro", nil
 }
 
+// HasFreePlan checks if user has Free plan (convenience method)
+// Free plan has same privileges as Pro (unlimited access)
+func (s *SubscriptionService) HasFreePlan(ctx context.Context, clerkUserID string) (bool, error) {
+	plan, hasActive, err := s.GetSubscriptionPlan(ctx, clerkUserID)
+	if err != nil {
+		return false, err
+	}
+	return hasActive && plan == "free", nil
+}
+
+// HasUnlimitedPlan checks if user has Pro or Free plan (both have unlimited access)
+func (s *SubscriptionService) HasUnlimitedPlan(ctx context.Context, clerkUserID string) (bool, error) {
+	plan, hasActive, err := s.GetSubscriptionPlan(ctx, clerkUserID)
+	if err != nil {
+		return false, err
+	}
+	return hasActive && (plan == "pro" || plan == "free"), nil
+}
+
 // HasBasicPlan checks if user has Basic plan (convenience method)
 func (s *SubscriptionService) HasBasicPlan(ctx context.Context, clerkUserID string) (bool, error) {
 	plan, hasActive, err := s.GetSubscriptionPlan(ctx, clerkUserID)
@@ -238,3 +325,4 @@ func (s *SubscriptionService) HasActiveSubscription(ctx context.Context, clerkUs
 	_, hasActive, err := s.GetSubscriptionPlan(ctx, clerkUserID)
 	return hasActive, err
 }
+

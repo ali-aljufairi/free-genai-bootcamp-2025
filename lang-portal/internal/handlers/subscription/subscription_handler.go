@@ -56,12 +56,12 @@ func (h *SubscriptionHandler) CheckCompanionStudyLimit(c *fiber.Ctx) error {
 		hasActive = false
 	}
 
-	// If Pro plan, allow unlimited
-	if hasActive && plan == "pro" {
+	// If Pro or Free plan, allow unlimited (both have same privileges)
+	if hasActive && (plan == "pro" || plan == "free") {
 		return c.JSON(fiber.Map{
 			"can_start": true,
 			"reason":    "unlimited",
-			"plan":      "pro",
+			"plan":      plan,
 		})
 	}
 
@@ -144,8 +144,8 @@ func (h *SubscriptionHandler) GetUsageCount(c *fiber.Ctx) error {
 
 	if plan == "basic" {
 		limit = 10
-	} else if plan == "pro" {
-		limit = -1 // unlimited
+	} else if plan == "pro" || plan == "free" {
+		limit = -1 // unlimited (both pro and free have unlimited access)
 	}
 
 	return c.JSON(fiber.Map{

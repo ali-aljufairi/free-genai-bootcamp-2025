@@ -164,8 +164,8 @@ func (h *CompanionHandler) checkCompanionStudyLimit(c *fiber.Ctx, userID int64) 
 		hasActive = false
 	}
 
-	// If Pro plan, allow unlimited
-	if hasActive && plan == "pro" {
+	// If Pro or Free plan, allow unlimited (both have same privileges)
+	if hasActive && (plan == "pro" || plan == "free") {
 		return true, nil
 	}
 

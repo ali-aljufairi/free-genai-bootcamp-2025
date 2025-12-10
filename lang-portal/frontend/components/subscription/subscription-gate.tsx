@@ -22,8 +22,8 @@ interface SubscriptionGateProps {
  * Uses Clerk's has() method to check if user has an active subscription plan.
  * This works with Clerk Billing - plans are configured in Clerk Dashboard.
  */
-export function SubscriptionGate({ 
-  children, 
+export function SubscriptionGate({
+  children,
   feature = "this feature",
   showLoading = true,
   fallback
@@ -35,10 +35,11 @@ export function SubscriptionGate({
   const isLoaded = authLoaded && userLoaded
 
   // Check subscription using Clerk's has() method
-  // This checks if user has either 'basic' or 'pro' plan from Clerk Billing
+  // This checks if user has 'basic', 'pro', or 'free' plan from Clerk Billing
   const hasBasicPlan = has?.({ plan: 'basic' }) ?? false
   const hasProPlan = has?.({ plan: 'pro' }) ?? false
-  const hasActiveSubscription = hasBasicPlan || hasProPlan
+  const hasFreePlan = has?.({ plan: 'free' }) ?? false
+  const hasActiveSubscription = hasBasicPlan || hasProPlan || hasFreePlan
 
   // Show loading state
   if (!isLoaded && showLoading) {
@@ -66,7 +67,7 @@ export function SubscriptionGate({
           </CardDescription>
         </CardHeader>
         <CardContent className="flex justify-center">
-          <Button 
+          <Button
             onClick={() => router.push('/sign-in')}
             className="bg-primary text-primary-foreground hover:brightness-95"
           >
@@ -96,7 +97,7 @@ export function SubscriptionGate({
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex justify-center">
-            <Button 
+            <Button
               onClick={() => router.push('/pricing')}
               className="bg-primary text-primary-foreground hover:brightness-95"
             >
@@ -122,19 +123,21 @@ export function SubscriptionGate({
 export function useSubscription() {
   const { has, isLoaded: authLoaded } = useAuth()
   const { isLoaded: userLoaded } = useUser()
-  
+
   const isLoaded = authLoaded && userLoaded
-  
+
   // Use Clerk's has() method to check plans
   const hasBasicPlan = has?.({ plan: 'basic' }) ?? false
   const hasProPlan = has?.({ plan: 'pro' }) ?? false
-  const hasActiveSubscription = hasBasicPlan || hasProPlan
+  const hasFreePlan = has?.({ plan: 'free' }) ?? false
+  const hasActiveSubscription = hasBasicPlan || hasProPlan || hasFreePlan
 
   return {
     isLoaded,
     hasActiveSubscription,
-    isPro: hasProPlan,
+    isPro: hasProPlan || hasFreePlan, // Free plan has same privileges as Pro
     isBasic: hasBasicPlan,
-    plan: hasProPlan ? 'pro' : hasBasicPlan ? 'basic' : null,
+    isFree: hasFreePlan,
+    plan: hasProPlan ? 'pro' : hasFreePlan ? 'free' : hasBasicPlan ? 'basic' : null,
   }
 }
