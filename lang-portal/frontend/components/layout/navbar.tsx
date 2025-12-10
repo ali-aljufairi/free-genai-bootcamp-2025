@@ -1,16 +1,12 @@
 "use client"
 
-import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Menu } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { UserButton, useUser } from "@clerk/nextjs"
 
 export default function Navbar() {
   const pathname = usePathname()
-  const [open, setOpen] = useState(false)
   const { isSignedIn } = useUser()
 
   // Only show navbar on homepage
@@ -62,75 +58,6 @@ export default function Navbar() {
                 </>
               )}
             </div>
-
-            <Sheet open={open} onOpenChange={setOpen}>
-              <SheetTrigger asChild className="md:hidden">
-                <Button variant="outline" size="icon">
-                  <Menu className="h-5 w-5" />
-                  <span className="sr-only">Toggle Menu</span>
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="right" className="w-[240px] sm:w-[300px]">
-                <nav className="flex flex-col gap-4 mt-8">
-                  <Link
-                    href="/features"
-                    className="text-sm font-medium transition-colors hover:text-blue-600 dark:hover:text-blue-400"
-                    onClick={() => setOpen(false)}
-                  >
-                    Features
-                  </Link>
-                  <Link
-                    href="/pricing"
-                    className="text-sm font-medium transition-colors hover:text-blue-600 dark:hover:text-blue-400"
-                    onClick={() => setOpen(false)}
-                  >
-                    Pricing
-                  </Link>
-                  <Link
-                    href="/about"
-                    className="text-sm font-medium transition-colors hover:text-blue-600 dark:hover:text-blue-400"
-                    onClick={() => setOpen(false)}
-                  >
-                    About
-                  </Link>
-                  <div className="h-px bg-border my-2" />
-                  {isSignedIn ? (
-                    <>
-                      <Link
-                        href="/dashboard"
-                        className="text-sm font-medium transition-colors hover:text-blue-600 dark:hover:text-blue-400"
-                        onClick={() => setOpen(false)}
-                      >
-                        Dashboard
-                      </Link>
-                      <div className="mt-2">
-                        <UserButton afterSignOutUrl="/" />
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <Link href="/sign-in" onClick={() => setOpen(false)}>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="w-full mt-2"
-                        >
-                          Sign In
-                        </Button>
-                      </Link>
-                      <Link href="/sign-up" onClick={() => setOpen(false)}>
-                        <Button
-                          className="bg-[#3B82F6] hover:bg-[#2563EB] text-white border-0 shadow-lg shadow-blue-500/20 w-full mt-2"
-                          size="sm"
-                        >
-                          Sign Up
-                        </Button>
-                      </Link>
-                    </>
-                  )}
-                </nav>
-              </SheetContent>
-            </Sheet>
           </div>
         </div>
       </header>

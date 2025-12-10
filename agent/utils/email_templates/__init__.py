@@ -1,18 +1,1 @@
 # Email templates package
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

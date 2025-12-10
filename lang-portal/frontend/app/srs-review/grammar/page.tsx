@@ -24,14 +24,3 @@ export default function GrammarSRSReviewPage() {
         </div>
     )
 }
-
-
-
-
-
-
-
-
-
-
-

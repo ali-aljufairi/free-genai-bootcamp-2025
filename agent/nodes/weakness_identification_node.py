@@ -70,22 +70,3 @@ def weakness_identification_node(state: State):
     except Exception as e:
         logger.error(f"Error in weakness_identification_node: {str(e)}", exc_info=True)
         return state
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

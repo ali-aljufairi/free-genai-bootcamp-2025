@@ -77,21 +77,3 @@ def plan_optimization_node(state: State):
         logger.error(f"Error in plan_optimization_node: {str(e)}", exc_info=True)
         # If optimization fails, return original plan
         return state
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

@@ -48,10 +48,3 @@ export default function GrammarDetailPage() {
     </div>
   );
 }
-
-
-
-
-
-
-

@@ -99,20 +99,3 @@ def learning_resources_search_node(state: State):
     except Exception as e:
         logger.error(f"Error in learning_resources_search_node: {str(e)}", exc_info=True)
         return {"learning_resources": []}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

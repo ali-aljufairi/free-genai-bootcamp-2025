@@ -24,11 +24,3 @@ RUN apt-get update && \
 # Health check
 HEALTHCHECK --interval=10s --timeout=5s --start-period=30s --retries=3 \
     CMD pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-postgres} || exit 1
-
-
-
-
-
-
-
-

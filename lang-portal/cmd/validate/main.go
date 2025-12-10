@@ -146,11 +146,3 @@ func main() {
 
 	log.Println("\n✅ Database validation passed!")
 }
-
-
-
-
-
-
-
-
