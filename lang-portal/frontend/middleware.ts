@@ -55,7 +55,7 @@ export default clerkMiddleware(async (auth, req) => {
     "img-src 'self' data: https: blob:",
     "style-src 'self' 'unsafe-inline'",
     "font-src 'self' data: https:",
-    `frame-src 'self' https://*.clerk.accounts.dev https://${appDomain}`,
+    `frame-src 'self' https://*.clerk.accounts.dev https://challenges.cloudflare.com https://${appDomain}`,
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",

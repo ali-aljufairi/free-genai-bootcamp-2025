@@ -90,3 +90,4 @@ def get_dashboard_stats(token: str) -> Optional[Dict[str, Any]]:
     except requests.exceptions.RequestException as e:
         logger.error(f"Failed to call Go backend API for dashboard stats: {e}")
         return None
+
