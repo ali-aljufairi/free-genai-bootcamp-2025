@@ -1,10 +1,10 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useUser } from "@clerk/nextjs"
+import { useUser, useClerk } from "@clerk/nextjs"
 import { useSubscription as useClerkSubscription } from "@clerk/nextjs/experimental"
 import { useUserProfile } from "@/hooks/api/useGroup"
-import { User, Shield, CreditCard, Mail, UserCircle, Save, Loader2, Link2, Trash2, Calendar, DollarSign } from "lucide-react"
+import { User, Shield, CreditCard, Mail, UserCircle, Save, Loader2, Link2, Trash2, Calendar, DollarSign, LogOut } from "lucide-react"
 import { Separator } from "@/components/ui/separator"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -13,9 +13,11 @@ import { toast } from "sonner"
 import { userApi } from "@/services/api"
 import { useSubscription } from "@/components/subscription/subscription-gate"
 import Link from "next/link"
+import { clearTokenCache } from "@/lib/token-cache"
 
 export function AccountTab() {
     const { user: clerkUser, isLoaded: clerkLoaded } = useUser()
+    const { signOut } = useClerk()
     const { data: userProfile, isLoading: profileLoading, refetch } = useUserProfile()
     const { hasActiveSubscription, isBasic, isPro, plan } = useSubscription()
     // Use Clerk's experimental useSubscription hook for detailed subscription data
@@ -23,6 +25,7 @@ export function AccountTab() {
     const [isSaving, setIsSaving] = useState(false)
     const [displayName, setDisplayName] = useState("")
     const [isCanceling, setIsCanceling] = useState(false)
+    const [isSigningOut, setIsSigningOut] = useState(false)
 
     // Initialize display name from user profile
     useEffect(() => {
@@ -439,6 +442,56 @@ export function AccountTab() {
                             </div>
                         </div>
                     )}
+                </div>
+            </div>
+
+            <Separator className="my-6" />
+
+            {/* Logout Section */}
+            <div className="space-y-4">
+                <div className="flex items-center gap-3 pb-2 border-b border-border/50">
+                    <LogOut className="w-6 h-6 text-primary" />
+                    <div>
+                        <h3 className="text-lg font-medium">Logout</h3>
+                        <p className="text-sm text-muted-foreground">Sign out of your account</p>
+                    </div>
+                </div>
+
+                <div className="p-4 rounded-lg border border-border/50 bg-muted/50">
+                    <div className="space-y-2">
+                        <p className="text-xs text-muted-foreground">
+                            Sign out of your account. You will need to sign in again to access your account.
+                        </p>
+                        <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={async () => {
+                                setIsSigningOut(true)
+                                try {
+                                    clearTokenCache()
+                                    await signOut({ redirectUrl: "/" })
+                                } catch (error) {
+                                    toast.error("Failed to sign out", {
+                                        description: error instanceof Error ? error.message : "Unknown error"
+                                    })
+                                    setIsSigningOut(false)
+                                }
+                            }}
+                            disabled={isSigningOut}
+                        >
+                            {isSigningOut ? (
+                                <>
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                    Signing out...
+                                </>
+                            ) : (
+                                <>
+                                    <LogOut className="w-4 h-4 mr-2" />
+                                    Sign Out
+                                </>
+                            )}
+                        </Button>
+                    </div>
                 </div>
             </div>
 
