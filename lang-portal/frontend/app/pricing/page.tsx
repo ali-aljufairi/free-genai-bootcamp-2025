@@ -64,6 +64,7 @@ export default function PricingPage() {
                     </div>
 
                     <PricingTable
+                        newSubscriptionRedirectUrl="/study"
                         appearance={{
                             variables: {
                                 // Sorami primary color (matches bg-primary)

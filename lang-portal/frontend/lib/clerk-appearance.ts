@@ -116,6 +116,11 @@ export const clerkAppearance = {
     spacingUnit: "0.75rem",
     fontSize: "1rem",
   },
+  captcha: {
+    theme: 'dark',
+    size: 'flexible',
+    language: 'en-US',
+  },
 } as const;
 
 export default clerkAppearance;
