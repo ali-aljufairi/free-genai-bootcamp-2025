@@ -220,8 +220,14 @@ export default function Page() {
                                 </div>
                             </div>
 
-                            {/* Clerk Smart CAPTCHA widget container */}
-                            <div className="clerk-captcha"></div>
+                            {/* Clerk Smart CAPTCHA widget container (required before signUp.create) */}
+                            <div
+                                id="clerk-captcha"
+                                data-cl-theme="auto"
+                                data-cl-size="flexible"
+                                data-cl-language="auto"
+                                className="clerk-captcha"
+                            />
 
                             <Button
                                 type="submit"
