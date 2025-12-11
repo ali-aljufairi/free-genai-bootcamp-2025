@@ -52,27 +52,22 @@ export default clerkMiddleware(async (auth, req) => {
   const cloudfrontDomain = process.env.CLOUDFRONT_DOMAIN || '*.cloudfront.net';
   const clerkDomain = process.env.CLERK_DOMAIN || '*.clerk.accounts.dev';
   
-    // In development, allow 'unsafe-inline' for styles to support libraries like Radix UI and React dev tools
-    // that inject styles without CSP nonce support. In production, use strict nonce-only policy.
-    const isDevEnvironment = req.nextUrl.hostname === 'localhost' || req.nextUrl.hostname === '127.0.0.1';
-    
-    const cspDirectives = [
-      "default-src 'self'",
-      `script-src 'self' 'nonce-${nonce}' 'unsafe-eval' 'sha256-9xsy6/apLYZ0YvQVk+Yi9ZlSKW7tnhYBZWcTU9ERUlk=' https://static.cloudflareinsights.com https://*.cloudflare.com https://challenges.cloudflare.com https://www.gstatic.com https://*.clerk.accounts.dev https://github.com https://*.github.com https://js.stripe.com https://*.stripe.com https://${appDomain} blob:`,
-      `worker-src 'self' blob: https://${appDomain}`,
-      `connect-src 'self' https://static.cloudflareinsights.com https://*.cloudflare.com https://challenges.cloudflare.com https://www.google.com https://play.google.com https://*.google.com https://github.com https://*.github.com https://api.github.com https://*.clerk.accounts.dev https://*.sentry.io https://*.stripe.com wss://*.clerk.accounts.dev https://${appDomain} wss://${appDomain} https://${cloudfrontDomain} ws://localhost:3000 ws://127.0.0.1:3000`,
-      `media-src 'self' https://${cloudfrontDomain} blob: data:`,
-      "img-src 'self' data: https: blob:",
-      // Allow inline styles for all libraries to prevent blocking
-      `style-src 'self' 'unsafe-inline'`,
-      "font-src 'self' data: https:",
-      `frame-src 'self' https://*.clerk.accounts.dev https://challenges.cloudflare.com https://www.google.com https://*.google.com https://github.com https://*.github.com https://*.stripe.com https://${appDomain}`,
-      "object-src 'none'",
-      "base-uri 'self'",
-      "form-action 'self'",
-      "frame-ancestors 'none'",
-      "upgrade-insecure-requests",
-    ];
+  // Bare minimum CSP: allow what's needed, block nothing else
+  const cspDirectives = [
+    "default-src 'self' https:",
+    "script-src 'self' https: 'unsafe-eval' 'unsafe-inline' blob:",
+    "worker-src 'self' https: blob:",
+    "style-src 'self' https: 'unsafe-inline'",
+    "img-src 'self' https: data: blob:",
+    "font-src 'self' https: data:",
+    "connect-src 'self' https: ws: wss:",
+    "frame-src 'self' https:",
+    "media-src 'self' https: blob: data:",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self' https:",
+    "upgrade-insecure-requests",
+  ];
   
   const cspHeader = cspDirectives.join('; ');
 
