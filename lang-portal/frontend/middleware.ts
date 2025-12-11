@@ -48,14 +48,14 @@ export default clerkMiddleware(async (auth, req) => {
   // Note: CSP wildcards only work at the start of a domain, so we use https://*.clerk.accounts.dev format
   const cspDirectives = [
     "default-src 'self'",
-    `script-src 'self' 'unsafe-inline' 'unsafe-eval' https://static.cloudflareinsights.com https://*.cloudflare.com https://*.clerk.accounts.dev https://js.stripe.com https://*.stripe.com https://${appDomain} blob:`,
+    `script-src 'self' 'unsafe-inline' 'unsafe-eval' 'sha256-yei5Fza+Eyx4G0smvN0xBqEesIKumz6RSyGsU3FJowI=' https://static.cloudflareinsights.com https://*.cloudflare.com https://challenges.cloudflare.com https://www.gstatic.com https://*.clerk.accounts.dev https://github.com https://*.github.com https://js.stripe.com https://*.stripe.com https://${appDomain} blob:`,
     `worker-src 'self' blob: https://${appDomain}`,
-    `connect-src 'self' https://static.cloudflareinsights.com https://*.cloudflare.com https://*.clerk.accounts.dev https://*.sentry.io https://*.stripe.com wss://*.clerk.accounts.dev https://${appDomain} wss://${appDomain} https://${cloudfrontDomain}`,
+    `connect-src 'self' https://static.cloudflareinsights.com https://*.cloudflare.com https://challenges.cloudflare.com https://www.google.com https://play.google.com https://*.google.com https://github.com https://*.github.com https://api.github.com https://*.clerk.accounts.dev https://*.sentry.io https://*.stripe.com wss://*.clerk.accounts.dev https://${appDomain} wss://${appDomain} https://${cloudfrontDomain}`,
     `media-src 'self' https://${cloudfrontDomain} blob: data:`,
     "img-src 'self' data: https: blob:",
     "style-src 'self' 'unsafe-inline'",
     "font-src 'self' data: https:",
-    `frame-src 'self' https://*.clerk.accounts.dev https://challenges.cloudflare.com https://*.stripe.com https://${appDomain}`,
+    `frame-src 'self' https://*.clerk.accounts.dev https://challenges.cloudflare.com https://www.google.com https://*.google.com https://github.com https://*.github.com https://*.stripe.com https://${appDomain}`,
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",
