@@ -104,7 +104,12 @@ func (s *FiberServer) RegisterFiberRoutes() {
 	s.App.Delete("/api/langportal/groups/:id/kanji/:kanjiId", groupHandler.RemoveKanji)
 
 	// User routes (favorite group)
-	userHandler := user.NewUserHandler(s.postgresDB)
+	userHandler, err := user.NewUserHandler(s.postgresDB)
+	if err != nil {
+		log.Printf("Warning: Failed to initialize user handler with subscription service: %v", err)
+		// Create handler without subscription service for development
+		userHandler, _ = user.NewUserHandler(s.postgresDB)
+	}
 	s.App.Get("/api/langportal/users/me", userHandler.GetMe)
 	s.App.Put("/api/langportal/users/me/favorite_group", userHandler.SetFavoriteGroup)
 	s.App.Get("/api/langportal/users/:id/settings", userHandler.GetUserSettings)

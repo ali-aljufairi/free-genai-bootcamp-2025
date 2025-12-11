@@ -1,7 +1,10 @@
 package user
 
 import (
+	"context"
+	"fmt"
 	"lang-portal/internal/database/models"
+	"lang-portal/internal/services"
 	"strconv"
 	"time"
 
@@ -10,11 +13,27 @@ import (
 )
 
 type UserHandler struct {
-	DB *gorm.DB
+	DB                  *gorm.DB
+	subscriptionService *services.SubscriptionService
 }
 
-func NewUserHandler(db *gorm.DB) *UserHandler {
-	return &UserHandler{DB: db}
+func NewUserHandler(db *gorm.DB) (*UserHandler, error) {
+	// Initialize subscription service (may fail in dev, but that's OK)
+	subscriptionService, err := services.NewSubscriptionService()
+	if err != nil {
+		// In development, allow handler to be created without subscription service
+		// The GetMe handler will handle this gracefully
+		fmt.Printf("Warning: Failed to initialize subscription service: %v (continuing without it)\n", err)
+		return &UserHandler{
+			DB:                  db,
+			subscriptionService: nil,
+		}, nil
+	}
+
+	return &UserHandler{
+		DB:                  db,
+		subscriptionService: subscriptionService,
+	}, nil
 }
 
 // updateUserFromClerk updates user data with real information from Clerk API
@@ -64,10 +83,31 @@ func (h *UserHandler) GetMe(c *fiber.Ctx) error {
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to get user roles"})
 	}
 
-	// Get active subscription - use PostgreSQL for user data
-	if err := h.DB.Where("user_id = ? AND status = 'active'", userID).
-		First(&profile.Subscription).Error; err != nil {
-		profile.Subscription = nil
+	// Get active subscription from Clerk Billing API (source of truth)
+	profile.Subscription = nil
+	if h.subscriptionService != nil {
+		// Get Clerk user ID from context (set by auth middleware)
+		clerkUserID, ok := c.Locals("clerk_user_id").(string)
+		if ok && clerkUserID != "" {
+			ctx := context.Background()
+			plan, hasActive, err := h.subscriptionService.GetSubscriptionPlan(ctx, clerkUserID)
+			if err != nil {
+				// Log error but don't fail the request - subscription check is optional
+				// This allows graceful degradation if Clerk API is unavailable
+				fmt.Printf("Warning: Failed to check subscription for user %s: %v\n", clerkUserID, err)
+			} else if hasActive && plan != "none" {
+				// Create subscription model from Clerk data
+				// Note: Clerk is the source of truth, so we create a minimal subscription object
+				// StripeSubscriptionID and CurrentPeriodEnd may not be available from Clerk Billing API
+				// in the current implementation, so we set them as empty/nil
+				profile.Subscription = &models.Subscription{
+					UserID:               userID,
+					StripeSubscriptionID: "", // Not available from Clerk Billing API in current implementation
+					Status:               "active",
+					CurrentPeriodEnd:     nil, // Not available from Clerk Billing API in current implementation
+				}
+			}
+		}
 	}
 
 	return c.JSON(profile)
