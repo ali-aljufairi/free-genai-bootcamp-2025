@@ -220,6 +220,9 @@ export default function Page() {
                                 </div>
                             </div>
 
+                            {/* Clerk's CAPTCHA widget for bot protection */}
+                            <div id="clerk-captcha" data-cl-theme="dark" data-cl-size="normal" data-cl-language="auto" />
+
                             <Button
                                 type="submit"
                                 disabled={isLoading}

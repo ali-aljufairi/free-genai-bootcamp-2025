@@ -66,3 +66,4 @@ def close_all_connections():
         _connection_pool = None
         logger.info("All PostgreSQL connections closed")
 
+
