@@ -1,5 +1,6 @@
 import type React from "react";
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { Inter } from "next/font/google";
 import "@/styles/globals.css";
 import { ClerkProvider } from "@clerk/nextjs";
@@ -40,7 +41,7 @@ export const metadata: Metadata = {
     address: false,
     telephone: false,
   },
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://sorami.app'),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://sorami.aljufairi.org'),
   alternates: {
     canonical: '/',
   },
@@ -90,11 +91,14 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Read the per-request nonce set by middleware so Next/Clerk scripts receive it
+  const cspNonce = (await headers()).get("x-nonce") || undefined;
+
   return (
     <ClerkProvider
       appearance={clerkAppearance}
@@ -108,8 +112,9 @@ export default function RootLayout({
         <body
           className={`${inter.className} bg-gradient-to-br from-sky-50/80 via-blue-50/60 to-blue-100/70 dark:from-slate-900/90 dark:via-blue-950/80 dark:to-blue-950/90 kanji-texture atmospheric-bg`}
           suppressHydrationWarning
+          data-csp-nonce={cspNonce}
         >
-          <ClientLayout>{children}</ClientLayout>
+          <ClientLayout nonce={cspNonce}>{children}</ClientLayout>
         </body>
       </html>
     </ClerkProvider>

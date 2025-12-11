@@ -22,8 +22,14 @@ const queryClient = new QueryClient({
   },
 })
 
-export default function ClientLayout({ children }: { children: React.ReactNode }) {
+export default function ClientLayout({ children, nonce }: { children: React.ReactNode; nonce?: string }) {
   const pathname = usePathname()
+  useEffect(() => {
+    if (nonce) {
+      // Expose the nonce to client-side scripts that may need it (e.g., Clerk/Next)
+      ; (window as unknown as { __cspNonce?: string }).__cspNonce = nonce
+    }
+  }, [nonce])
   const isHomePage = pathname === "/"
   const isAuthPage = pathname?.startsWith("/sign-in") || pathname?.startsWith("/sign-up")
   const isPublicPage = pathname === "/pricing" || pathname === "/terms" || pathname === "/privacy" || pathname === "/business-info"
