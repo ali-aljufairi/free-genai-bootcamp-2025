@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"lang-portal/internal/services"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -182,6 +183,12 @@ func (h *CompanionHandler) checkCompanionStudyLimit(c *fiber.Ctx, userID int64) 
 	sessionCount := 0
 	if err == nil {
 		sessionCount = usage.SessionCount
+	} else if err != gorm.ErrRecordNotFound {
+		// Log only if it's not a "record not found" error
+		// Table missing errors will be logged by GORM, but we handle gracefully
+		if !strings.Contains(err.Error(), "does not exist") {
+			fmt.Printf("Warning: Error querying companion_study_usage: %v\n", err)
+		}
 	}
 
 	// Basic plan limit is 10 sessions per month
