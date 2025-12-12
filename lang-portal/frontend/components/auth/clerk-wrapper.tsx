@@ -24,7 +24,7 @@ export default function ClerkWrapper({ children }: ClerkWrapperProps) {
         <ClerkProvider
             appearance={clerkAppearance}
             signInFallbackRedirectUrl="/study"
-            signUpFallbackRedirectUrl="/study"
+            signUpFallbackRedirectUrl="/sso-callback"
             signInUrl="/sign-in"
             signUpUrl="/sign-up"
             publishableKey={publishableKey}
