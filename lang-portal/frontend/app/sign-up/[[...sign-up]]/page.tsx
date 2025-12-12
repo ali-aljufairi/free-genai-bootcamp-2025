@@ -224,7 +224,6 @@ export default function Page() {
                             <div
                                 id="clerk-captcha"
                                 data-cl-theme="auto"
-                                data-cl-size="flexible"
                                 data-cl-language="auto"
                                 className="clerk-captcha"
                             />

@@ -52,22 +52,27 @@ export default clerkMiddleware(async (auth, req) => {
   const cloudfrontDomain = process.env.CLOUDFRONT_DOMAIN || '*.cloudfront.net';
   const clerkDomain = process.env.CLERK_DOMAIN || '*.clerk.accounts.dev';
   
-  // Bare minimum CSP: allow what's needed, block nothing else
-  const cspDirectives = [
-    "default-src 'self' https:",
-    "script-src 'self' https: 'unsafe-eval' 'unsafe-inline' blob:",
-    "worker-src 'self' https: blob:",
-    "style-src 'self' https: 'unsafe-inline'",
-    "img-src 'self' https: data: blob:",
-    "font-src 'self' https: data:",
-    "connect-src 'self' https: ws: wss:",
-    "frame-src 'self' https:",
-    "media-src 'self' https: blob: data:",
-    "object-src 'none'",
-    "base-uri 'self'",
-    "form-action 'self' https:",
-    "upgrade-insecure-requests",
-  ];
+    // In development, allow 'unsafe-inline' for styles to support libraries like Radix UI and React dev tools
+    // that inject styles without CSP nonce support. In production, use strict nonce-only policy.
+    const isDevEnvironment = req.nextUrl.hostname === 'localhost' || req.nextUrl.hostname === '127.0.0.1';
+    
+    const cspDirectives = [
+      "default-src 'self' https: 'unsafe-inline' 'unsafe-eval' blob:",
+      "script-src 'self' https: 'unsafe-inline' 'unsafe-eval' blob:",
+      "style-src 'self' https: 'unsafe-inline'",
+      "img-src 'self' https: data: blob:",
+      "font-src 'self' https: data:",
+      "connect-src 'self' https: ws: wss:",
+      "frame-src 'self' https: blob: data: about:",
+      "media-src 'self' https: blob: data:",
+      "object-src 'none'",
+      "base-uri 'self'",
+      "form-action 'self' https:",
+      // Note: CSP sandbox interferes with Clerk CAPTCHA/Apple PAT iframes (about:blank)
+      // and blocks script execution inside the challenge frame. Avoid sandboxing the
+      // entire document; rely on Clerk + frame-src restrictions instead.
+      "upgrade-insecure-requests",
+    ];
   
   const cspHeader = cspDirectives.join('; ');
 
