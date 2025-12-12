@@ -88,26 +88,42 @@ export async function proxyToBackend(
 
     // Parse request body for non-GET requests
     let body: any = null;
-    if (method !== 'GET' && request.body) {
-      try {
-        body = await request.json();
-        if (transformRequest) {
-          body = transformRequest(body);
+    let hasBody = false;
+    if (method !== 'GET') {
+      const contentType = request.headers.get('content-type');
+      // Only try to parse if Content-Type indicates JSON
+      if (contentType?.includes('application/json')) {
+        try {
+          const text = await request.text();
+          if (text && text.trim().length > 0) {
+            body = JSON.parse(text);
+            hasBody = true;
+            if (transformRequest) {
+              body = transformRequest(body);
+            }
+          }
+          // If text is empty, no body to send (hasBody stays false)
+        } catch (error) {
+          // If parsing fails, return error
+          return createErrorResponse(
+            'Invalid JSON in request body',
+            'INVALID_JSON',
+            400
+          );
         }
-      } catch (error) {
-        return createErrorResponse(
-          'Invalid JSON in request body',
-          'INVALID_JSON',
-          400
-        );
       }
+      // If no Content-Type or non-JSON, no body to parse (which is fine)
     }
 
     // Build headers
     const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
       ...additionalHeaders
     };
+
+    // Only set Content-Type if we have a body to send
+    if (hasBody && body !== null) {
+      headers['Content-Type'] = 'application/json';
+    }
 
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
@@ -118,7 +134,7 @@ export async function proxyToBackend(
     const response = await fetch(`${backendUrl}${backendPath}`, {
       method,
       headers,
-      body: body ? JSON.stringify(body) : undefined,
+      body: hasBody && body !== null ? JSON.stringify(body) : undefined,
       // Prevent any intermediate caching of auth bootstrap calls
       cache: 'no-store',
     });

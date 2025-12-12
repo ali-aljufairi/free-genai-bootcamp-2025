@@ -55,10 +55,15 @@ export class ApiClient {
 
     const url = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
     
+    // Only set Content-Type if there's a body to send
+    const hasBody = fetchOptions.body !== undefined && fetchOptions.body !== null;
     const defaultHeaders: Record<string, string> = {
-      'Content-Type': 'application/json',
       ...(headers as Record<string, string>),
     };
+    
+    if (hasBody) {
+      defaultHeaders['Content-Type'] = 'application/json';
+    }
 
     if (requireAuth) {
       try {

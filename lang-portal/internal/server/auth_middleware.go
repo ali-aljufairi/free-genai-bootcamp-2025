@@ -15,6 +15,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
 	"gorm.io/gorm"
+	"lang-portal/internal/database/models"
 )
 
 // ClerkUser represents the user data from Clerk API
@@ -213,13 +214,14 @@ func (caa *clerkAuth) Middleware() fiber.Handler {
 
 		// Attempt to resolve our internal numeric user id
 		if caa.db != nil {
-			var id int64
-			// Query for user_id using clerk_id (TEXT column)
-			if err := caa.db.Raw("SELECT id FROM users WHERE clerk_id = ? LIMIT 1", sub).Scan(&id).Error; err == nil && id != 0 {
-				c.Locals("user_id", id)
-				log.Printf("Mapped Clerk user %s to internal user_id %d", sub, id)
+			var user models.User
+			
+			// Try to find existing user first
+			if err := caa.db.Where("clerk_id = ?", sub).First(&user).Error; err == nil {
+				c.Locals("user_id", user.ID)
+				log.Printf("Mapped Clerk user %s to internal user_id %d", sub, user.ID)
 			} else {
-				// User doesn't exist, let's create them automatically
+				// User doesn't exist, create them
 				log.Printf("No user found for Clerk ID %s, creating new user", sub)
 
 				// Fetch real user data from Clerk API
@@ -228,37 +230,31 @@ func (caa *clerkAuth) Middleware() fiber.Handler {
 
 				if err != nil {
 					log.Printf("Failed to fetch user data from Clerk API for user %s: %v", sub, err)
-					// Fallback to JWT claims and defaults
-					log.Printf("Available JWT claims for user %s: %+v", sub, claims)
-
 					email, _ = claims["email"].(string)
 					if email == "" {
-						email = fmt.Sprintf("%s@clerk.user", sub) // Fallback email
+						email = fmt.Sprintf("%s@clerk.user", sub)
 					}
-
 					name, _ = claims["name"].(string)
 					if name == "" {
-						name = "User" // Fallback name
+						name = "User"
 					}
 				} else {
-					// Use real data from Clerk API
 					log.Printf("Successfully fetched user data from Clerk API for user %s", sub)
-
+					
 					// Get primary email
-					email = fmt.Sprintf("%s@clerk.user", sub) // Default fallback
+					email = fmt.Sprintf("%s@clerk.user", sub)
 					for _, emailAddr := range clerkUser.EmailAddresses {
 						if emailAddr.Primary {
 							email = emailAddr.EmailAddress
 							break
 						}
 					}
-					// If no primary email found, use the first one
 					if email == fmt.Sprintf("%s@clerk.user", sub) && len(clerkUser.EmailAddresses) > 0 {
 						email = clerkUser.EmailAddresses[0].EmailAddress
 					}
 
 					// Get display name
-					name = "User" // Default fallback
+					name = "User"
 					if clerkUser.FullName != nil && *clerkUser.FullName != "" {
 						name = *clerkUser.FullName
 					} else if clerkUser.FirstName != nil && *clerkUser.FirstName != "" {
@@ -274,45 +270,55 @@ func (caa *clerkAuth) Middleware() fiber.Handler {
 					log.Printf("Using real user data: email=%s, name=%s", email, name)
 				}
 
-				// Create the user with proper setup
-				createUserQuery := `
-					INSERT INTO users (clerk_id, email, display_name, created_at, updated_at) 
-					VALUES (?, ?, ?, NOW(), NOW()) 
-					RETURNING id`
-
-				if err := caa.db.Raw(createUserQuery, sub, email, name).Scan(&id).Error; err != nil {
-					log.Printf("Failed to create user for Clerk ID %s: %v", sub, err)
-					if caa.allowDevFallback {
-						c.Locals("user_id", int64(1))
-						log.Printf("Using dev fallback user_id=1 for Clerk user %s", sub)
+				// Create user - if duplicate key error, just query for existing user
+				user = models.User{
+					ClerkID:     sub,
+					Email:       email,
+					DisplayName: &name,
+				}
+				
+				if err := caa.db.Create(&user).Error; err != nil {
+					// Handle race condition: if user was created by concurrent request, just find it
+					if strings.Contains(err.Error(), "duplicate key") || strings.Contains(err.Error(), "23505") {
+						if queryErr := caa.db.Where("clerk_id = ?", sub).First(&user).Error; queryErr != nil {
+							log.Printf("Failed to create or find user for Clerk ID %s: %v", sub, queryErr)
+							if caa.allowDevFallback {
+								c.Locals("user_id", int64(1))
+								log.Printf("Using dev fallback user_id=1 for Clerk user %s", sub)
+							}
+							return c.Next()
+						}
+						log.Printf("User %s was created concurrently, using existing user_id %d", sub, user.ID)
 					} else {
-						log.Printf("No internal user mapping found for Clerk user %s", sub)
+						log.Printf("Failed to create user for Clerk ID %s: %v", sub, err)
+						if caa.allowDevFallback {
+							c.Locals("user_id", int64(1))
+							log.Printf("Using dev fallback user_id=1 for Clerk user %s", sub)
+						}
+						return c.Next()
 					}
 				} else {
-					// Create default user settings
-					settingsQuery := `
-						INSERT INTO user_settings (user_id, hide_english, ui_language, timezone, daily_review_target, current_jlpt_level)
-						VALUES (?, false, 'en', 'UTC', 20, 5)`
-
-					if err := caa.db.Exec(settingsQuery, id).Error; err != nil {
-						log.Printf("Failed to create user settings for user_id %d: %v", id, err)
-					}
-
-					// Assign default student role
-					roleQuery := `
-						INSERT INTO user_roles (user_id, role_id)
-						SELECT ?, r.id
-						FROM roles r 
-						WHERE r.role_name = 'student'
-						LIMIT 1`
-
-					if err := caa.db.Exec(roleQuery, id).Error; err != nil {
-						log.Printf("Failed to assign student role to user_id %d: %v", id, err)
-					}
-
-					c.Locals("user_id", id)
-					log.Printf("Created and mapped Clerk user %s to new internal user_id %d with full setup", sub, id)
+					log.Printf("Created and mapped Clerk user %s to new internal user_id %d", sub, user.ID)
 				}
+
+				// Set up defaults (idempotent - use FirstOrCreate to avoid errors if already exists)
+				settings := models.UserSettings{
+					UserID:            user.ID,
+					HideEnglish:       false,
+					UILanguage:        "en",
+					Timezone:          "UTC",
+					DailyReviewTarget: 20,
+					CurrentJLPTLevel:  5,
+				}
+				caa.db.FirstOrCreate(&settings, models.UserSettings{UserID: user.ID})
+
+				var role models.Role
+				if err := caa.db.Where("role_name = 'student'").First(&role).Error; err == nil {
+					userRole := models.UserRole{UserID: user.ID, RoleID: role.ID}
+					caa.db.FirstOrCreate(&userRole, models.UserRole{UserID: user.ID, RoleID: role.ID})
+				}
+
+				c.Locals("user_id", user.ID)
 			}
 		} else if caa.allowDevFallback {
 			c.Locals("user_id", int64(1))
