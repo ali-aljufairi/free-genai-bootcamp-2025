@@ -108,11 +108,20 @@ export default async function RootLayout({
       signUpFallbackRedirectUrl="/study"
       publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
     >
-      <html lang="en" suppressHydrationWarning>
+      <html
+        lang="en"
+        suppressHydrationWarning
+        className="dark"
+        data-theme="dark"
+        data-color-scheme="dark"
+      >
         <body
-          className={`${inter.className} bg-gradient-to-br from-sky-50/80 via-blue-50/60 to-blue-100/70 dark:from-slate-900/90 dark:via-blue-950/80 dark:to-blue-950/90 kanji-texture atmospheric-bg`}
+          className={`${inter.className} bg-linear-to-br from-slate-900/90 via-blue-950/80 to-blue-950/90 dark:from-slate-900/90 dark:via-blue-950/80 dark:to-blue-950/90 kanji-texture atmospheric-bg`}
           suppressHydrationWarning
           data-csp-nonce={cspNonce}
+          data-theme="dark"
+          data-color-scheme="dark"
+          style={{ colorScheme: "dark" }}
         >
           <ClientLayout nonce={cspNonce}>{children}</ClientLayout>
         </body>

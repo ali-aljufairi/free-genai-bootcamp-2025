@@ -13,7 +13,6 @@ import { createSwapy } from 'swapy'
 import { useSortedStudyOptions, useStudyCardOrderStore } from '@/stores/study-card-order-store'
 import { navigateWithTransition } from '@/lib/view-transitions'
 import type { Swapy, SwapEvent, SwapStartEvent, SwapEndEvent } from '@/types/swapy'
-import { SubscriptionGate } from "@/components/subscription/subscription-gate"
 
 /**
  * Study Session Hub Component
@@ -280,56 +279,54 @@ export function StudySessionHub() {
   ), [isMobile, startSession]);
 
   return (
-    <SubscriptionGate feature="study features">
-      <motion.div
-        className="space-y-4 sm:space-y-8 px-2 sm:px-0"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3 }}
+    <motion.div
+      className="space-y-4 sm:space-y-8 px-2 sm:px-0"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+    >
+      {/* 
+        Grid container with Swapy integration:
+        - ref={containerRef} connects to Swapy instance
+        - data-swapy-slot attributes identify draggable slots
+        - data-swapy-item attributes identify draggable items
+        - Responsive grid layout for different screen sizes
+      */}
+      <div
+        ref={containerRef}
+        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 items-stretch"
+        style={{ gridAutoRows: 'minmax(320px, auto)' }}
       >
-        {/* 
-          Grid container with Swapy integration:
-          - ref={containerRef} connects to Swapy instance
-          - data-swapy-slot attributes identify draggable slots
-          - data-swapy-item attributes identify draggable items
-          - Responsive grid layout for different screen sizes
-        */}
-        <div
-          ref={containerRef}
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 items-stretch"
-          style={{ gridAutoRows: 'minmax(320px, auto)' }}
-        >
-          <AnimatePresence>
-            {sortedStudyOptions.map((option, index) => (
-              <motion.div
-                key={option.type}
-                data-swapy-slot={`slot-${option.type}`}  // Swapy slot identifier
-                className="h-full"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                transition={{
-                  duration: 0.3,
-                  delay: index * 0.05  // Staggered animation for visual appeal
-                }}
-              >
-                <div data-swapy-item={`item-${option.type}`} className="h-full">  {/* Swapy item identifier */}
-                  <StudyCard
-                    title={option.title}
-                    description={option.description}
-                    icon={option.icon}
-                    image={option.image}
-                    type={option.type}
-                    disabled={option.disabled}
-                    reason={option.reason}
-                  />
-                </div>
-              </motion.div>
-            ))}
-          </AnimatePresence>
-        </div>
-      </motion.div>
-    </SubscriptionGate>
+        <AnimatePresence>
+          {sortedStudyOptions.map((option, index) => (
+            <motion.div
+              key={option.type}
+              data-swapy-slot={`slot-${option.type}`}  // Swapy slot identifier
+              className="h-full"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{
+                duration: 0.3,
+                delay: index * 0.05  // Staggered animation for visual appeal
+              }}
+            >
+              <div data-swapy-item={`item-${option.type}`} className="h-full">  {/* Swapy item identifier */}
+                <StudyCard
+                  title={option.title}
+                  description={option.description}
+                  icon={option.icon}
+                  image={option.image}
+                  type={option.type}
+                  disabled={option.disabled}
+                  reason={option.reason}
+                />
+              </div>
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </div>
+    </motion.div>
   )
 }
 

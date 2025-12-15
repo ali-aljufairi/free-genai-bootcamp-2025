@@ -1,11 +1,9 @@
 "use client"
-import { useTheme } from "next-themes"
 import { useActivityDates } from "@/hooks/api/useDashboard"
 import { useMemo } from "react"
 
 export function StreakCalendar() {
-  const { theme } = useTheme()
-  const isDark = theme === "dark"
+  const isDark = true
   const { data, isLoading, error } = useActivityDates()
 
   // Convert activity dates to a map for quick lookup
@@ -126,8 +124,8 @@ export function StreakCalendar() {
                       ${isToday ? "ring-2 ring-blue-500 dark:ring-blue-400" : ""}
                       ${day.hasActivity
                         ? isDark
-                          ? "bg-gradient-to-br from-blue-500/90 to-blue-600/90 text-white shadow-sm border border-white/40"
-                          : "bg-gradient-to-br from-blue-400/90 to-blue-500/90 text-white shadow-sm border border-white/60"
+                          ? "bg-linear-to-br from-blue-500/90 to-blue-600/90 text-white shadow-sm border border-white/40"
+                          : "bg-linear-to-br from-blue-400/90 to-blue-500/90 text-white shadow-sm border border-white/60"
                         : "bg-blue-100/40 dark:bg-blue-900/20 text-muted-foreground hover:bg-blue-100/60 dark:hover:bg-blue-900/30"
                       }
                     `}

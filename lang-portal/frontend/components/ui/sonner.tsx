@@ -1,6 +1,5 @@
 "use client"
 
-import { useTheme } from "next-themes"
 import { type ToastT, Toaster as Sonner, toast as sonnerToast } from "sonner"
 import { CheckCircle2, XCircle, AlertCircle } from "lucide-react"
 
@@ -35,11 +34,9 @@ export const toast = (props: ToastProps) => {
 };
 
 const Toaster = ({ ...props }: ToasterProps) => {
-  const { theme = "system" } = useTheme()
-
   return (
     <Sonner
-      theme={theme as ToasterProps["theme"]}
+      theme="dark"
       className="toaster group"
       position="top-right"
       icons={icons}
