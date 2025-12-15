@@ -19,7 +19,7 @@ export function AccountTab() {
     const { user: clerkUser, isLoaded: clerkLoaded } = useUser()
     const { signOut } = useClerk()
     const { data: userProfile, isLoading: profileLoading, refetch } = useUserProfile()
-    const { hasActiveSubscription, isBasic, isPro, plan } = useSubscription()
+    const { hasActiveSubscription, isBasic, isPro, isFree, plan } = useSubscription()
     // Use Clerk's experimental useSubscription hook for detailed subscription data
     const { data: clerkSubscription, isLoading: subscriptionLoading, revalidate: revalidateSubscription } = useClerkSubscription()
     const [isSaving, setIsSaving] = useState(false)
@@ -112,7 +112,7 @@ export function AccountTab() {
                                     <div className="space-y-1">
                                         <p className="text-xs text-muted-foreground">Current Plan</p>
                                         <p className="font-medium">
-                                            {isPro ? "Pro" : isBasic ? "Basic" : plan ?? "Unknown"}
+                                            {isPro ? "Pro" : isBasic ? "Basic" : isFree ? "Free" : plan ?? "Unknown"}
                                         </p>
                                     </div>
 

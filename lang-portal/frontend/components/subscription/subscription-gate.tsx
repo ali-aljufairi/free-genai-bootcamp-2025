@@ -35,11 +35,12 @@ export function SubscriptionGate({
   const isLoaded = authLoaded && userLoaded
 
   // Check subscription using Clerk's has() method
-  // This checks if user has 'basic', 'pro', or 'free' plan from Clerk Billing
+  // Only paid plans (basic, pro) are considered active for gating.
+  // The Clerk "free" plan is treated as non-paid and does not unlock features.
   const hasBasicPlan = has?.({ plan: 'basic' }) ?? false
   const hasProPlan = has?.({ plan: 'pro' }) ?? false
   const hasFreePlan = has?.({ plan: 'free' }) ?? false
-  const hasActiveSubscription = hasBasicPlan || hasProPlan || hasFreePlan
+  const hasActiveSubscription = hasBasicPlan || hasProPlan
 
   // Show loading state
   if (!isLoaded && showLoading) {
@@ -126,18 +127,19 @@ export function useSubscription() {
 
   const isLoaded = authLoaded && userLoaded
 
-  // Use Clerk's has() method to check plans
+  // Use Clerk's has() method to check plans.
+  // Only basic/pro are treated as active paid subscriptions; free is informational only.
   const hasBasicPlan = has?.({ plan: 'basic' }) ?? false
   const hasProPlan = has?.({ plan: 'pro' }) ?? false
   const hasFreePlan = has?.({ plan: 'free' }) ?? false
-  const hasActiveSubscription = hasBasicPlan || hasProPlan || hasFreePlan
+  const hasActiveSubscription = hasBasicPlan || hasProPlan
 
   return {
     isLoaded,
     hasActiveSubscription,
-    isPro: hasProPlan || hasFreePlan, // Free plan has same privileges as Pro
+    isPro: hasProPlan,
     isBasic: hasBasicPlan,
     isFree: hasFreePlan,
-    plan: hasProPlan ? 'pro' : hasFreePlan ? 'free' : hasBasicPlan ? 'basic' : null,
+    plan: hasProPlan ? 'pro' : hasBasicPlan ? 'basic' : hasFreePlan ? 'free' : null,
   }
 }

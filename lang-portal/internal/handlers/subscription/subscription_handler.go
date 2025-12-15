@@ -57,8 +57,8 @@ func (h *SubscriptionHandler) CheckCompanionStudyLimit(c *fiber.Ctx) error {
 		hasActive = false
 	}
 
-	// If Pro or Free plan, allow unlimited (both have same privileges)
-	if hasActive && (plan == "pro" || plan == "free") {
+	// If Pro plan, allow unlimited. Free is treated as non-paid and follows usage limits.
+	if hasActive && plan == "pro" {
 		return c.JSON(fiber.Map{
 			"can_start": true,
 			"reason":    "unlimited",
@@ -66,7 +66,7 @@ func (h *SubscriptionHandler) CheckCompanionStudyLimit(c *fiber.Ctx) error {
 		})
 	}
 
-	// For Basic plan or no plan, check usage count
+	// For Basic plan or non-subscribers (including Free), check usage count
 	currentMonth := time.Now().Format("2006-01")
 	var usage struct {
 		SessionCount int `gorm:"column:session_count"`
@@ -87,15 +87,20 @@ func (h *SubscriptionHandler) CheckCompanionStudyLimit(c *fiber.Ctx) error {
 		}
 	}
 
-	// Basic plan limit is 10 sessions per month
-	limit := 10
-	canStart := sessionCount < limit
-
-	// If no active subscription, still check limit but return appropriate plan
+	// Determine limits:
+	// - Pro: handled above (unlimited)
+	// - Basic: 10 sessions per month
+	// - Free/None: 0 sessions (blocked from starting companion study)
+	limit := 0
 	responsePlan := plan
-	if !hasActive {
+	if hasActive && plan == "basic" {
+		limit = 10
+	} else {
+		// Any non-paid plan (including free or none) is treated as having no allowance
 		responsePlan = "none"
 	}
+
+	canStart := sessionCount < limit
 
 	return c.JSON(fiber.Map{
 		"can_start":     canStart,
@@ -155,10 +160,16 @@ func (h *SubscriptionHandler) GetUsageCount(c *fiber.Ctx) error {
 		// If error, plan remains "none" as fallback
 	}
 
+	// Map plans to limits:
+	// - Pro: unlimited (-1)
+	// - Basic: 10
+	// - Free/None: 0 (no allowance)
 	if plan == "basic" {
 		limit = 10
-	} else if plan == "pro" || plan == "free" {
-		limit = -1 // unlimited (both pro and free have unlimited access)
+	} else if plan == "pro" {
+		limit = -1 // unlimited
+	} else {
+		limit = 0
 	}
 
 	return c.JSON(fiber.Map{
