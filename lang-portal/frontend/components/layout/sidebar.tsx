@@ -73,7 +73,11 @@ export default function Sidebar() {
             "flex items-center gap-2 p-4 border-b",
             !isExpanded ? "justify-center" : "justify-between"
           )}>
-            <div className="flex items-center gap-2">
+            <Link
+              href="/"
+              aria-label="Go to home"
+              className="flex items-center gap-2 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-900"
+            >
               <Logo width={20} height={20} />
               {isExpanded && (
                 <>
@@ -81,7 +85,7 @@ export default function Sidebar() {
                   <span className="text-xs text-muted-foreground">空見</span>
                 </>
               )}
-            </div>
+            </Link>
             {isExpanded && (
               <Button
                 variant="ghost"
