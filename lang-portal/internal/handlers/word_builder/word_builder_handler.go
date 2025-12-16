@@ -11,6 +11,15 @@ import (
 	"gorm.io/gorm"
 )
 
+const (
+	// MaxRetriesKanjiSelection is the main retry limit for finding valid kanji sets
+	MaxRetriesKanjiSelection = 10
+	// MaxRetriesKanjiChain is the retry limit for building kanji chains
+	MaxRetriesKanjiChain = 10
+	// MaxWordTriesPerKanji is the retry limit for trying different words per kanji
+	MaxWordTriesPerKanji = 5
+)
+
 type WordBuilderHandler struct {
 	KanjiStore *repositories.KanjiStore
 	WordsStore *repositories.WordsStore
@@ -37,7 +46,7 @@ func (h *WordBuilderHandler) getUserID(c *fiber.Ctx) (int64, error) {
 // StartSession starts a new word builder session
 func (h *WordBuilderHandler) StartSession(c *fiber.Ctx) error {
 	startTime := time.Now()
-	
+
 	var req StartSessionRequest
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -66,8 +75,8 @@ func (h *WordBuilderHandler) StartSession(c *fiber.Ctx) error {
 	}
 
 	// Get 6 kanji with auto-refresh if no valid words found
-	// Retry up to 5 times to find kanji that form valid words
-	maxRetries := 5
+	// Retry up to MaxRetriesKanjiSelection times to find kanji that form valid words
+	maxRetries := MaxRetriesKanjiSelection
 	var kanji []KanjiData
 	var validWords []ValidWord
 	var kanjiDuration time.Duration
@@ -82,8 +91,11 @@ func (h *WordBuilderHandler) StartSession(c *fiber.Ctx) error {
 		if err != nil {
 			if attempt == maxRetries-1 {
 				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-					"error":   "Failed to get kanji after multiple attempts",
-					"details": err.Error(),
+					"error":       "Failed to get kanji after multiple attempts",
+					"details":     err.Error(),
+					"attempts":    attempt + 1,
+					"max_retries": maxRetries,
+					"retry_type":  "kanji_selection",
 				})
 			}
 			log.Printf("[StartSession] Attempt %d: Failed to get kanji: %v, retrying...", attempt+1, err)
@@ -97,8 +109,11 @@ func (h *WordBuilderHandler) StartSession(c *fiber.Ctx) error {
 		if err != nil {
 			if attempt == maxRetries-1 {
 				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-					"error":   "Failed to compute valid words after multiple attempts",
-					"details": err.Error(),
+					"error":       "Failed to compute valid words after multiple attempts",
+					"details":     err.Error(),
+					"attempts":    attempt + 1,
+					"max_retries": maxRetries,
+					"retry_type":  "word_computation",
 				})
 			}
 			log.Printf("[StartSession] Attempt %d: Failed to compute valid words: %v, retrying...", attempt+1, err)
@@ -122,12 +137,15 @@ func (h *WordBuilderHandler) StartSession(c *fiber.Ctx) error {
 		for _, k := range kanji {
 			excludeIDs = append(excludeIDs, k.ID)
 		}
-		
+
 		if attempt == maxRetries-1 {
 			// Last attempt failed - return error
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"error":   "Could not find kanji that form valid words after multiple attempts",
-				"details": fmt.Sprintf("Tried %d times but no valid words found", maxRetries),
+				"error":       "Could not find kanji that form valid words after multiple attempts",
+				"details":     fmt.Sprintf("Tried %d times but no valid words found", maxRetries),
+				"attempts":    attempt + 1,
+				"max_retries": maxRetries,
+				"retry_type":  "valid_words",
 			})
 		}
 	}
@@ -200,7 +218,7 @@ func (h *WordBuilderHandler) StartSession(c *fiber.Ctx) error {
 // RefreshKanji refreshes the kanji pool
 func (h *WordBuilderHandler) RefreshKanji(c *fiber.Ctx) error {
 	startTime := time.Now()
-	
+
 	var req RefreshRequest
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -223,8 +241,8 @@ func (h *WordBuilderHandler) RefreshKanji(c *fiber.Ctx) error {
 	}
 
 	// Get 6 new kanji with auto-refresh if no valid words found
-	// Retry up to 5 times to find kanji that form valid words
-	maxRetries := 5
+	// Retry up to MaxRetriesKanjiSelection times to find kanji that form valid words
+	maxRetries := MaxRetriesKanjiSelection
 	var newKanji []KanjiData
 	var validWords []ValidWord
 	var kanjiDuration time.Duration
@@ -240,10 +258,13 @@ func (h *WordBuilderHandler) RefreshKanji(c *fiber.Ctx) error {
 		if err != nil {
 			if attempt == maxRetries-1 {
 				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-					"error":   "Failed to get new kanji after multiple attempts",
-					"details": err.Error(),
+					"error":       "Failed to get new kanji after multiple attempts",
+					"details":     err.Error(),
+					"attempts":    attempt + 1,
+					"max_retries": maxRetries,
+					"retry_type":  "kanji_selection",
 					"debug": map[string]interface{}{
-						"jlpt_level":    req.JLPTLevel,
+						"jlpt_level":     req.JLPTLevel,
 						"used_kanji_ids": req.UsedKanjiIDs,
 					},
 				})
@@ -259,8 +280,11 @@ func (h *WordBuilderHandler) RefreshKanji(c *fiber.Ctx) error {
 		if err != nil {
 			if attempt == maxRetries-1 {
 				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-					"error":   "Failed to compute valid words after multiple attempts",
-					"details": err.Error(),
+					"error":       "Failed to compute valid words after multiple attempts",
+					"details":     err.Error(),
+					"attempts":    attempt + 1,
+					"max_retries": maxRetries,
+					"retry_type":  "word_computation",
 				})
 			}
 			log.Printf("[RefreshKanji] Attempt %d: Failed to compute valid words: %v, retrying...", attempt+1, err)
@@ -284,12 +308,15 @@ func (h *WordBuilderHandler) RefreshKanji(c *fiber.Ctx) error {
 		for _, k := range newKanji {
 			excludeIDs = append(excludeIDs, k.ID)
 		}
-		
+
 		if attempt == maxRetries-1 {
 			// Last attempt failed - return error
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"error":   "Could not find kanji that form valid words after multiple attempts",
-				"details": fmt.Sprintf("Tried %d times but no valid words found", maxRetries),
+				"error":       "Could not find kanji that form valid words after multiple attempts",
+				"details":     fmt.Sprintf("Tried %d times but no valid words found", maxRetries),
+				"attempts":    attempt + 1,
+				"max_retries": maxRetries,
+				"retry_type":  "valid_words",
 			})
 		}
 	}

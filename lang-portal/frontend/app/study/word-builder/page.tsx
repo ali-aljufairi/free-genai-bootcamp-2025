@@ -64,7 +64,16 @@ export default function WordBuilderPage() {
             setShowConfig(false)
         } catch (error) {
             console.error('[WordBuilder] Failed to start game:', error)
-            toast.error("Failed to start game")
+
+            const err = error as { details?: { attempts?: number; max_retries?: number; error?: string; details?: string } }
+            const data = err?.details
+            const errorMessage = data?.error || (error instanceof Error ? error.message : "Failed to start game")
+
+            if (data?.attempts !== undefined && data?.max_retries !== undefined) {
+                toast.error(`Failed after ${data.attempts}/${data.max_retries} attempts: ${errorMessage}`)
+            } else {
+                toast.error(errorMessage)
+            }
         }
     }
 

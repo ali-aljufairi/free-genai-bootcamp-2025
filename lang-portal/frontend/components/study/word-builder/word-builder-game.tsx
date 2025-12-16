@@ -376,16 +376,18 @@ export function WordBuilderGame({
 
             refreshKanji(response.kanji, response.valid_words)
             toast.success("New kanji loaded!")
-        } catch (error: any) {
-            console.error("Refresh error details:", {
-                error,
-                message: error?.message,
-                response: error?.response,
-                status: error?.response?.status,
-                data: error?.response?.data,
-            })
-            const errorMessage = error?.response?.data?.error || error?.message || "Failed to refresh kanji"
-            toast.error(`Refresh failed: ${errorMessage}`)
+        } catch (error) {
+            console.error("Refresh error:", error)
+
+            const err = error as { details?: { attempts?: number; max_retries?: number; error?: string; details?: string } }
+            const data = err?.details
+            const errorMessage = data?.error || (error instanceof Error ? error.message : "Failed to refresh kanji")
+
+            if (data?.attempts !== undefined && data?.max_retries !== undefined) {
+                toast.error(`Refresh failed after ${data.attempts}/${data.max_retries} attempts: ${errorMessage}`)
+            } else {
+                toast.error(`Refresh failed: ${errorMessage}`)
+            }
         }
     }
 

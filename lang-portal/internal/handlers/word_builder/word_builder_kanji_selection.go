@@ -18,13 +18,13 @@ func (h *WordBuilderHandler) getSimpleKanji(jlptLevel int, count int, excludeIDs
 		log.Printf("[getSimpleKanji] SQL function succeeded with %d kanji", len(kanjiIDs))
 		return h.getKanjiDetails(kanjiIDs[:count])
 	}
-	
+
 	if err != nil {
 		log.Printf("[getSimpleKanji] SQL function failed: %v, falling back to Go implementation", err)
 	} else {
 		log.Printf("[getSimpleKanji] SQL function returned only %d kanji (needed %d), falling back to Go implementation", len(kanjiIDs), count)
 	}
-	
+
 	// Fall back to improved Go implementation
 	return h.getSimpleKanjiGo(jlptLevel, count, excludeIDs)
 }
@@ -41,7 +41,7 @@ func (h *WordBuilderHandler) getKanjiUsingSQLFunction(jlptLevel int, count int, 
 		"SELECT build_kanji_chain($1, $2, $3)",
 		jlptLevel, count, pq.Array(excludeIDs),
 	).Scan(&kanjiArray)
-	
+
 	if err != nil {
 		return nil, fmt.Errorf("SQL function failed: %w", err)
 	}
@@ -78,14 +78,14 @@ func (h *WordBuilderHandler) getSimpleKanjiGo(jlptLevel int, count int, excludeI
 		minWordConnections = 3 // N1 requires higher connectivity
 	}
 
-	maxRetries := 10
+	maxRetries := MaxRetriesKanjiChain
 	// For N1/N2, try with reduced count as fallback
 	fallbackCounts := []int{count}
 	if jlptLevel <= 2 && count >= 6 {
 		fallbackCounts = []int{count, 5, 4} // Try 6, then 5, then 4
 	}
 
-		for _, targetCount := range fallbackCounts {
+	for _, targetCount := range fallbackCounts {
 		for attempt := 0; attempt < maxRetries; attempt++ {
 			log.Printf("[getSimpleKanjiGo] Attempt %d/%d: JLPT level %d (range %d-%d), target: %d, excludeIDs: %v",
 				attempt+1, maxRetries, jlptLevel, jlptMin, jlptMax, targetCount, excludeIDs)
@@ -144,7 +144,7 @@ func (h *WordBuilderHandler) getSimpleKanjiGo(jlptLevel int, count int, excludeI
 			// 3. Build chain: K1 → word → K2 → word → K3 → ... → K6
 			// Use materialized view for faster lookups
 			// Improved: Try multiple words per kanji before giving up (backtracking)
-			maxWordTriesPerKanji := 3 // Try up to 3 different words before giving up on current kanji
+			maxWordTriesPerKanji := MaxWordTriesPerKanji
 			for len(collectedKanji) < targetCount {
 				log.Printf("[getSimpleKanjiGo] Attempt %d: Step %d/%d - Current kanji: %d, Collected so far: %v",
 					attempt+1, len(collectedKanji), targetCount, currentKanjiID, collectedKanji)
@@ -158,7 +158,7 @@ func (h *WordBuilderHandler) getSimpleKanjiGo(jlptLevel int, count int, excludeI
 					for wID := range usedWords {
 						usedWordIDs = append(usedWordIDs, wID)
 					}
-					
+
 					// Build query and args based on whether we have used words
 					var wordQuery string
 					var wordArgs []interface{}
@@ -188,7 +188,7 @@ func (h *WordBuilderHandler) getSimpleKanjiGo(jlptLevel int, count int, excludeI
 						`
 						wordArgs = []interface{}{currentKanjiID, jlptMin, jlptMax}
 					}
-					
+
 					err := sqlDB.QueryRow(wordQuery, wordArgs...).Scan(&wordID)
 					if err != nil {
 						log.Printf("[getSimpleKanjiGo] Attempt %d: Step %d - Word try %d failed for kanji %d: %v",
@@ -199,7 +199,7 @@ func (h *WordBuilderHandler) getSimpleKanjiGo(jlptLevel int, count int, excludeI
 						}
 						continue // Try another word
 					}
-					
+
 					// Found a word - mark it as used and proceed to find kanji
 					usedWords[wordID] = true
 					wordFound = true
@@ -207,7 +207,7 @@ func (h *WordBuilderHandler) getSimpleKanjiGo(jlptLevel int, count int, excludeI
 						attempt+1, len(collectedKanji), wordID, currentKanjiID, wordTry+1)
 					break
 				}
-				
+
 				if !wordFound {
 					log.Printf("[getSimpleKanjiGo] Attempt %d: Step %d - No word found for kanji %d after %d tries",
 						attempt+1, len(collectedKanji), currentKanjiID, maxWordTriesPerKanji)
@@ -370,5 +370,3 @@ func (h *WordBuilderHandler) getKanjiDetails(kanjiIDs []int64) ([]KanjiData, err
 
 	return result, nil
 }
-
-
