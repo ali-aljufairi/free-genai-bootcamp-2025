@@ -13,7 +13,6 @@ def display_product_comparisons(comparisons: List[Dict], best_product: Dict, you
         best_product: Information about the best product
         youtube_link: Optional YouTube link for additional information
     """
-    # Display the best product recommendation
     st.title("Your Best Product Match")
     
     best_product_card_html = f"""
