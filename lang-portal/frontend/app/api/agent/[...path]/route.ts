@@ -1,31 +1,31 @@
 import { NextRequest } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 
-const WRITING_SERVICE_URL = process.env.WRITING_SERVICE_URL || 'http://localhost:8001'
+const AGENT_SERVICE_URL = process.env.AGENT_SERVICE_URL || 'http://localhost:8002'
 
-// Catch-all proxy for all /api/writing/* requests
-// Forwards method, headers, query, and body to the Python writing service while handling Clerk auth
+// Catch-all proxy for all /api/agent/* requests
+// Forwards method, headers, query, and body to the Python agent service while handling Clerk auth
 
-async function proxyToWritingService(
+async function proxyToAgentService(
   request: NextRequest,
   { params }: { params: { path: string[] } },
   method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH'
 ) {
   try {
-    // Preserve the full path after /api/writing when forwarding to the Python service
+    // Preserve the full path after /api/agent when forwarding to the Python service
     const originalPath = request.nextUrl.pathname
-    const pathWithoutPrefix = originalPath.replace(/^\/api\/writing/, '') || '/'
+    const pathWithoutPrefix = originalPath.replace(/^\/api\/agent/, '') || '/'
     const fullPath = `${pathWithoutPrefix}${request.nextUrl.search}`
-    
+
     // Get authentication token
     let token: string | null = null
-    
+
     // Prefer the Authorization header from the incoming request
     const incomingAuth = request.headers.get('authorization') || request.headers.get('Authorization')
     if (incomingAuth?.toLowerCase().startsWith('bearer ')) {
       token = incomingAuth.slice(7).trim()
     }
-    
+
     // If no token in header, get from Clerk
     if (!token) {
       const authResult = await auth()
@@ -33,22 +33,22 @@ async function proxyToWritingService(
         token = await authResult.getToken()
       }
     }
-    
+
     // Build headers
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     }
-    
+
     if (token) {
       headers['Authorization'] = `Bearer ${token}`
     }
-    
+
     // Copy other important headers
     const contentType = request.headers.get('content-type')
     if (contentType) {
       headers['Content-Type'] = contentType
     }
-    
+
     // Parse request body for non-GET requests
     let body: string | undefined = undefined
     if (method !== 'GET' && request.body) {
@@ -61,15 +61,15 @@ async function proxyToWritingService(
         console.error('Error reading request body:', error)
       }
     }
-    
-    // Forward request to writing service
-    const response = await fetch(`${WRITING_SERVICE_URL}/api/writing${fullPath}`, {
+
+    // Forward request to agent service
+    const response = await fetch(`${AGENT_SERVICE_URL}/api/agent${fullPath}`, {
       method,
       headers,
       body,
       cache: 'no-store',
     })
-    
+
     // Handle errors
     if (!response.ok) {
       const errorText = await response.text()
@@ -86,7 +86,7 @@ async function proxyToWritingService(
         }
       )
     }
-    
+
     // Return response
     const data = await response.json()
     return Response.json(data, {
@@ -96,10 +96,10 @@ async function proxyToWritingService(
       },
     })
   } catch (error) {
-    console.error('Writing service proxy error:', error)
+    console.error('Agent service proxy error:', error)
     return new Response(
       JSON.stringify({
-        error: 'Failed to connect to writing service',
+        error: 'Failed to connect to agent service',
         details: error instanceof Error ? error.message : 'Unknown error',
       }),
       {
@@ -113,22 +113,22 @@ async function proxyToWritingService(
 }
 
 export async function GET(request: NextRequest, context: { params: { path: string[] } }) {
-  return proxyToWritingService(request, context, 'GET')
+  return proxyToAgentService(request, context, 'GET')
 }
 
 export async function POST(request: NextRequest, context: { params: { path: string[] } }) {
-  return proxyToWritingService(request, context, 'POST')
+  return proxyToAgentService(request, context, 'POST')
 }
 
 export async function PUT(request: NextRequest, context: { params: { path: string[] } }) {
-  return proxyToWritingService(request, context, 'PUT')
+  return proxyToAgentService(request, context, 'PUT')
 }
 
 export async function DELETE(request: NextRequest, context: { params: { path: string[] } }) {
-  return proxyToWritingService(request, context, 'DELETE')
+  return proxyToAgentService(request, context, 'DELETE')
 }
 
 export async function PATCH(request: NextRequest, context: { params: { path: string[] } }) {
-  return proxyToWritingService(request, context, 'PATCH')
+  return proxyToAgentService(request, context, 'PATCH')
 }
 
