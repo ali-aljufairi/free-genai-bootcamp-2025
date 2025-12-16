@@ -66,7 +66,7 @@ export default function Sidebar() {
 
       <TooltipProvider>
         <div className={cn(
-          "hidden md:flex flex-col h-screen border-r bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm transition-all duration-300",
+          "hidden md:flex flex-col h-screen border-r dark:bg-slate-900/90 backdrop-blur-sm transition-all duration-300",
           !isExpanded ? "w-20" : "w-64"
         )}>
           <div className={cn(
@@ -76,7 +76,7 @@ export default function Sidebar() {
             <Link
               href="/"
               aria-label="Go to home"
-              className="flex items-center gap-2 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-900"
+              className="flex items-center gap-2 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-900"
             >
               <Logo width={20} height={20} />
               {isExpanded && (
@@ -109,8 +109,8 @@ export default function Sidebar() {
                           className={cn(
                             "flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors justify-center",
                             pathname === route.path
-                              ? "bg-blue-100 text-blue-900 dark:bg-blue-900/30 dark:text-blue-50"
-                              : "hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                              ? "dark:bg-blue-900/30 dark:text-blue-50"
+                              : "dark:hover:bg-blue-900/20"
                           )}
                         >
                           {route.icon}
@@ -126,8 +126,8 @@ export default function Sidebar() {
                       className={cn(
                         "flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors",
                         pathname === route.path
-                          ? "bg-blue-100 text-blue-900 dark:bg-blue-900/30 dark:text-blue-50"
-                          : "hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                          ? "dark:bg-blue-900/30 dark:text-blue-50"
+                          : "dark:hover:bg-blue-900/20"
                       )}
                     >
                       {route.icon}
