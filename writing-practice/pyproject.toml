@@ -1,23 +1,33 @@
 [project]
 name = "writing-practice"
 version = "0.1.0"
-description = "Add your description here"
+description = "Japanese Writing Practice API"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-    "dotenv>=0.9.9",
+    # Core API dependencies
     "fastapi>=0.115.12",
+    "uvicorn>=0.34.0",
+    
+    # AI/ML services
     "groq>=0.18.0",
     "google-cloud-vision>=2.0.0",
+    
+    # Authentication
+    "python-jose[cryptography]>=3.3.0",
+    
+    # Utilities
     "python-dotenv>=1.0.1",
     "pyyaml>=6.0.2",
     "requests>=2.32.3",
-    "streamlit-drawable-canvas>=0.9.3",
-    "streamlit>=1.42.2",
-    "torch>=2.6.0",
-    "torchvision==0.21.0",
-    "uvicorn>=0.34.0",
     "Levenshtein>=0.23.0",
-    "python-jose[cryptography]>=3.3.0",
-    "jose>=1.0.0",
+    "pillow>=10.0.0",
+    "numpy>=1.26.0",
+]
+
+# Optional dependencies for local development with Streamlit UI
+[project.optional-dependencies]
+dev = [
+    "streamlit>=1.42.2",
+    "streamlit-drawable-canvas>=0.9.3",
 ]

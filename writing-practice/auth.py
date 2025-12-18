@@ -52,10 +52,41 @@ else:
 
 _cached_jwks: Dict[str, Any] | None = None
 _cached_at: float = 0.0
+_fallback_jwks_urls: list = []  # For fallback JWKS URLs
+
+
+def _get_jwks_from_token_issuer(token: str) -> tuple[str, Dict[str, Any]] | None:
+    """Try to get JWKS from the issuer specified in the token itself."""
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    try:
+        claims = jwt.get_unverified_claims(token)
+        issuer = claims.get("iss")
+        if not issuer:
+            logger.warning("[AUTH DEBUG] No issuer in token")
+            return None
+            
+        issuer = issuer.rstrip("/")
+        jwks_url = f"{issuer}/.well-known/jwks.json"
+        logger.info(f"[AUTH DEBUG] Trying token issuer JWKS: {jwks_url}")
+        
+        resp = requests.get(jwks_url, timeout=5)
+        if resp.status_code == 200:
+            logger.info(f"[AUTH DEBUG] Successfully fetched JWKS from token issuer")
+            return jwks_url, resp.json()
+        else:
+            logger.warning(f"[AUTH DEBUG] Token issuer JWKS returned {resp.status_code}")
+            return None
+    except Exception as e:
+        logger.warning(f"[AUTH DEBUG] Failed to get JWKS from token issuer: {e}")
+        return None
 
 
 def _get_jwks() -> Dict[str, Any]:
     global _cached_jwks, _cached_at, JWKS_URL
+    import logging
+    logger = logging.getLogger(__name__)
 
     # Check if JWKS_URL is configured
     if not JWKS_URL:
@@ -66,37 +97,81 @@ def _get_jwks() -> Dict[str, Any]:
         )
 
     if _cached_jwks is None or time.time() - _cached_at > 3600:
+        logger.info(f"[AUTH DEBUG] Fetching JWKS from: {JWKS_URL}")
         try:
             resp = requests.get(JWKS_URL, timeout=5)
             if resp.status_code != 200:
+                logger.error(f"[AUTH DEBUG] JWKS fetch failed with status {resp.status_code}")
                 raise HTTPException(
                     status_code=401,
                     detail=f"Failed to fetch JWKS from {JWKS_URL}: HTTP {resp.status_code}",
                 )
             _cached_jwks = resp.json()
             _cached_at = time.time()
+            logger.info(f"[AUTH DEBUG] JWKS fetched successfully, {len(_cached_jwks.get('keys', []))} keys")
         except requests.exceptions.RequestException as e:
+            logger.error(f"[AUTH DEBUG] JWKS fetch exception: {str(e)}")
             raise HTTPException(
                 status_code=500,
                 detail=f"Failed to fetch JWKS from {JWKS_URL}: {str(e)}",
             )
+    else:
+        logger.info(f"[AUTH DEBUG] Using cached JWKS (age: {time.time() - _cached_at:.1f}s)")
     return _cached_jwks
 
 
 def verify_bearer(authorization: str | None = Header(default=None)):
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    logger.info(f"[AUTH DEBUG] Received authorization header: {authorization[:50] if authorization else 'None'}...")
+    
     if not authorization or not authorization.lower().startswith("bearer "):
+        logger.error(f"[AUTH DEBUG] Missing or malformed bearer token. Header: {authorization}")
         raise HTTPException(status_code=401, detail="Missing bearer token")
     token = authorization.split(" ", 1)[1]
+    
+    logger.info(f"[AUTH DEBUG] Extracted token (first 20 chars): {token[:20]}...")
+    
     try:
         header = jwt.get_unverified_header(token)
         kid = header.get("kid")
+        
+        # Get token claims to check issuer
+        claims = jwt.get_unverified_claims(token)
+        token_issuer = claims.get("iss", "")
+        logger.info(f"[AUTH DEBUG] Token KID: {kid}, Token Issuer: {token_issuer}")
+        
+        # Try to get JWKS from configured source first
         jwks = _get_jwks()
+        jwks_kids = [k.get("kid") for k in jwks.get('keys', [])]
+        logger.info(f"[AUTH DEBUG] Configured JWKS has keys: {jwks_kids}")
+        
         key = next((k for k in jwks.get("keys", []) if k.get("kid") == kid), None)
+        
+        # If key not found, try fetching from token's issuer
         if not key:
+            logger.warning(f"[AUTH DEBUG] KID {kid} not found in configured JWKS, trying token issuer...")
+            issuer_result = _get_jwks_from_token_issuer(token)
+            if issuer_result:
+                issuer_jwks_url, issuer_jwks = issuer_result
+                issuer_kids = [k.get("kid") for k in issuer_jwks.get('keys', [])]
+                logger.info(f"[AUTH DEBUG] Token issuer JWKS has keys: {issuer_kids}")
+                key = next((k for k in issuer_jwks.get("keys", []) if k.get("kid") == kid), None)
+                if key:
+                    logger.info(f"[AUTH DEBUG] Found key in token issuer JWKS")
+                    jwks = issuer_jwks
+        
+        if not key:
+            available_kids = [k.get("kid") for k in jwks.get('keys', [])]
+            logger.error(f"[AUTH DEBUG] KID {kid} not found in any JWKS. Available: {available_kids}")
             raise HTTPException(status_code=401, detail="Unknown KID")
         # Clerk tokens often use RS256
         alg = key.get("alg", "RS256")
+        logger.info(f"[AUTH DEBUG] Decoding token with algorithm: {alg}")
+        
         claims = jwt.decode(token, key, algorithms=[alg], options={"verify_aud": False})
+        logger.info(f"[AUTH DEBUG] Token verified successfully. User: {claims.get('sub')}")
         return claims
     except HTTPException:
         raise
