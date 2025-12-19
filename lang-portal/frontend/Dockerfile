@@ -56,10 +56,10 @@ COPY --from=builder $APP_HOME ./
 
 # Copy static files to standalone directory for Next.js standalone mode
 # This is required for Next.js to serve static assets correctly
-RUN mkdir -p .next/standalone/.next/static && \
-    mkdir -p .next/standalone/public && \
-    cp -r .next/static .next/standalone/.next/static && \
-    cp -r public .next/standalone/public
+RUN mkdir -p .next/standalone/.next && \
+    mkdir -p .next/standalone && \
+    cp -r .next/static .next/standalone/.next/ && \
+    cp -r public .next/standalone/
 
 EXPOSE 3000
 
