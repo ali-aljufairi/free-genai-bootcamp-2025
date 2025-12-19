@@ -54,6 +54,13 @@ WORKDIR $APP_HOME
 
 COPY --from=builder $APP_HOME ./
 
+# Copy static files to standalone directory for Next.js standalone mode
+# This is required for Next.js to serve static assets correctly
+RUN mkdir -p .next/standalone/.next/static && \
+    mkdir -p .next/standalone/public && \
+    cp -r .next/static .next/standalone/.next/static && \
+    cp -r public .next/standalone/public
+
 EXPOSE 3000
 
 # Start with wattpm
