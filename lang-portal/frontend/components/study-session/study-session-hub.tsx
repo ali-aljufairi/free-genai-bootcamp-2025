@@ -188,7 +188,86 @@ export function StudySessionHub() {
   }, [router, setIsExpanded])
 
   /**
-   * Memoized StudyCard component for optimal performance
+   * Mobile-specific StudyCard component with horizontal rectangular layout
+   * 
+   * Features:
+   * - Content on left, image on right
+   * - No button - entire card is clickable
+   * - Compact design optimized for mobile
+   */
+  const MobileStudyCard = useMemo(() => ({
+    title,
+    description,
+    icon,
+    image,
+    type
+  }: {
+    title: string;
+    description: string;
+    icon: React.ReactNode;
+    image: string;
+    type: string;
+    disabled?: boolean;
+    reason?: string;
+  }) => {
+    const isEnabled = ENABLED_FEATURES.has(type)
+
+    return (
+      <motion.div
+        whileTap={{ scale: 0.97 }}
+        transition={{ duration: 0.2 }}
+      >
+        <Card
+          className={`glass-card relative overflow-hidden flex flex-row h-full ${isEnabled ? 'cursor-pointer' : 'opacity-60'}`}
+          onClick={() => startSession(type, !isEnabled)}
+        >
+          {/* Content on left */}
+          <div className="grow flex flex-col justify-center p-4 z-10 min-w-0">
+            <div className="flex items-center gap-2 mb-1.5">
+              {icon}
+              <h3 className="text-base font-semibold leading-tight line-clamp-1">{title}</h3>
+            </div>
+            <p className="text-xs text-muted-foreground line-clamp-2">
+              {description}
+              {!isEnabled && (
+                <span className="block text-[10px] text-amber-500 mt-1">Temporarily disabled</span>
+              )}
+            </p>
+          </div>
+
+          {/* Image on right */}
+          <div className="shrink-0 w-24 h-24 sm:w-28 sm:h-28 flex items-center justify-center p-3 z-10">
+            <motion.div
+              className="relative w-full h-full"
+              whileTap={{ scale: 0.9 }}
+              transition={{ duration: 0.2 }}
+            >
+              <Image
+                src={image}
+                alt={`${title} background`}
+                width={CARD_IMAGE_DIMENSIONS.medium.width}
+                height={CARD_IMAGE_DIMENSIONS.medium.height}
+                className="object-contain"
+                sizes="(max-width: 640px) 96px, 112px"
+                priority={true}
+                loading="eager"
+                placeholder="blur"
+                blurDataURL="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='100%25' height='100%25' fill='%23f3f4f6'/%3E%3C/svg%3E"
+              />
+              {!isEnabled && (
+                <div className="absolute inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center text-white text-[10px] font-medium">
+                  Disabled
+                </div>
+              )}
+            </motion.div>
+          </div>
+        </Card>
+      </motion.div>
+    )
+  }, [startSession]);
+
+  /**
+   * Memoized StudyCard component for optimal performance (Desktop)
    * 
    * Each card represents a study option with:
    * - Interactive hover and tap animations
@@ -220,19 +299,19 @@ export function StudySessionHub() {
         className={`glass-card relative overflow-hidden flex flex-col h-full min-h-[320px] ${ENABLED_FEATURES.has(type) ? 'cursor-pointer' : 'opacity-60'}`}
         onClick={() => startSession(type, !ENABLED_FEATURES.has(type))}
       >
-        <CardHeader className="z-10 pb-0 flex-shrink-0">
+        <CardHeader className="z-10 pb-0 shrink-0">
           <CardTitle className="flex items-center gap-2 text-base sm:text-lg mb-2">
             {icon}
             {title}
           </CardTitle>
-          <CardDescription className="text-xs sm:text-sm line-clamp-2 min-h-[2.5rem]">
+          <CardDescription className="text-xs sm:text-sm line-clamp-2 min-h-10">
             {description}
             {!ENABLED_FEATURES.has(type) && (
               <span className="block text-[10px] sm:text-xs text-amber-500 mt-1">Temporarily disabled</span>
             )}
           </CardDescription>
         </CardHeader>
-        <CardContent className="flex-grow flex justify-center items-center py-2 sm:py-4 z-10">
+        <CardContent className="grow flex justify-center items-center py-2 sm:py-4 z-10">
           <motion.div
             className="relative w-20 h-20 sm:w-28 sm:h-28 md:w-32 md:h-32"
             whileHover={{ scale: 1.05 }}
@@ -291,11 +370,13 @@ export function StudySessionHub() {
         - data-swapy-slot attributes identify draggable slots
         - data-swapy-item attributes identify draggable items
         - Responsive grid layout for different screen sizes
+        - Mobile: Rectangular cards with flexible height
+        - Desktop: Square cards with fixed minimum height
       */}
       <div
         ref={containerRef}
         className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 items-stretch"
-        style={{ gridAutoRows: 'minmax(320px, auto)' }}
+        style={isMobile ? {} : { gridAutoRows: 'minmax(320px, auto)' }}
       >
         <AnimatePresence>
           {sortedStudyOptions.map((option, index) => (
@@ -312,15 +393,27 @@ export function StudySessionHub() {
               }}
             >
               <div data-swapy-item={`item-${option.type}`} className="h-full">  {/* Swapy item identifier */}
-                <StudyCard
-                  title={option.title}
-                  description={option.description}
-                  icon={option.icon}
-                  image={option.image}
-                  type={option.type}
-                  disabled={option.disabled}
-                  reason={option.reason}
-                />
+                {isMobile ? (
+                  <MobileStudyCard
+                    title={option.title}
+                    description={option.description}
+                    icon={option.icon}
+                    image={option.image}
+                    type={option.type}
+                    disabled={option.disabled}
+                    reason={option.reason}
+                  />
+                ) : (
+                  <StudyCard
+                    title={option.title}
+                    description={option.description}
+                    icon={option.icon}
+                    image={option.image}
+                    type={option.type}
+                    disabled={option.disabled}
+                    reason={option.reason}
+                  />
+                )}
               </div>
             </motion.div>
           ))}
