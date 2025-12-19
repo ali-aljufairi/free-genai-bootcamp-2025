@@ -2,8 +2,11 @@ package repositories
 
 import (
 	"errors"
+
 	"lang-portal/internal/database/models"
+
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type GroupsStore struct {
@@ -36,19 +39,37 @@ func (s *GroupsStore) Create(name string, description *string, userID int64) (*m
 // Checks for existing group by user_id AND name (each user has their own groups)
 func (s *GroupsStore) GetOrCreate(name string, description *string, userID int64) (*models.Group, error) {
 	var group models.Group
-	// Check for existing group by user_id AND name (each user has their own groups)
-	err := s.DB.Where("user_id = ? AND name = ?", userID, name).First(&group).Error
+
+	// Prepare desired values
+	newGroup := models.Group{
+		Name:        name,
+		Description: description,
+		UserID:      &userID,
+	}
+
+	// Use an atomic upsert based on (user_id, name).
+	// This leverages the partial unique index idx_groups_user_name on (user_id, name) where user_id IS NOT NULL.
+	err := s.DB.
+		Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "user_id"}, {Name: "name"}},
+			DoUpdates: clause.AssignmentColumns([]string{"description"}),
+		}).
+		Create(&newGroup).Error
 
 	if err == nil {
-		return &group, nil // Group exists for this user
+		// Either inserted or updated the existing row; newGroup now has the correct ID.
+		return &newGroup, nil
 	}
 
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		// Group doesn't exist for this user, create it
-		return s.Create(name, description, userID)
+	// In rare cases (e.g., unexpected constraint issues), fall back to a direct lookup
+	// so that callers can still obtain the existing group if it was created concurrently.
+	if errors.Is(err, gorm.ErrDuplicatedKey) {
+		if lookupErr := s.DB.Where("user_id = ? AND name = ?", userID, name).First(&group).Error; lookupErr == nil {
+			return &group, nil
+		}
 	}
 
-	return nil, err // Other error (e.g., sequence issue)
+	return nil, err
 }
 
 // GetByID returns a group by ID
@@ -90,4 +111,3 @@ func (s *GroupsStore) RemoveKanji(groupID, kanjiID int64) error {
 		Where("group_id = ? AND kanji_id = ?", groupID, kanjiID).
 		Delete(nil).Error
 }
-

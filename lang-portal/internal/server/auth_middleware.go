@@ -9,13 +9,15 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 	"time"
+
+	"lang-portal/internal/database/models"
 
 	"github.com/MicahParks/keyfunc/v2"
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
 	"gorm.io/gorm"
-	"lang-portal/internal/database/models"
 )
 
 // ClerkUser represents the user data from Clerk API
@@ -80,6 +82,19 @@ type clerkAuth struct {
 	// JWT validation settings
 	audience string
 	issuer   string
+
+	// in-memory cache for Clerk ID -> internal user_id + minimal metadata
+	cacheMu sync.RWMutex
+	cache   map[string]cachedUser
+	// configurable TTL for cache entries
+	cacheTTL time.Duration
+}
+
+// cachedUser is the value stored in the in-memory cache.
+type cachedUser struct {
+	UserID    int64
+	Email     string
+	ExpiresAt time.Time
 }
 
 // newClerkAuth initializes the JWKS client from env and returns a middleware helper.
@@ -116,6 +131,17 @@ func newClerkAuth(postgresDB *gorm.DB) (*clerkAuth, error) {
 		// Get validation settings from environment
 		audience: os.Getenv("CLERK_AUDIENCE"),
 		issuer:   os.Getenv("CLERK_ISSUER"),
+		cache:    make(map[string]cachedUser),
+	}
+
+	// Configure cache TTL from env, default to 5 minutes
+	if ttlStr := os.Getenv("AUTH_USER_CACHE_TTL_SECONDS"); ttlStr != "" {
+		if ttl, err := time.ParseDuration(ttlStr + "s"); err == nil && ttl > 0 {
+			ca.cacheTTL = ttl
+		}
+	}
+	if ca.cacheTTL == 0 {
+		ca.cacheTTL = 5 * time.Minute
 	}
 
 	if strings.ToLower(os.Getenv("APP_ENV")) != "prod" && os.Getenv("ALLOW_DEV_FALLBACK_USER") != "0" {
@@ -214,12 +240,22 @@ func (caa *clerkAuth) Middleware() fiber.Handler {
 
 		// Attempt to resolve our internal numeric user id
 		if caa.db != nil {
+			// First, check in-memory cache to avoid hitting the database on every request.
+			if cached, ok := caa.getCachedUser(sub); ok {
+				c.Locals("user_id", cached.UserID)
+				log.Printf("Mapped Clerk user %s to internal user_id %d (cache hit)", sub, cached.UserID)
+				return c.Next()
+			}
+
 			var user models.User
-			
+
 			// Try to find existing user first
 			if err := caa.db.Where("clerk_id = ?", sub).First(&user).Error; err == nil {
 				c.Locals("user_id", user.ID)
 				log.Printf("Mapped Clerk user %s to internal user_id %d", sub, user.ID)
+
+				// Populate cache with a fresh entry
+				caa.setCachedUser(sub, user)
 			} else {
 				// User doesn't exist, create them
 				log.Printf("No user found for Clerk ID %s, creating new user", sub)
@@ -240,7 +276,7 @@ func (caa *clerkAuth) Middleware() fiber.Handler {
 					}
 				} else {
 					log.Printf("Successfully fetched user data from Clerk API for user %s", sub)
-					
+
 					// Get primary email
 					email = fmt.Sprintf("%s@clerk.user", sub)
 					for _, emailAddr := range clerkUser.EmailAddresses {
@@ -276,7 +312,7 @@ func (caa *clerkAuth) Middleware() fiber.Handler {
 					Email:       email,
 					DisplayName: &name,
 				}
-				
+
 				if err := caa.db.Create(&user).Error; err != nil {
 					// Handle race condition: if user was created by concurrent request, just find it
 					if strings.Contains(err.Error(), "duplicate key") || strings.Contains(err.Error(), "23505") {
@@ -318,6 +354,9 @@ func (caa *clerkAuth) Middleware() fiber.Handler {
 					caa.db.FirstOrCreate(&userRole, models.UserRole{UserID: user.ID, RoleID: role.ID})
 				}
 
+				// Cache the resolved or newly created user
+				caa.setCachedUser(sub, user)
+
 				c.Locals("user_id", user.ID)
 			}
 		} else if caa.allowDevFallback {
@@ -325,5 +364,38 @@ func (caa *clerkAuth) Middleware() fiber.Handler {
 		}
 
 		return c.Next()
+	}
+}
+
+// getCachedUser returns a cached user for the given Clerk ID if it exists and is not expired.
+func (caa *clerkAuth) getCachedUser(clerkID string) (cachedUser, bool) {
+	caa.cacheMu.RLock()
+	defer caa.cacheMu.RUnlock()
+
+	entry, ok := caa.cache[clerkID]
+	if !ok {
+		return cachedUser{}, false
+	}
+	if time.Now().After(entry.ExpiresAt) {
+		return cachedUser{}, false
+	}
+	return entry, true
+}
+
+// setCachedUser writes a cached user entry for the given Clerk ID.
+func (caa *clerkAuth) setCachedUser(clerkID string, user models.User) {
+	caa.cacheMu.Lock()
+	defer caa.cacheMu.Unlock()
+
+	ttl := caa.cacheTTL
+	if ttl <= 0 {
+		ttl = 5 * time.Minute
+	}
+
+	email := user.Email
+	caa.cache[clerkID] = cachedUser{
+		UserID:    user.ID,
+		Email:     email,
+		ExpiresAt: time.Now().Add(ttl),
 	}
 }
