@@ -84,20 +84,65 @@ def _get_jwks() -> Dict[str, Any]:
 
 
 def verify_bearer(authorization: str | None = Header(default=None)):
+    import logging
+    logger = logging.getLogger(__name__)
+    
     if not authorization or not authorization.lower().startswith("bearer "):
+        logger.error("[AUTH] Missing bearer token")
         raise HTTPException(status_code=401, detail="Missing bearer token")
+    
     token = authorization.split(" ", 1)[1]
+    
     try:
+        # Get token header and payload
         header = jwt.get_unverified_header(token)
         kid = header.get("kid")
-        jwks = _get_jwks()
-        key = next((k for k in jwks.get("keys", []) if k.get("kid") == kid), None)
-        if not key:
-            raise HTTPException(status_code=401, detail="Unknown KID")
-        # Clerk tokens often use RS256
-        alg = key.get("alg", "RS256")
-        claims = jwt.decode(token, key, algorithms=[alg], options={"verify_aud": False})
-        return claims
+        
+        # Try with configured JWKS first
+        try:
+            jwks = _get_jwks()
+            key = next((k for k in jwks.get("keys", []) if k.get("kid") == kid), None)
+            
+            if key:
+                logger.info(f"[AUTH] Found KID in configured JWKS: {kid}")
+                alg = key.get("alg", "RS256")
+                claims = jwt.decode(token, key, algorithms=[alg], options={"verify_aud": False})
+                return claims
+            
+            # KID not found in configured JWKS, try token's issuer
+            logger.warning(f"[AUTH] KID {kid} not found in configured JWKS, trying token issuer")
+        except Exception as e:
+            logger.warning(f"[AUTH] Failed to get/use configured JWKS: {e}, trying token issuer")
+        
+        # Fallback: Try to get JWKS from the token's issuer
+        try:
+            unverified = jwt.get_unverified_claims(token)
+            token_issuer = unverified.get("iss")
+            
+            if token_issuer:
+                logger.info(f"[AUTH] Trying token issuer: {token_issuer}")
+                issuer = token_issuer.rstrip("/")
+                fallback_jwks_url = f"{issuer}/.well-known/jwks.json"
+                
+                resp = requests.get(fallback_jwks_url, timeout=5)
+                if resp.status_code == 200:
+                    fallback_jwks = resp.json()
+                    fallback_key = next((k for k in fallback_jwks.get("keys", []) if k.get("kid") == kid), None)
+                    
+                    if fallback_key:
+                        logger.info(f"[AUTH] Found KID in token issuer JWKS: {kid}")
+                        alg = fallback_key.get("alg", "RS256")
+                        claims = jwt.decode(token, fallback_key, algorithms=[alg], options={"verify_aud": False})
+                        return claims
+                    else:
+                        available_kids = [k.get("kid") for k in fallback_jwks.get("keys", [])]
+                        logger.error(f"[AUTH] KID {kid} not found in token issuer. Available: {available_kids}")
+                else:
+                    logger.error(f"[AUTH] Failed to fetch JWKS from token issuer: HTTP {resp.status_code}")
+        except Exception as e:
+            logger.error(f"[AUTH] Error trying token issuer: {e}")
+        
+        raise HTTPException(status_code=401, detail="Token verification failed: Unknown KID")
     except HTTPException:
         raise
     except jwt.ExpiredSignatureError:

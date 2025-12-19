@@ -3,7 +3,6 @@ LangGraph workflow definition for Learning Plan Generator.
 """
 
 from langgraph.graph import StateGraph, START, END
-from IPython.display import Image
 
 from models.schemas import State
 from nodes.user_analysis_node import user_analysis_node
@@ -51,19 +50,6 @@ def create_learning_plan_graph():
     # Compile the graph
     graph = builder.compile()
     return graph
-
-
-def visualize_graph(graph):
-    """
-    Visualize the graph as a Mermaid diagram.
-
-    Args:
-        graph: The compiled graph
-
-    Returns:
-        Image: A visualization of the graph
-    """
-    return Image(graph.get_graph().draw_mermaid_png())
 
 
 def run_learning_plan_generator(
