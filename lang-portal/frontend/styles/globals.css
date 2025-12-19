@@ -177,4 +177,27 @@
   .dark * {
     scrollbar-color: rgb(59 130 246 / 0.6) transparent;
   }
+
+  /* Hide scrollbars on mobile devices (max-width: 767px) */
+  @media (max-width: 767px) {
+
+    /* Webkit browsers (Chrome, Safari, Edge) - hide scrollbar */
+    ::-webkit-scrollbar {
+      width: 0px;
+      height: 0px;
+      display: none;
+    }
+
+    /* Firefox - hide scrollbar */
+    * {
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+      /* IE and Edge */
+    }
+
+    /* Ensure scrolling still works */
+    * {
+      -webkit-overflow-scrolling: touch;
+    }
+  }
 }

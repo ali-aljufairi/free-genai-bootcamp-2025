@@ -60,7 +60,14 @@ export function StudySessionHub() {
   }, []);
 
   // Initialize Swapy for drag-and-drop functionality
+  // Disabled on mobile to prevent swipe/scroll conflicts
   useEffect(() => {
+    // Skip Swapy initialization on mobile devices or during hydration
+    // Only initialize when we're certain it's desktop (isMobile === false)
+    if (isMobile === true || isMobile === undefined) {
+      return;
+    }
+
     if (containerRef.current && sortedStudyOptions.length > 0) {
       // Add a small delay to ensure DOM is ready
       const timer = setTimeout(() => {
@@ -102,7 +109,7 @@ export function StudySessionHub() {
         }
       };
     }
-  }, [sortedStudyOptions]); // Re-run when sortedStudyOptions changes
+  }, [sortedStudyOptions, isMobile]); // Re-run when sortedStudyOptions or isMobile changes
 
   /**
    * Start a study session with smooth view transitions
