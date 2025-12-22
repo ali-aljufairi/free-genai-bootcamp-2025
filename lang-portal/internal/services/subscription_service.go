@@ -4,14 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"lang-portal/internal/config"
 	"log"
 	"os"
 	"strings"
 	"time"
+
 	"github.com/clerk/clerk-sdk-go/v2"
 	"github.com/clerk/clerk-sdk-go/v2/billing"
 	"github.com/clerk/clerk-sdk-go/v2/user"
-	"github.com/patrickmn/go-cache"
+	"github.com/redis/go-redis/v9"
 )
 
 // SubscriptionInfo represents cached subscription information
@@ -23,7 +25,7 @@ type SubscriptionInfo struct {
 
 // SubscriptionService handles subscription checks with caching
 type SubscriptionService struct {
-	cache       *cache.Cache
+	cache       *redis.Client // Valkey/Redis client for persistent caching
 	secretKey   string
 	cacheTTL    time.Duration
 	initialized bool
@@ -39,33 +41,36 @@ func NewSubscriptionService() (*SubscriptionService, error) {
 	// Set Clerk API key globally
 	clerk.SetKey(secretKey)
 
-	// Default cache TTL: 5 minutes
-	cacheTTL := 5 * time.Minute
+	// Default cache TTL: 24 hours (1 day)
+	cacheTTL := 24 * time.Hour
 	if ttlStr := os.Getenv("SUBSCRIPTION_CACHE_TTL"); ttlStr != "" {
 		if parsed, err := time.ParseDuration(ttlStr); err == nil {
 			cacheTTL = parsed
 		}
 	}
 
-	// Create cache with TTL and cleanup interval
-	// NOTE: This uses in-memory cache (github.com/patrickmn/go-cache) which is:
-	// - Per-instance (not shared across multiple service instances)
-	// - Lost on service restart
-	// - Not persistent
-	// Consider migrating to Valkey for distributed, persistent caching
-	c := cache.New(cacheTTL, 10*time.Minute)
+	// Get Valkey cache client (shared instance)
+	cacheClient := config.GetCacheClient()
+	if cacheClient == nil {
+		log.Printf("⚠️  SubscriptionService: Valkey cache not available, subscription caching disabled")
+		log.Printf("   Subscription checks will still work but without caching (slower API calls)")
+		log.Printf("   To enable caching, configure VALKEY_HOST environment variable")
+	}
 
 	service := &SubscriptionService{
-		cache:       c,
+		cache:       cacheClient,
 		secretKey:   secretKey,
 		cacheTTL:    cacheTTL,
 		initialized: true,
 	}
 
-	log.Printf("SubscriptionService initialized with in-memory cache (TTL: %v, cleanup: 10m)", cacheTTL)
-	log.Printf("   Cache type: in-memory (github.com/patrickmn/go-cache)")
-	log.Printf("   Note: Cache is per-instance and will be lost on restart")
-	log.Printf("   To use persistent cache, consider migrating to Valkey")
+	if cacheClient != nil {
+		log.Printf("✅ SubscriptionService initialized with Valkey cache (TTL: %v)", cacheTTL)
+		log.Printf("   Cache type: Valkey/Redis (persistent, distributed)")
+		log.Printf("   Cache status: %s", config.GetCacheStatus())
+	} else {
+		log.Printf("⚠️  SubscriptionService initialized without cache (TTL: %v would be used if cache available)", cacheTTL)
+	}
 	return service, nil
 }
 
@@ -77,16 +82,27 @@ func (s *SubscriptionService) GetSubscriptionPlan(ctx context.Context, clerkUser
 		return "none", false, fmt.Errorf("subscription service not initialized")
 	}
 
-	// Check cache first
-	// Note: This uses in-memory cache (github.com/patrickmn/go-cache) which is per-instance.
-	// Cache will be lost on service restart. Consider migrating to Valkey for persistence.
+	// Check cache first (Valkey/Redis)
 	cacheKey := fmt.Sprintf("subscription:%s", clerkUserID)
-	if cached, found := s.cache.Get(cacheKey); found {
-		info := cached.(SubscriptionInfo)
-		age := time.Since(info.CachedAt)
-		log.Printf("✅ Cache HIT for user %s: plan=%s, active=%v (cached %v ago, TTL=%v)",
-			clerkUserID, info.Plan, info.HasActiveSub, age, s.cacheTTL)
-		return info.Plan, info.HasActiveSub, nil
+
+	if s.cache != nil {
+		// Try to get from Valkey cache
+		cachedData, err := s.cache.Get(ctx, cacheKey).Result()
+		if err == nil {
+			// Cache hit - deserialize the data
+			var info SubscriptionInfo
+			if err := json.Unmarshal([]byte(cachedData), &info); err == nil {
+				age := time.Since(info.CachedAt)
+				log.Printf("✅ Cache HIT for user %s: plan=%s, active=%v (cached %v ago, TTL=%v)",
+					clerkUserID, info.Plan, info.HasActiveSub, age, s.cacheTTL)
+				return info.Plan, info.HasActiveSub, nil
+			}
+			// If deserialization fails, log and continue to fetch fresh data
+			log.Printf("⚠️  Cache deserialization error for user %s: %v, fetching fresh data", clerkUserID, err)
+		} else if err != redis.Nil {
+			// Error other than "key not found" - log but continue
+			log.Printf("⚠️  Cache GET error for user %s: %v, fetching fresh data", clerkUserID, err)
+		}
 	}
 
 	// Cache miss - fetch from Clerk API
@@ -98,15 +114,27 @@ func (s *SubscriptionService) GetSubscriptionPlan(ctx context.Context, clerkUser
 		return "none", false, err
 	}
 
-	// Cache the result
-	info := SubscriptionInfo{
-		Plan:         plan,
-		HasActiveSub: hasActive,
-		CachedAt:     time.Now(),
+	// Cache the result in Valkey
+	if s.cache != nil {
+		info := SubscriptionInfo{
+			Plan:         plan,
+			HasActiveSub: hasActive,
+			CachedAt:     time.Now(),
+		}
+		// Serialize to JSON
+		infoJSON, err := json.Marshal(info)
+		if err == nil {
+			// Store in Valkey with TTL
+			if setErr := s.cache.Set(ctx, cacheKey, infoJSON, s.cacheTTL).Err(); setErr != nil {
+				log.Printf("⚠️  Failed to cache subscription for user %s: %v", clerkUserID, setErr)
+			} else {
+				log.Printf("💾 Cached subscription for user %s: plan=%s, active=%v (TTL=%v)",
+					clerkUserID, plan, hasActive, s.cacheTTL)
+			}
+		} else {
+			log.Printf("⚠️  Failed to serialize subscription info for user %s: %v", clerkUserID, err)
+		}
 	}
-	s.cache.Set(cacheKey, info, cache.DefaultExpiration)
-	log.Printf("💾 Cached subscription for user %s: plan=%s, active=%v (TTL=%v)",
-		clerkUserID, plan, hasActive, s.cacheTTL)
 
 	return plan, hasActive, nil
 }
@@ -293,9 +321,20 @@ func (s *SubscriptionService) checkPublicMetadata(ctx context.Context, clerkUser
 // InvalidateCache invalidates the cache for a specific user
 // Call this when subscription status changes (e.g., via webhook)
 func (s *SubscriptionService) InvalidateCache(clerkUserID string) {
+	if s.cache == nil {
+		log.Printf("⚠️  Cannot invalidate cache for user %s: Valkey cache not available", clerkUserID)
+		return
+	}
+
 	cacheKey := fmt.Sprintf("subscription:%s", clerkUserID)
-	s.cache.Delete(cacheKey)
-	log.Printf("Invalidated subscription cache for user %s", clerkUserID)
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+
+	if err := s.cache.Del(ctx, cacheKey).Err(); err != nil {
+		log.Printf("⚠️  Failed to invalidate cache for user %s: %v", clerkUserID, err)
+	} else {
+		log.Printf("✅ Invalidated subscription cache for user %s", clerkUserID)
+	}
 }
 
 // HasProPlan checks if user has Pro plan (convenience method)
