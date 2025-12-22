@@ -367,6 +367,8 @@ export function KanjiFlashcard() {
 
     // Custom rendering for kanji content
     const renderKanjiQuestion = (card: Flashcard) => {
+        // Prefer explicit English field; fall back to meanings if provided
+        const englishText = card.question.english || card.question.meanings || ""
         // Get text for audio (use character)
         const audioText = card.question.character || ""
         // Get audio_path from card
@@ -401,9 +403,9 @@ export function KanjiFlashcard() {
                         Kun: {card.question.kunyomi}
                     </p>
                 )}
-                {card.question.meanings && showKanjiEnglish && (
+                {englishText && showKanjiEnglish && (
                     <p className={isMobile ? "text-base text-muted-foreground" : "text-4xl text-muted-foreground"}>
-                        {card.question.meanings}
+                        {englishText}
                     </p>
                 )}
             </div>
@@ -412,7 +414,9 @@ export function KanjiFlashcard() {
 
     const renderKanjiOption = (option: any) => {
         const parts = []
-        if (askForKanjiEnglish && option.meanings) parts.push(option.meanings)
+        if (askForKanjiEnglish && (option.english || option.meanings)) {
+            parts.push(option.english || option.meanings)
+        }
         if (askForCharacter && option.character) parts.push(option.character)
         if (askForOnyomi && option.onyomi) parts.push(option.onyomi)
         if (askForKunyomi && option.kunyomi) parts.push(option.kunyomi)

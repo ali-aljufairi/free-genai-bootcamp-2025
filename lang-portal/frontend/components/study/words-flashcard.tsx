@@ -396,6 +396,8 @@ export function WordsFlashcard() {
 
     // Custom rendering for word content
     const renderWordQuestion = (card: Flashcard) => {
+        // Prefer explicit English on the question; fall back to answer English if needed
+        const englishText = card.question.english || card.answer.english || ""
         // Get text for audio (prefer kana, fallback to kanji, then romaji)
         const audioText = card.question.kana || card.question.kanji || card.question.romaji || ""
         // Get audio_path from card
@@ -440,6 +442,11 @@ export function WordsFlashcard() {
                         {card.question.romaji}
                     </p>
                 )}
+                {englishText && showEnglish && (
+                    <p className={isMobile ? "text-xl text-muted-foreground" : "text-3xl text-muted-foreground"}>
+                        {englishText}
+                    </p>
+                )}
             </div>
         )
     }
@@ -461,7 +468,7 @@ export function WordsFlashcard() {
                 onStudyAgain={startSession}
                 onNewConfiguration={resetSession}
                 isLoading={startSessionMutation.isPending || isSubmitting}
-                isMobile={isMobile}
+                isMobile={Boolean(isMobile)}
                 isSubmitting={isSubmitting}
             />
         )
@@ -506,7 +513,7 @@ export function WordsFlashcard() {
                 onTimerChange={setTimerDuration}
                 onStart={startSession}
                 isLoading={startSessionMutation.isPending}
-                isMobile={isMobile}
+                isMobile={Boolean(isMobile)}
             />
         )
     }

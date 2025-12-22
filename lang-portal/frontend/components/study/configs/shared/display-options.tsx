@@ -63,6 +63,10 @@ export function DisplayOptions({
             </span>
           </div>
 
+          <p className="text-xs text-muted-foreground">
+            The card will never show the exact same field you are being asked to answer (for better recall).
+          </p>
+
           <div className="space-y-3">
             <div className="flex items-center justify-between py-2 px-3 rounded-md hover:bg-accent/50 transition-colors">
               <Label className="text-sm">Ask for English</Label>
@@ -258,6 +262,10 @@ export function DisplayOptions({
             </TooltipProvider>
           </div>
         </div>
+
+        <p className="text-xs text-muted-foreground">
+          The card will never display the same field you are asked to recall; it hides that field on purpose.
+        </p>
 
         <div className="space-y-3">
           <div className="flex items-center justify-between">
