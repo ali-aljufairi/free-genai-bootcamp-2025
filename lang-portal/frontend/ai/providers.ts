@@ -1,9 +1,13 @@
-import { groq } from "@ai-sdk/groq";
+import { createGroq } from "@ai-sdk/groq";
 import {
   customProvider,
   extractReasoningMiddleware,
   wrapLanguageModel,
 } from "ai";
+
+const groq = createGroq({
+  apiKey: process.env.GROQ_API_KEY ,
+});
 
 // custom provider with different model settings:
 export const model = customProvider({
