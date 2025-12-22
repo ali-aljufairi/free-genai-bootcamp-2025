@@ -172,20 +172,20 @@ func (h *CompanionHandler) checkCompanionStudyLimit(c *fiber.Ctx, userID int64) 
 
 	// For Basic plan or no plan, check usage count
 	currentMonth := time.Now().Format("2006-01")
-	var usage struct {
+	var usage []struct {
 		SessionCount int `gorm:"column:session_count"`
 	}
 
+	// Use Find() instead of First() to avoid GORM logging "record not found" errors
 	err = h.db.Table("companion_study_usage").
 		Where("user_id = ? AND month_year = ?", userID, currentMonth).
-		First(&usage).Error
+		Find(&usage).Error
 
 	sessionCount := 0
-	if err == nil {
-		sessionCount = usage.SessionCount
-	} else if err != gorm.ErrRecordNotFound {
-		// Log only if it's not a "record not found" error
-		// Table missing errors will be logged by GORM, but we handle gracefully
+	if err == nil && len(usage) > 0 {
+		sessionCount = usage[0].SessionCount
+	} else if err != nil {
+		// Log only unexpected errors (not "record not found" which is handled by empty slice)
 		if !strings.Contains(err.Error(), "does not exist") {
 			fmt.Printf("Warning: Error querying companion_study_usage: %v\n", err)
 		}
