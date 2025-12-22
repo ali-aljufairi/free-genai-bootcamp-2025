@@ -1,4 +1,4 @@
-import { groq } from "@ai-sdk/groq";
+import { createGroq } from "@ai-sdk/groq";
 import {
   customProvider,
   extractReasoningMiddleware,
@@ -14,7 +14,6 @@ let _model: ReturnType<typeof customProvider> | null = null;
 function getModel() {
   if (!_model) {
     // Get API key from environment with validation
-    // The groq() function automatically reads from process.env.GROQ_API_KEY
     const groqApiKey = process.env.GROQ_API_KEY;
     
     if (!groqApiKey) {
@@ -22,9 +21,11 @@ function getModel() {
       throw new Error('GROQ_API_KEY is required but not configured. Please set the GROQ_API_KEY environment variable.');
     }
 
-    // Ensure the environment variable is set for the groq() function
-    // The groq() function from @ai-sdk/groq reads from process.env.GROQ_API_KEY automatically
-    // We validate it here to fail fast if missing, but the SDK will use it from the environment
+    // Create Groq provider with explicit API key
+    // Using createGroq() instead of default groq export to explicitly pass API key
+    // This ensures the API key is correctly passed even in Next.js standalone mode
+    const groq = createGroq({ apiKey: groqApiKey });
+
     _model = customProvider({
       languageModels: {
         "llama-3.1-8b-instant": groq("llama-3.1-8b-instant"),
