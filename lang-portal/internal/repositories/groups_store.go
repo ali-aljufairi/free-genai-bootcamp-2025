@@ -2,6 +2,7 @@ package repositories
 
 import (
 	"errors"
+	"strings"
 
 	"lang-portal/internal/database/models"
 
@@ -36,7 +37,7 @@ func (s *GroupsStore) Create(name string, description *string, userID int64) (*m
 
 // GetOrCreate returns an existing group or creates a new one if it doesn't exist
 // Checks for existing group by user_id AND name (each user has their own groups)
-// Uses raw SQL with ON CONFLICT to handle the partial unique index properly
+// Uses PostgreSQL placeholders and handles the partial unique index properly
 func (s *GroupsStore) GetOrCreate(name string, description *string, userID int64) (*models.Group, error) {
 	var group models.Group
 
@@ -44,6 +45,7 @@ func (s *GroupsStore) GetOrCreate(name string, description *string, userID int64
 	err := s.DB.Transaction(func(tx *gorm.DB) error {
 		// First, try to find existing group
 		err := tx.Where("user_id = ? AND name = ?", userID, name).First(&group).Error
+
 		if err == nil {
 			// Group exists, update description if provided
 			if description != nil && (group.Description == nil || *group.Description != *description) {
@@ -60,24 +62,36 @@ func (s *GroupsStore) GetOrCreate(name string, description *string, userID int64
 			return err
 		}
 
-		// Group doesn't exist, create it using raw SQL with ON CONFLICT
-		// The partial index idx_groups_user_name applies when user_id IS NOT NULL
-		// PostgreSQL allows ON CONFLICT to reference the columns even for partial indexes
-		result := tx.Exec(`
-			INSERT INTO groups (name, description, user_id, created_at)
-			VALUES (?, ?, ?, NOW())
-			ON CONFLICT (user_id, name) 
-			WHERE user_id IS NOT NULL
-			DO UPDATE SET 
-				description = EXCLUDED.description
-		`, name, description, userID)
-
-		if result.Error != nil {
-			return result.Error
+		// Group doesn't exist, create it using GORM's Create method
+		// This ensures the sequence is used correctly
+		newGroup := &models.Group{
+			Name:        name,
+			Description: description,
+			UserID:      &userID,
 		}
 
-		// Fetch the created/updated group
-		return tx.Where("user_id = ? AND name = ?", userID, name).First(&group).Error
+		// Use GORM Create which handles sequences properly
+		// Don't set ID explicitly - let the sequence handle it
+		if createErr := tx.Create(newGroup).Error; createErr != nil {
+			// If creation fails due to unique constraint (race condition or sequence issue),
+			// try to fetch the group that was created by another transaction
+			errStr := createErr.Error()
+			if strings.Contains(errStr, "duplicate key") ||
+				strings.Contains(errStr, "unique constraint") ||
+				strings.Contains(errStr, "groups_pkey") ||
+				strings.Contains(errStr, "23505") { // PostgreSQL unique violation error code
+				// Another transaction created it, or sequence was out of sync, fetch it
+				if fetchErr := tx.Where("user_id = ? AND name = ?", userID, name).First(&group).Error; fetchErr == nil {
+					return nil
+				}
+				// If we can't fetch it, it might be a different constraint violation
+				// Return the original error for debugging
+			}
+			return createErr
+		}
+
+		group = *newGroup
+		return nil
 	})
 
 	if err != nil {
