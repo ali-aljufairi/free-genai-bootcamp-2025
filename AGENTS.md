@@ -63,7 +63,6 @@ Sorami is a **production-grade microservices platform** for Japanese language le
 - **Critical**: Always check current migration status before database changes
 - **Schema Location**: `Database/` directory contains comprehensive PostgreSQL schema
 - **Database Design Philosophy**: The maintainer has put significant thought and effort into the database design with careful attention to:
-- **Shared Data**: `words.db` SQLite file still used for cross-service vocabulary data
 
 ## Development Workflows
 
