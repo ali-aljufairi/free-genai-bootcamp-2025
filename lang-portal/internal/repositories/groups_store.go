@@ -37,68 +37,76 @@ func (s *GroupsStore) Create(name string, description *string, userID int64) (*m
 
 // GetOrCreate returns an existing group or creates a new one if it doesn't exist
 // Checks for existing group by user_id AND name (each user has their own groups)
-// Uses PostgreSQL placeholders and handles the partial unique index properly
+// Handles race conditions and sequence issues gracefully
 func (s *GroupsStore) GetOrCreate(name string, description *string, userID int64) (*models.Group, error) {
 	var group models.Group
 
-	// Use a transaction to ensure atomicity
-	err := s.DB.Transaction(func(tx *gorm.DB) error {
-		// First, try to find existing group
-		err := tx.Where("user_id = ? AND name = ?", userID, name).First(&group).Error
-
-		if err == nil {
-			// Group exists, update description if provided
-			if description != nil && (group.Description == nil || *group.Description != *description) {
-				group.Description = description
-				if updateErr := tx.Save(&group).Error; updateErr != nil {
-					return updateErr
-				}
+	// First, try to find existing group (outside transaction for better concurrency)
+	err := s.DB.Where("user_id = ? AND name = ?", userID, name).First(&group).Error
+	if err == nil {
+		// Group exists, update description if provided
+		if description != nil && (group.Description == nil || *group.Description != *description) {
+			group.Description = description
+			if updateErr := s.DB.Save(&group).Error; updateErr != nil {
+				return nil, updateErr
 			}
+		}
+		return &group, nil
+	}
+
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		// Unexpected error
+		return nil, err
+	}
+
+	// Group doesn't exist, try to create it
+	// Use a transaction to ensure atomicity
+	var newGroup *models.Group
+	createErr := s.DB.Transaction(func(tx *gorm.DB) error {
+		// Double-check it doesn't exist (race condition check)
+		var existingGroup models.Group
+		if tx.Where("user_id = ? AND name = ?", userID, name).First(&existingGroup).Error == nil {
+			group = existingGroup
 			return nil
 		}
 
-		if !errors.Is(err, gorm.ErrRecordNotFound) {
-			// Unexpected error
-			return err
-		}
-
-		// Group doesn't exist, create it using GORM's Create method
-		// This ensures the sequence is used correctly
-		newGroup := &models.Group{
+		// Create new group - let GORM handle the sequence
+		newGroup = &models.Group{
 			Name:        name,
 			Description: description,
 			UserID:      &userID,
 		}
 
-		// Use GORM Create which handles sequences properly
-		// Don't set ID explicitly - let the sequence handle it
-		if createErr := tx.Create(newGroup).Error; createErr != nil {
-			// If creation fails due to unique constraint (race condition or sequence issue),
-			// try to fetch the group that was created by another transaction
-			errStr := createErr.Error()
-			if strings.Contains(errStr, "duplicate key") ||
-				strings.Contains(errStr, "unique constraint") ||
-				strings.Contains(errStr, "groups_pkey") ||
-				strings.Contains(errStr, "23505") { // PostgreSQL unique violation error code
-				// Another transaction created it, or sequence was out of sync, fetch it
-				if fetchErr := tx.Where("user_id = ? AND name = ?", userID, name).First(&group).Error; fetchErr == nil {
-					return nil
-				}
-				// If we can't fetch it, it might be a different constraint violation
-				// Return the original error for debugging
-			}
-			return createErr
+		if err := tx.Create(newGroup).Error; err != nil {
+			return err
 		}
 
 		group = *newGroup
 		return nil
 	})
 
-	if err != nil {
-		return nil, err
+	// If transaction succeeded, return the group
+	if createErr == nil {
+		return &group, nil
 	}
 
-	return &group, nil
+	// If creation failed due to duplicate key (race condition or sequence issue),
+	// try to fetch the group that was created by another transaction
+	errStr := createErr.Error()
+	if strings.Contains(errStr, "duplicate key") ||
+		strings.Contains(errStr, "unique constraint") ||
+		strings.Contains(errStr, "groups_pkey") ||
+		strings.Contains(errStr, "23505") { // PostgreSQL unique violation error code
+		// Another transaction created it, fetch it (outside the failed transaction)
+		if fetchErr := s.DB.Where("user_id = ? AND name = ?", userID, name).First(&group).Error; fetchErr == nil {
+			return &group, nil
+		}
+		// If we still can't find it, there might be a sequence issue - try to fix it
+		// But first, let's just return the error so we can see what's happening
+	}
+
+	// For any other error or if we couldn't recover, return the error
+	return nil, createErr
 }
 
 // GetByID returns a group by ID
