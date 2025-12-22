@@ -245,13 +245,23 @@ export function createApiService(client: ApiClient) {
   };
 
   const subscriptionApi = {
-    getUsageCount: () => client.get<{
-      session_count: number;
-      month_year: string;
-      plan: string;
-      limit: number;
-      remaining: number;
-    }>(endpoint('/subscription/usage')),
+    getUsageCount: () =>
+      client.get<{
+        session_count: number;
+        month_year: string;
+        plan: string;
+        limit: number;
+        remaining: number;
+      }>(endpoint('/subscription/usage')),
+    checkLimit: () =>
+      client.get<{
+        can_start: boolean;
+        reason: string;
+        plan: string;
+        session_count: number;
+        limit: number;
+        remaining: number;
+      }>(endpoint('/subscription/check-limit')),
   };
 
   return {

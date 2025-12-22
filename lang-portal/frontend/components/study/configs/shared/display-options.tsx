@@ -262,11 +262,6 @@ export function DisplayOptions({
             </TooltipProvider>
           </div>
         </div>
-
-        <p className="text-xs text-muted-foreground">
-          The card will never display the same field you are asked to recall; it hides that field on purpose.
-        </p>
-
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <Label>Ask for Kana</Label>

@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCompanionStudyStore } from "@/stores/companion-study-store";
 import { useIsMobile } from "@/components/ui/use-mobile";
+import { subscriptionApi } from "@/services/api";
 
 // Get Vapi public key from environment variable
 const VAPI_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPI_PUBLIC_KEY;
@@ -209,6 +210,7 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
     const [transcriptMessages, setTranscriptMessages] = useState<TranscriptMessage[]>([]);
     const [callStartTime, setCallStartTime] = useState<Date | null>(null);
     const vapiRef = useRef<any>(null);
+    const hasSavedRef = useRef(false);
     const transcriptEndRef = useRef<HTMLDivElement>(null);
     const isMobile = useIsMobile();
 
@@ -231,6 +233,7 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
         setAssistantIsSpeaking(false);
         setTranscriptMessages([]);
         setCallStartTime(null);
+        hasSavedRef.current = false;
     };
 
     useEffect(() => {
@@ -248,10 +251,7 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
                         setCallStartTime(new Date());
                     });
                     vapiRef.current.on("call-end", async () => {
-                        // Save session to database before cleanup
-                        await saveCompanionSession();
-                        cleanup();
-                        onComplete && onComplete();
+                        await handleCallEnd();
                     });
                     vapiRef.current.on("speech-start", () => {
                         setAssistantIsSpeaking(true);
@@ -334,6 +334,22 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
 
         setCallStatus("connecting");
         try {
+            // Check subscription limit with backend before starting the call
+            const limit = await subscriptionApi.checkLimit();
+            if (!limit.can_start) {
+                setCallStatus("idle");
+                if (limit.plan === "basic") {
+                    toast.error("Monthly limit reached", {
+                        description: "You've used all your Basic plan companion study sessions for this month. Upgrade to Pro for unlimited access.",
+                    });
+                } else {
+                    toast.error("Subscription required", {
+                        description: "Companion Study is available on Basic and Pro plans. Please subscribe to continue.",
+                    });
+                }
+                return;
+            }
+
             // Request microphone permission first
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
             stream.getTracks().forEach(track => track.stop());
@@ -411,9 +427,24 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
         }
     };
 
-    const endCall = () => {
+    const handleCallEnd = async () => {
+        if (!hasSavedRef.current) {
+            hasSavedRef.current = true;
+            await saveCompanionSession();
+        }
         cleanup();
-        setCallStatus("idle");
+        onComplete && onComplete();
+    };
+
+    const endCall = () => {
+        if (vapiRef.current) {
+            try {
+                vapiRef.current.stop();
+            } catch (error) {
+                // ignore stop errors on manual hangup
+            }
+        }
+        handleCallEnd();
     };
 
     // Auto-scroll to bottom when new messages arrive

@@ -63,17 +63,32 @@ func (h *CompanionHandler) SaveCompanionStudySession(c *fiber.Ctx) error {
 		})
 	}
 
-	// Check subscription limit before saving
+	// Check subscription limit before saving.
+	// Only Basic and Pro plans are allowed to use Companion:
+	// - Pro: unlimited sessions
+	// - Basic: 10 sessions per month
+	// - All others (including Free/None): not allowed
 	if h.subscriptionService != nil {
-		canStart, err := h.checkCompanionStudyLimit(c, userID)
+		canStart, plan, err := h.checkCompanionStudyLimit(c, userID)
 		if err != nil {
 			// Log error but don't block in case of Clerk API issues
 			fmt.Printf("Warning: Failed to check subscription limit: %v\n", err)
 		} else if !canStart {
+			// Distinguish between plan restriction and Basic plan limit reached
+			if plan == "basic" {
+				return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+					"error":   "Companion study session limit reached",
+					"code":    "LIMIT_REACHED",
+					"message": "You have reached your monthly limit of 10 companion study sessions on the Basic plan. Please upgrade to Pro for unlimited access.",
+					"plan":    plan,
+				})
+			}
+
 			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-				"error":   "Companion study session limit reached",
-				"code":    "LIMIT_REACHED",
-				"message": "You have reached your monthly limit of 10 companion study sessions. Please upgrade to Pro for unlimited access.",
+				"error":   "Companion study requires an active Basic or Pro subscription",
+				"code":    "PLAN_REQUIRED",
+				"message": "Upgrade to a Basic or Pro plan to use Companion Study.",
+				"plan":    plan,
 			})
 		}
 	}
@@ -141,36 +156,43 @@ func (h *CompanionHandler) SaveCompanionStudySession(c *fiber.Ctx) error {
 	})
 }
 
-// checkCompanionStudyLimit checks if user can start a companion study session
-func (h *CompanionHandler) checkCompanionStudyLimit(c *fiber.Ctx, userID int64) (bool, error) {
+// checkCompanionStudyLimit checks if user can start a companion study session.
+// Rules:
+// - Pro: unlimited
+// - Basic: 10 sessions per month
+// - Free/None: not allowed
+func (h *CompanionHandler) checkCompanionStudyLimit(c *fiber.Ctx, userID int64) (bool, string, error) {
 	// If subscription service is not initialized, allow (for development)
 	if h.subscriptionService == nil {
-		return true, nil
+		return true, "dev", nil
 	}
 
 	clerkUserID, ok := c.Locals("clerk_user_id").(string)
 	if !ok || clerkUserID == "" {
 		// If no Clerk user ID, allow (for development)
-		return true, nil
+		return true, "dev", nil
 	}
 
 	// Get subscription plan using the service (with caching)
 	ctx := c.Context()
 	plan, hasActive, err := h.subscriptionService.GetSubscriptionPlan(ctx, clerkUserID)
 	if err != nil {
-		// On error, log but allow access (graceful degradation)
-		fmt.Printf("Warning: Failed to check subscription: %v (allowing access)\n", err)
-		// Continue to check usage limits as fallback
-		plan = "none"
-		hasActive = false
+		// On error, log and block access (conservative default)
+		fmt.Printf("Warning: Failed to check subscription: %v (blocking access)\n", err)
+		return false, "none", err
 	}
 
-	// If Pro or Free plan, allow unlimited (both have same privileges)
-	if hasActive && (plan == "pro" || plan == "free") {
-		return true, nil
+	// If Pro plan, allow unlimited
+	if hasActive && plan == "pro" {
+		return true, plan, nil
 	}
 
-	// For Basic plan or no plan, check usage count
+	// For Basic plan, check usage count
+	if !hasActive || plan != "basic" {
+		// Any non-paid plan (including free or none) is not allowed to use Companion
+		return false, plan, nil
+	}
+
 	currentMonth := time.Now().Format("2006-01")
 	var usage []struct {
 		SessionCount int `gorm:"column:session_count"`
@@ -193,7 +215,7 @@ func (h *CompanionHandler) checkCompanionStudyLimit(c *fiber.Ctx, userID int64) 
 
 	// Basic plan limit is 10 sessions per month
 	limit := 10
-	return sessionCount < limit, nil
+	return sessionCount < limit, plan, nil
 }
 
 // incrementUsage increments the usage counter for the current month

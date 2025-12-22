@@ -127,6 +127,9 @@ export default function CompanionStudySessionPage({
             <div className="space-y-5">
                 <div className="flex flex-col gap-3">
                     <h1 className="text-3xl font-bold tracking-tight">Companion Study Session</h1>
+                    <p className="text-sm text-muted-foreground">
+                        Companion Study is available on Basic and Pro plans. Basic includes a monthly session limit; Pro provides unlimited access.
+                    </p>
                 </div>
 
                 <UsageDisplay />
