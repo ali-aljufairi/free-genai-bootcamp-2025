@@ -13,7 +13,7 @@
     "sentry:sourcemaps": "sentry-cli sourcemaps inject --org sorami --project lang-portal-frontend ./.next && sentry-cli sourcemaps upload --org sorami --project lang-portal-frontend ./.next"
   },
   "dependencies": {
-    "@ai-sdk/groq": "^2.0.28",
+    "@ai-sdk/groq": "^2.0.33",
     "@ai-sdk/react": "^2.0.87",
     "@clerk/nextjs": "^6.34.3",
     "@clerk/themes": "^2.4.32",

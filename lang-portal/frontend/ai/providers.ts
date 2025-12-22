@@ -13,6 +13,18 @@ let _model: ReturnType<typeof customProvider> | null = null;
 
 function getModel() {
   if (!_model) {
+    // Get API key from environment with validation
+    // The groq() function automatically reads from process.env.GROQ_API_KEY
+    const groqApiKey = process.env.GROQ_API_KEY;
+    
+    if (!groqApiKey) {
+      console.error('GROQ_API_KEY environment variable is not set');
+      throw new Error('GROQ_API_KEY is required but not configured. Please set the GROQ_API_KEY environment variable.');
+    }
+
+    // Ensure the environment variable is set for the groq() function
+    // The groq() function from @ai-sdk/groq reads from process.env.GROQ_API_KEY automatically
+    // We validate it here to fail fast if missing, but the SDK will use it from the environment
     _model = customProvider({
       languageModels: {
         "llama-3.1-8b-instant": groq("llama-3.1-8b-instant"),

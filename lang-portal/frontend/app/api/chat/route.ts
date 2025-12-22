@@ -4,6 +4,8 @@ import { defaultModel, defaultPrompt } from "@/ai/config";
 import { streamText, UIMessage, convertToModelMessages } from 'ai';
 import { auth } from '@clerk/nextjs/server';
 import { getBackendUrl } from '@/lib/api-utils';
+import { NextResponse } from 'next/server';
+import * as Sentry from '@sentry/nextjs';
 
 // Allow streaming responses up to 30 seconds
 export const maxDuration = 30;
@@ -63,6 +65,16 @@ IMPORTANT GUIDELINES:
 }
 
 export async function POST(req: Request) {
+  // Check API key configuration before processing request
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) {
+    Sentry.captureMessage('GROQ_API_KEY not configured', 'error');
+    return NextResponse.json(
+      { error: 'AI service not configured', code: 'CONFIG_ERROR' },
+      { status: 500 }
+    );
+  }
+
   const {
     messages,
     selectedModel = defaultModel, // Default model from config
