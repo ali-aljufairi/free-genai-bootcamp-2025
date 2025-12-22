@@ -68,8 +68,9 @@ jobs:
       - name: Prepare environment files
         run: |
           cd lang-portal/frontend
-          if [ -f .env.example ]; then
-            cp .env.example .env
+          # If build requires .env, create empty one but it will be removed in Dockerfile
+          if [ ! -f .env ] && [ -f .env.example ]; then
+            touch .env
           fi
 
       - name: Build and push Frontend image

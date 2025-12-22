@@ -61,6 +61,10 @@ RUN mkdir -p .next/standalone/.next && \
     cp -r .next/static .next/standalone/.next/ && \
     cp -r public .next/standalone/
 
+# Remove .env files to prevent them from overriding Kubernetes environment variables
+# wattpm loads .env files which can override process.env values from Kubernetes
+RUN rm -f .env .env.example .env.local .env.production .env.production.local 2>/dev/null || true
+
 EXPOSE 3000
 
 # Start with wattpm
