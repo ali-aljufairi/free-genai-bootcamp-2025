@@ -6,7 +6,6 @@ import (
 	"lang-portal/internal/database/models"
 
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 type GroupsStore struct {
@@ -37,39 +36,55 @@ func (s *GroupsStore) Create(name string, description *string, userID int64) (*m
 
 // GetOrCreate returns an existing group or creates a new one if it doesn't exist
 // Checks for existing group by user_id AND name (each user has their own groups)
+// Uses raw SQL with ON CONFLICT to handle the partial unique index properly
 func (s *GroupsStore) GetOrCreate(name string, description *string, userID int64) (*models.Group, error) {
 	var group models.Group
 
-	// Prepare desired values
-	newGroup := models.Group{
-		Name:        name,
-		Description: description,
-		UserID:      &userID,
-	}
-
-	// Use an atomic upsert based on (user_id, name).
-	// This leverages the partial unique index idx_groups_user_name on (user_id, name) where user_id IS NOT NULL.
-	err := s.DB.
-		Clauses(clause.OnConflict{
-			Columns:   []clause.Column{{Name: "user_id"}, {Name: "name"}},
-			DoUpdates: clause.AssignmentColumns([]string{"description"}),
-		}).
-		Create(&newGroup).Error
-
-	if err == nil {
-		// Either inserted or updated the existing row; newGroup now has the correct ID.
-		return &newGroup, nil
-	}
-
-	// In rare cases (e.g., unexpected constraint issues), fall back to a direct lookup
-	// so that callers can still obtain the existing group if it was created concurrently.
-	if errors.Is(err, gorm.ErrDuplicatedKey) {
-		if lookupErr := s.DB.Where("user_id = ? AND name = ?", userID, name).First(&group).Error; lookupErr == nil {
-			return &group, nil
+	// Use a transaction to ensure atomicity
+	err := s.DB.Transaction(func(tx *gorm.DB) error {
+		// First, try to find existing group
+		err := tx.Where("user_id = ? AND name = ?", userID, name).First(&group).Error
+		if err == nil {
+			// Group exists, update description if provided
+			if description != nil && (group.Description == nil || *group.Description != *description) {
+				group.Description = description
+				if updateErr := tx.Save(&group).Error; updateErr != nil {
+					return updateErr
+				}
+			}
+			return nil
 		}
+
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			// Unexpected error
+			return err
+		}
+
+		// Group doesn't exist, create it using raw SQL with ON CONFLICT
+		// The partial index idx_groups_user_name applies when user_id IS NOT NULL
+		// PostgreSQL allows ON CONFLICT to reference the columns even for partial indexes
+		result := tx.Exec(`
+			INSERT INTO groups (name, description, user_id, created_at)
+			VALUES (?, ?, ?, NOW())
+			ON CONFLICT (user_id, name) 
+			WHERE user_id IS NOT NULL
+			DO UPDATE SET 
+				description = EXCLUDED.description
+		`, name, description, userID)
+
+		if result.Error != nil {
+			return result.Error
+		}
+
+		// Fetch the created/updated group
+		return tx.Where("user_id = ? AND name = ?", userID, name).First(&group).Error
+	})
+
+	if err != nil {
+		return nil, err
 	}
 
-	return nil, err
+	return &group, nil
 }
 
 // GetByID returns a group by ID

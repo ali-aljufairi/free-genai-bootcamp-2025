@@ -8,7 +8,6 @@ import (
 	"os"
 	"strings"
 	"time"
-
 	"github.com/clerk/clerk-sdk-go/v2"
 	"github.com/clerk/clerk-sdk-go/v2/billing"
 	"github.com/clerk/clerk-sdk-go/v2/user"
@@ -49,6 +48,11 @@ func NewSubscriptionService() (*SubscriptionService, error) {
 	}
 
 	// Create cache with TTL and cleanup interval
+	// NOTE: This uses in-memory cache (github.com/patrickmn/go-cache) which is:
+	// - Per-instance (not shared across multiple service instances)
+	// - Lost on service restart
+	// - Not persistent
+	// Consider migrating to Valkey for distributed, persistent caching
 	c := cache.New(cacheTTL, 10*time.Minute)
 
 	service := &SubscriptionService{
@@ -58,7 +62,10 @@ func NewSubscriptionService() (*SubscriptionService, error) {
 		initialized: true,
 	}
 
-	log.Printf("SubscriptionService initialized with cache TTL: %v", cacheTTL)
+	log.Printf("SubscriptionService initialized with in-memory cache (TTL: %v, cleanup: 10m)", cacheTTL)
+	log.Printf("   Cache type: in-memory (github.com/patrickmn/go-cache)")
+	log.Printf("   Note: Cache is per-instance and will be lost on restart")
+	log.Printf("   To use persistent cache, consider migrating to Valkey")
 	return service, nil
 }
 
@@ -71,15 +78,19 @@ func (s *SubscriptionService) GetSubscriptionPlan(ctx context.Context, clerkUser
 	}
 
 	// Check cache first
+	// Note: This uses in-memory cache (github.com/patrickmn/go-cache) which is per-instance.
+	// Cache will be lost on service restart. Consider migrating to Valkey for persistence.
 	cacheKey := fmt.Sprintf("subscription:%s", clerkUserID)
 	if cached, found := s.cache.Get(cacheKey); found {
 		info := cached.(SubscriptionInfo)
-		log.Printf("Cache hit for user %s: plan=%s", clerkUserID, info.Plan)
+		age := time.Since(info.CachedAt)
+		log.Printf("✅ Cache HIT for user %s: plan=%s, active=%v (cached %v ago, TTL=%v)",
+			clerkUserID, info.Plan, info.HasActiveSub, age, s.cacheTTL)
 		return info.Plan, info.HasActiveSub, nil
 	}
 
 	// Cache miss - fetch from Clerk API
-	log.Printf("Cache miss for user %s, fetching from Clerk API", clerkUserID)
+	log.Printf("❌ Cache MISS for user %s, fetching from Clerk API (cache TTL=%v)", clerkUserID, s.cacheTTL)
 	plan, hasActive, err := s.fetchSubscriptionFromClerk(ctx, clerkUserID)
 	if err != nil {
 		// On error, return "none" but log the error
@@ -94,7 +105,8 @@ func (s *SubscriptionService) GetSubscriptionPlan(ctx context.Context, clerkUser
 		CachedAt:     time.Now(),
 	}
 	s.cache.Set(cacheKey, info, cache.DefaultExpiration)
-	log.Printf("Cached subscription for user %s: plan=%s, active=%v", clerkUserID, plan, hasActive)
+	log.Printf("💾 Cached subscription for user %s: plan=%s, active=%v (TTL=%v)",
+		clerkUserID, plan, hasActive, s.cacheTTL)
 
 	return plan, hasActive, nil
 }

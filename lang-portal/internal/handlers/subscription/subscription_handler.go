@@ -195,10 +195,11 @@ func (h *SubscriptionHandler) IncrementUsage(userID int64) error {
 	currentMonth := time.Now().Format("2006-01")
 
 	// Use upsert to create or update usage record
+	// Use ON CONFLICT ON CONSTRAINT to explicitly reference the PRIMARY KEY constraint
 	err := h.db.Exec(`
 		INSERT INTO companion_study_usage (user_id, month_year, session_count, updated_at)
-		VALUES (?, ?, 1, NOW())
-		ON CONFLICT (user_id, month_year)
+		VALUES ($1, $2, 1, NOW())
+		ON CONFLICT ON CONSTRAINT companion_study_usage_pkey
 		DO UPDATE SET 
 			session_count = companion_study_usage.session_count + 1,
 			updated_at = NOW()
