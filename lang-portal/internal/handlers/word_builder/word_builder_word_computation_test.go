@@ -64,43 +64,43 @@ func TestComputeValidWords(t *testing.T) {
 		{
 			name: "Kanji that form words - 意思 (intention)",
 			kanji: []KanjiData{
-				{ID: 53, Character: "意", JLPT: intPtr(4)},
-				{ID: 1089, Character: "思", JLPT: intPtr(4)},
+				{ID: 53, Character: "意"},
+				{ID: 1089, Character: "思"},
 			},
-			expectedMin: 1,
-			expectedMax: 0,
+			expectedMin:    1,
+			expectedMax:    0,
 			shouldHaveWord: "意思",
 		},
 		{
 			name: "Kanji that form multiple words - 会 and 社",
 			kanji: []KanjiData{
-				{ID: 269, Character: "会", JLPT: intPtr(4)},
-				{ID: 1178, Character: "社", JLPT: intPtr(4)},
+				{ID: 269, Character: "会"},
+				{ID: 1178, Character: "社"},
 			},
-			expectedMin: 2,
-			expectedMax: 0,
+			expectedMin:   2,
+			expectedMax:   0,
 			shouldHaveAny: []string{"会社", "社会"},
 		},
 		{
 			name: "Kanji that form words - 運転 (driving)",
 			kanji: []KanjiData{
-				{ID: 125, Character: "運", JLPT: intPtr(4)},
-				{ID: 2004, Character: "転", JLPT: intPtr(4)},
+				{ID: 125, Character: "運"},
+				{ID: 2004, Character: "転"},
 			},
-			expectedMin: 1,
-			expectedMax: 0,
+			expectedMin:    1,
+			expectedMax:    0,
 			shouldHaveWord: "運転",
 		},
 		{
-			name: "Empty kanji array",
-			kanji: []KanjiData{},
+			name:        "Empty kanji array",
+			kanji:       []KanjiData{},
 			expectedMin: 0,
 			expectedMax: 0,
 		},
 		{
 			name: "Single kanji",
 			kanji: []KanjiData{
-				{ID: 53, Character: "意", JLPT: intPtr(4)},
+				{ID: 53, Character: "意"},
 			},
 			expectedMin: 0,
 			expectedMax: 0, // Single kanji might not form words alone
@@ -108,8 +108,8 @@ func TestComputeValidWords(t *testing.T) {
 		{
 			name: "Kanji that don't form words together",
 			kanji: []KanjiData{
-				{ID: 1331, Character: "少", JLPT: intPtr(4)},
-				{ID: 547, Character: "牛", JLPT: intPtr(4)},
+				{ID: 1331, Character: "少"},
+				{ID: 547, Character: "牛"},
 			},
 			expectedMin: 0,
 			expectedMax: 0, // These might not form words together
@@ -117,18 +117,18 @@ func TestComputeValidWords(t *testing.T) {
 		{
 			name: "Three kanji that form words",
 			kanji: []KanjiData{
-				{ID: 133, Character: "映", JLPT: intPtr(4)},
-				{ID: 260, Character: "画", JLPT: intPtr(4)},
-				{ID: 1833, Character: "館", JLPT: intPtr(4)},
+				{ID: 133, Character: "映"},
+				{ID: 260, Character: "画"},
+				{ID: 1833, Character: "館"},
 			},
 			expectedMin: 0, // May or may not form words, depends on data
 			expectedMax: 0,
 		},
 		{
-			name: "Kanji with nil JLPT level",
+			name: "Kanji without JLPT field",
 			kanji: []KanjiData{
-				{ID: 53, Character: "意", JLPT: nil},
-				{ID: 1089, Character: "思", JLPT: nil},
+				{ID: 53, Character: "意"},
+				{ID: 1089, Character: "思"},
 			},
 			expectedMin: 0, // Should default to JLPT 4
 			expectedMax: 0,
@@ -226,8 +226,8 @@ func TestComputeValidWordsKanjiFiltering(t *testing.T) {
 
 	// Test with kanji that form words
 	kanji := []KanjiData{
-		{ID: 269, Character: "会", JLPT: intPtr(4)},
-		{ID: 1178, Character: "社", JLPT: intPtr(4)},
+		{ID: 269, Character: "会"},
+		{ID: 1178, Character: "社"},
 	}
 
 	result, err := handler.ComputeValidWords(kanji)
@@ -265,15 +265,15 @@ func TestComputeValidWordsEmptyResult(t *testing.T) {
 	}
 
 	tests := []struct {
-		name string
+		name  string
 		kanji []KanjiData
 	}{
 		{
-			name: "Empty array",
+			name:  "Empty array",
 			kanji: []KanjiData{},
 		},
 		{
-			name: "Nil kanji (should be handled gracefully)",
+			name:  "Nil kanji (should be handled gracefully)",
 			kanji: nil,
 		},
 	}
@@ -294,4 +294,3 @@ func TestComputeValidWordsEmptyResult(t *testing.T) {
 func intPtr(i int) *int {
 	return &i
 }
-

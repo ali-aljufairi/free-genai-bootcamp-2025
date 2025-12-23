@@ -13,7 +13,7 @@ type LearningActivity struct {
 	ActivityType     string                 `gorm:"column:activity_type"`
 	ContentType      string                 `gorm:"column:content_type"`
 	JLPTLevel        *int                   `gorm:"column:jlpt_level"`
-	ItemIDs          pq.Int64Array           `gorm:"column:item_ids;type:bigint[]"`
+	ItemIDs          pq.Int64Array          `gorm:"column:item_ids;type:bigint[]"`
 	ItemCount        int                    `gorm:"column:item_count"`
 	CorrectCount     int                    `gorm:"column:correct_count"`
 	TotalTimeSeconds int                    `gorm:"column:total_time_seconds"`
@@ -36,13 +36,13 @@ type ValidWord struct {
 }
 
 // KanjiData represents kanji information
+// Optimized: removed JLPT and frequency (not needed in response, JLPT used only for selection)
 type KanjiData struct {
 	ID        int64    `json:"id"`
 	Character string   `json:"character"`
 	Onyomi    *string  `json:"onyomi"`
 	Kunyomi   *string  `json:"kunyomi"`
 	Meanings  []string `json:"meanings"`
-	JLPT      *int     `json:"jlpt"`
 }
 
 // StartSessionRequest represents the request to start a word builder session

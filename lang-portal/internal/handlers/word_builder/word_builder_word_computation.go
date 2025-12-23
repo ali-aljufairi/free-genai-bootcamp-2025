@@ -1,21 +1,32 @@
 package word_builder
 
 import (
+	"context"
+	"crypto/md5"
+	"database/sql"
+	"encoding/json"
 	"fmt"
+	"lang-portal/internal/config"
+	"log"
+	"sort"
 	"strings"
+	"time"
 
 	pq "github.com/lib/pq"
+	"github.com/redis/go-redis/v9"
 )
 
-// ComputeValidWords finds all valid words that can be formed from the given kanji using graph relationships
-// Uses CTE-based query with array containment for efficient and correct filtering
-// Made public for testing
-func (h *WordBuilderHandler) ComputeValidWords(kanji []KanjiData) ([]ValidWord, error) {
+// ComputeValidWordsWithCache finds all valid words with caching support
+// Accepts sqlDB to reuse connection and avoid overhead, and jlptLevel for filtering
+func (h *WordBuilderHandler) ComputeValidWordsWithCache(kanji []KanjiData, sqlDB *sql.DB, jlptLevel int) ([]ValidWord, error) {
 	if len(kanji) == 0 {
 		return []ValidWord{}, nil
 	}
 
-	// Extract kanji IDs for array operations
+	ctx := context.Background()
+	cacheClient := config.GetCacheClient()
+
+	// Extract kanji IDs for cache key
 	kanjiIDs := make([]int64, len(kanji))
 	kanjiMap := make(map[int64]string) // id -> character (for fallback)
 	for i, k := range kanji {
@@ -23,17 +34,61 @@ func (h *WordBuilderHandler) ComputeValidWords(kanji []KanjiData) ([]ValidWord, 
 		kanjiMap[k.ID] = k.Character
 	}
 
-	// Get JLPT level from first kanji (they should all be same level)
-	jlptLevel := 4
-	if len(kanji) > 0 && kanji[0].JLPT != nil {
-		jlptLevel = *kanji[0].JLPT
+	// Try cache first
+	if cacheClient != nil {
+		sortedIDs := make([]int64, len(kanjiIDs))
+		copy(sortedIDs, kanjiIDs)
+		sort.Slice(sortedIDs, func(i, j int) bool { return sortedIDs[i] < sortedIDs[j] })
+
+		idsStr := strings.Trim(strings.Join(strings.Fields(fmt.Sprint(sortedIDs)), ","), "[]")
+		hash := md5.Sum([]byte(idsStr))
+		cacheKey := fmt.Sprintf("word_builder:words:%x", hash)
+
+		cachedData, err := cacheClient.Get(ctx, cacheKey).Result()
+		if err == nil {
+			var cachedWords []ValidWord
+			if err := json.Unmarshal([]byte(cachedData), &cachedWords); err == nil {
+				log.Printf("[ComputeValidWords] Cache HIT: %d words", len(cachedWords))
+				return cachedWords, nil
+			}
+			log.Printf("[ComputeValidWords] Cache deserialization error: %v, fetching fresh data", err)
+		} else if err != redis.Nil {
+			log.Printf("[ComputeValidWords] Cache GET error: %v, fetching fresh data", err)
+		}
 	}
 
-	// Get underlying *sql.DB connection to bypass GORM's placeholder parsing
-	sqlDB, err := h.DB.DB()
+	// Cache miss - compute words
+	validWords, err := h.computeValidWordsInternal(kanji, kanjiIDs, kanjiMap, sqlDB, jlptLevel)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get database connection: %w", err)
+		return nil, err
 	}
+
+	// Cache the result
+	if cacheClient != nil && len(validWords) > 0 {
+		sortedIDs := make([]int64, len(kanjiIDs))
+		copy(sortedIDs, kanjiIDs)
+		sort.Slice(sortedIDs, func(i, j int) bool { return sortedIDs[i] < sortedIDs[j] })
+
+		idsStr := strings.Trim(strings.Join(strings.Fields(fmt.Sprint(sortedIDs)), ","), "[]")
+		hash := md5.Sum([]byte(idsStr))
+		cacheKey := fmt.Sprintf("word_builder:words:%x", hash)
+
+		dataJSON, err := json.Marshal(validWords)
+		if err == nil {
+			ttl := 1 * time.Hour
+			if setErr := cacheClient.Set(ctx, cacheKey, dataJSON, ttl).Err(); setErr != nil {
+				log.Printf("[ComputeValidWords] Failed to cache words: %v", setErr)
+			} else {
+				log.Printf("[ComputeValidWords] Cached %d words (TTL=%v)", len(validWords), ttl)
+			}
+		}
+	}
+
+	return validWords, nil
+}
+
+// computeValidWordsInternal performs the actual word computation
+func (h *WordBuilderHandler) computeValidWordsInternal(kanji []KanjiData, kanjiIDs []int64, kanjiMap map[int64]string, sqlDB *sql.DB, jlptLevel int) ([]ValidWord, error) {
 
 	// Build PostgreSQL $N placeholders
 	// Use pq.Array for the containment check to ensure proper type handling
@@ -50,13 +105,13 @@ func (h *WordBuilderHandler) ComputeValidWords(kanji []KanjiData) ([]ValidWord, 
 	// Add kanji array parameter for containment check (using pq.Array for proper type)
 	kanjiArrayParam := kanjiCount + 1
 	args = append(args, pq.Array(kanjiIDs))
-	
+
 	// Add JLPT parameters
 	jlptParam1 := kanjiCount + 2
 	jlptParam2 := kanjiCount + 3
 	jlptParam3 := kanjiCount + 4
 	args = append(args, jlptLevel, jlptLevel-1, jlptLevel+1)
-	
+
 	query := fmt.Sprintf(`
 WITH s AS (
 	SELECT unnest(ARRAY[%s]::BIGINT[]) AS kanji_id
@@ -101,7 +156,7 @@ ORDER BY cardinality(wk.word_kanji_ids) DESC, w.kanji`,
 		kanjiArrayParam,
 		jlptParam1, jlptParam2, jlptParam3)
 
-	// Execute query using database/sql directly
+	// Execute query using provided sqlDB connection
 	rows, err := sqlDB.Query(query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query valid words: %w", err)
@@ -159,6 +214,17 @@ ORDER BY cardinality(wk.word_kanji_ids) DESC, w.kanji`,
 	}
 
 	return validWords, nil
+}
+
+// ComputeValidWords is a backward-compatible wrapper that uses default JLPT level
+// For new code, use ComputeValidWordsWithCache directly
+func (h *WordBuilderHandler) ComputeValidWords(kanji []KanjiData) ([]ValidWord, error) {
+	sqlDB, err := h.DB.DB()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get database connection: %w", err)
+	}
+	// Use default JLPT level 4 if not specified
+	return h.ComputeValidWordsWithCache(kanji, sqlDB, 4)
 }
 
 func buildQuestionPlaceholders(count int) string {

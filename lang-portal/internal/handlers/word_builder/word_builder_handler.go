@@ -69,6 +69,14 @@ func (h *WordBuilderHandler) StartSession(c *fiber.Ctx) error {
 		})
 	}
 
+	// Get sqlDB once to reuse connection
+	sqlDB, err := h.DB.DB()
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to get database connection",
+		})
+	}
+
 	maxRetries := MaxRetriesKanjiSelection
 	kanji := []KanjiData{}
 	var validWords []ValidWord
@@ -95,9 +103,9 @@ func (h *WordBuilderHandler) StartSession(c *fiber.Ctx) error {
 			continue
 		}
 
-		// Pre-compute all valid words
+		// Pre-compute all valid words (with caching)
 		wordsStartTime := time.Now()
-		validWords, err = h.ComputeValidWords(kanji)
+		validWords, err = h.ComputeValidWordsWithCache(kanji, sqlDB, req.JLPTLevel)
 		wordsDuration = time.Since(wordsStartTime)
 		if err != nil {
 			if attempt == maxRetries-1 {
@@ -209,7 +217,6 @@ func (h *WordBuilderHandler) StartSession(c *fiber.Ctx) error {
 			Onyomi:    k.Onyomi,
 			Kunyomi:   k.Kunyomi,
 			Meanings:  k.Meanings,
-			JLPT:      k.JLPT,
 		}
 	}
 
@@ -223,6 +230,17 @@ func (h *WordBuilderHandler) StartSession(c *fiber.Ctx) error {
 	totalDuration := time.Since(startTime)
 	log.Printf("[StartSession] TIMING - Total: %v | Kanji selection: %v | Word computation: %v | DB insert: %v | Valid words: %d | Kanji count: %d",
 		totalDuration, kanjiDuration, wordsDuration, dbDuration, len(validWords), len(kanji))
+
+	// Detailed timing breakdown for optimization tracking
+	if kanjiDuration > 0 {
+		log.Printf("[StartSession] DETAILED - Kanji selection: %v (%.1f%% of total)", kanjiDuration, float64(kanjiDuration)/float64(totalDuration)*100)
+	}
+	if wordsDuration > 0 {
+		log.Printf("[StartSession] DETAILED - Word computation: %v (%.1f%% of total)", wordsDuration, float64(wordsDuration)/float64(totalDuration)*100)
+	}
+	if dbDuration > 0 {
+		log.Printf("[StartSession] DETAILED - DB insert: %v (%.1f%% of total)", dbDuration, float64(dbDuration)/float64(totalDuration)*100)
+	}
 
 	return c.JSON(response)
 }
@@ -249,6 +267,14 @@ func (h *WordBuilderHandler) RefreshKanji(c *fiber.Ctx) error {
 	if req.JLPTLevel < 1 || req.JLPTLevel > 5 {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "JLPT level must be between 1 and 5",
+		})
+	}
+
+	// Get sqlDB once to reuse connection
+	sqlDB, err := h.DB.DB()
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to get database connection",
 		})
 	}
 
@@ -285,9 +311,9 @@ func (h *WordBuilderHandler) RefreshKanji(c *fiber.Ctx) error {
 			continue
 		}
 
-		// Pre-compute valid words from new kanji
+		// Pre-compute valid words from new kanji (with caching)
 		wordsStartTime := time.Now()
-		validWords, err = h.ComputeValidWords(newKanji)
+		validWords, err = h.ComputeValidWordsWithCache(newKanji, sqlDB, req.JLPTLevel)
 		wordsDuration = time.Since(wordsStartTime)
 		if err != nil {
 			if attempt == maxRetries-1 {
@@ -389,7 +415,6 @@ func (h *WordBuilderHandler) RefreshKanji(c *fiber.Ctx) error {
 			Onyomi:    k.Onyomi,
 			Kunyomi:   k.Kunyomi,
 			Meanings:  k.Meanings,
-			JLPT:      k.JLPT,
 		}
 	}
 

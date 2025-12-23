@@ -1,11 +1,18 @@
 package word_builder
 
 import (
+	"context"
+	"crypto/md5"
+	"encoding/json"
 	"fmt"
+	"lang-portal/internal/config"
 	"log"
+	"sort"
 	"strings"
+	"time"
 
 	pq "github.com/lib/pq"
+	"github.com/redis/go-redis/v9"
 )
 
 // getSimpleKanji builds a simple chain: K1 → word → K2 → word → K3 → ... → K6
@@ -46,7 +53,7 @@ func (h *WordBuilderHandler) getKanjiUsingSQLFunction(jlptLevel int, count int, 
 		return nil, fmt.Errorf("SQL function failed: %w", err)
 	}
 
-	if kanjiArray == nil || len(kanjiArray) == 0 {
+	if len(kanjiArray) == 0 {
 		return nil, fmt.Errorf("SQL function returned empty array")
 	}
 
@@ -283,11 +290,41 @@ func (h *WordBuilderHandler) getSimpleKanjiGo(jlptLevel int, count int, excludeI
 }
 
 // getKanjiDetails retrieves full kanji information for the given IDs
+// Optimized: includes caching, removes unnecessary fields, combines with meanings query
 func (h *WordBuilderHandler) getKanjiDetails(kanjiIDs []int64) ([]KanjiData, error) {
 	if len(kanjiIDs) == 0 {
 		return []KanjiData{}, nil
 	}
 
+	ctx := context.Background()
+	cacheClient := config.GetCacheClient()
+
+	// Try cache first (batch cache)
+	if cacheClient != nil {
+		sortedIDs := make([]int64, len(kanjiIDs))
+		copy(sortedIDs, kanjiIDs)
+		sort.Slice(sortedIDs, func(i, j int) bool { return sortedIDs[i] < sortedIDs[j] })
+
+		// Create hash for batch cache key
+		idsStr := strings.Trim(strings.Join(strings.Fields(fmt.Sprint(sortedIDs)), ","), "[]")
+		hash := md5.Sum([]byte(idsStr))
+		cacheKey := fmt.Sprintf("word_builder:kanji_batch:%x", hash)
+
+		cachedData, err := cacheClient.Get(ctx, cacheKey).Result()
+		if err == nil {
+			var cachedKanji []KanjiData
+			if err := json.Unmarshal([]byte(cachedData), &cachedKanji); err == nil {
+				log.Printf("[getKanjiDetails] Cache HIT for batch: %d kanji", len(cachedKanji))
+				return cachedKanji, nil
+			}
+			log.Printf("[getKanjiDetails] Cache deserialization error: %v, fetching fresh data", err)
+		} else if err != redis.Nil {
+			log.Printf("[getKanjiDetails] Cache GET error: %v, fetching fresh data", err)
+		}
+	}
+
+	// Cache miss - fetch from database
+	startTime := time.Now()
 	sqlDB, err := h.DB.DB()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get database connection: %w", err)
@@ -301,15 +338,20 @@ func (h *WordBuilderHandler) getKanjiDetails(kanjiIDs []int64) ([]KanjiData, err
 		args[i] = id
 	}
 
-	// Get full kanji details
+	// Combined query: kanji details + first meaning in one query
+	// Removed jlpt and frequency (not needed in response)
+	// Uses COALESCE to get first meaning from meanings, detail, or heisig_en
 	detailQuery := fmt.Sprintf(`
 		SELECT 
 			k.id,
 			k.character,
 			k.onyomi,
 			k.kunyomi,
-			k.jlpt,
-			k.frequency
+			COALESCE(
+				(k.meanings->>0),
+				(string_to_array(k.detail, ','))[1],
+				(string_to_array(k.heisig_en, ','))[1]
+			) AS first_meaning
 		FROM kanji k
 		WHERE k.id IN (%s)
 		ORDER BY k.id
@@ -322,24 +364,22 @@ func (h *WordBuilderHandler) getKanjiDetails(kanjiIDs []int64) ([]KanjiData, err
 	defer rows.Close()
 
 	var kanjiList []struct {
-		ID        int64
-		Character string
-		Onyomi    *string
-		Kunyomi   *string
-		JLPT      *int
-		Frequency *int
+		ID           int64
+		Character    string
+		Onyomi       *string
+		Kunyomi      *string
+		FirstMeaning *string
 	}
 
 	for rows.Next() {
 		var k struct {
-			ID        int64
-			Character string
-			Onyomi    *string
-			Kunyomi   *string
-			JLPT      *int
-			Frequency *int
+			ID           int64
+			Character    string
+			Onyomi       *string
+			Kunyomi      *string
+			FirstMeaning *string
 		}
-		if err := rows.Scan(&k.ID, &k.Character, &k.Onyomi, &k.Kunyomi, &k.JLPT, &k.Frequency); err != nil {
+		if err := rows.Scan(&k.ID, &k.Character, &k.Onyomi, &k.Kunyomi, &k.FirstMeaning); err != nil {
 			return nil, fmt.Errorf("failed to scan kanji: %w", err)
 		}
 		kanjiList = append(kanjiList, k)
@@ -349,13 +389,12 @@ func (h *WordBuilderHandler) getKanjiDetails(kanjiIDs []int64) ([]KanjiData, err
 		return nil, fmt.Errorf("error iterating rows: %w", err)
 	}
 
-	// Convert to KanjiData and get meanings
+	// Convert to KanjiData
 	result := make([]KanjiData, 0, len(kanjiList))
 	for _, k := range kanjiList {
-		meanings, err := h.getKanjiMeanings(k.ID)
-		if err != nil {
-			// If we can't get meanings, use empty array (shouldn't happen but handle gracefully)
-			meanings = []string{}
+		meanings := []string{}
+		if k.FirstMeaning != nil && *k.FirstMeaning != "" {
+			meanings = []string{*k.FirstMeaning}
 		}
 
 		result = append(result, KanjiData{
@@ -364,8 +403,31 @@ func (h *WordBuilderHandler) getKanjiDetails(kanjiIDs []int64) ([]KanjiData, err
 			Onyomi:    k.Onyomi,
 			Kunyomi:   k.Kunyomi,
 			Meanings:  meanings,
-			JLPT:      k.JLPT,
 		})
+	}
+
+	queryDuration := time.Since(startTime)
+	log.Printf("[getKanjiDetails] Fetched %d kanji from DB in %v", len(result), queryDuration)
+
+	// Cache the result
+	if cacheClient != nil && len(result) > 0 {
+		sortedIDs := make([]int64, len(kanjiIDs))
+		copy(sortedIDs, kanjiIDs)
+		sort.Slice(sortedIDs, func(i, j int) bool { return sortedIDs[i] < sortedIDs[j] })
+
+		idsStr := strings.Trim(strings.Join(strings.Fields(fmt.Sprint(sortedIDs)), ","), "[]")
+		hash := md5.Sum([]byte(idsStr))
+		cacheKey := fmt.Sprintf("word_builder:kanji_batch:%x", hash)
+
+		dataJSON, err := json.Marshal(result)
+		if err == nil {
+			ttl := 1 * time.Hour
+			if setErr := cacheClient.Set(ctx, cacheKey, dataJSON, ttl).Err(); setErr != nil {
+				log.Printf("[getKanjiDetails] Failed to cache kanji batch: %v", setErr)
+			} else {
+				log.Printf("[getKanjiDetails] Cached kanji batch: %d kanji (TTL=%v)", len(result), ttl)
+			}
+		}
 	}
 
 	return result, nil
