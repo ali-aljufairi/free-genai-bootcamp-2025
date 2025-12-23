@@ -12,12 +12,9 @@ import (
 )
 
 const (
-	// MaxRetriesKanjiSelection is the main retry limit for finding valid kanji sets
 	MaxRetriesKanjiSelection = 10
-	// MaxRetriesKanjiChain is the retry limit for building kanji chains
-	MaxRetriesKanjiChain = 10
-	// MaxWordTriesPerKanji is the retry limit for trying different words per kanji
-	MaxWordTriesPerKanji = 5
+	MaxRetriesKanjiChain     = 10
+	MaxWordTriesPerKanji     = 5
 )
 
 type WordBuilderHandler struct {
@@ -34,7 +31,6 @@ func NewWordBuilderHandler(kanjiStore *repositories.KanjiStore, wordsStore *repo
 	}
 }
 
-// getUserID extracts user ID from context
 func (h *WordBuilderHandler) getUserID(c *fiber.Ctx) (int64, error) {
 	userID, ok := c.Locals("user_id").(int64)
 	if !ok {
@@ -43,7 +39,6 @@ func (h *WordBuilderHandler) getUserID(c *fiber.Ctx) (int64, error) {
 	return userID, nil
 }
 
-// StartSession starts a new word builder session
 func (h *WordBuilderHandler) StartSession(c *fiber.Ctx) error {
 	startTime := time.Now()
 
@@ -74,8 +69,6 @@ func (h *WordBuilderHandler) StartSession(c *fiber.Ctx) error {
 		})
 	}
 
-	// Get 6 kanji with auto-refresh if no valid words found
-	// Retry up to MaxRetriesKanjiSelection times to find kanji that form valid words
 	maxRetries := MaxRetriesKanjiSelection
 	kanji := []KanjiData{}
 	var validWords []ValidWord
@@ -86,7 +79,7 @@ func (h *WordBuilderHandler) StartSession(c *fiber.Ctx) error {
 	for attempt := 0; attempt < maxRetries; attempt++ {
 		// Get kanji (excluding previously tried sets)
 		kanjiAttemptStart := time.Now()
-		kanji, err := h.getSimpleKanji(req.JLPTLevel, 6, excludeIDs)
+		kanji, err = h.getSimpleKanji(req.JLPTLevel, 6, excludeIDs)
 		kanjiDuration = time.Since(kanjiAttemptStart)
 		if err != nil {
 			if attempt == maxRetries-1 {
@@ -307,7 +300,6 @@ func (h *WordBuilderHandler) RefreshKanji(c *fiber.Ctx) error {
 				})
 			}
 			log.Printf("[RefreshKanji] Attempt %d: Failed to compute valid words: %v, retrying...", attempt+1, err)
-			// Exclude these kanji and retry
 			for _, k := range newKanji {
 				excludeIDs = append(excludeIDs, k.ID)
 			}
@@ -322,7 +314,6 @@ func (h *WordBuilderHandler) RefreshKanji(c *fiber.Ctx) error {
 			break
 		}
 
-		// No valid words found - exclude these kanji and retry
 		log.Printf("[RefreshKanji] Attempt %d: Found 0 valid words, auto-refreshing kanji...", attempt+1)
 		for _, k := range newKanji {
 			excludeIDs = append(excludeIDs, k.ID)
@@ -340,8 +331,6 @@ func (h *WordBuilderHandler) RefreshKanji(c *fiber.Ctx) error {
 		}
 	}
 
-	// Optionally update session if session_id is provided (for tracking purposes)
-	// But don't fail if session doesn't exist - refresh should work regardless
 	dbStartTime := time.Now()
 	if req.SessionID > 0 {
 		var activity LearningActivity
