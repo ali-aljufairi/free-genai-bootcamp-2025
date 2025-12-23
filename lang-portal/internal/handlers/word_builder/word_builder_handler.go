@@ -77,7 +77,7 @@ func (h *WordBuilderHandler) StartSession(c *fiber.Ctx) error {
 	// Get 6 kanji with auto-refresh if no valid words found
 	// Retry up to MaxRetriesKanjiSelection times to find kanji that form valid words
 	maxRetries := MaxRetriesKanjiSelection
-	var kanji []KanjiData
+	kanji := []KanjiData{}
 	var validWords []ValidWord
 	var kanjiDuration time.Duration
 	var wordsDuration time.Duration
@@ -152,9 +152,9 @@ func (h *WordBuilderHandler) StartSession(c *fiber.Ctx) error {
 
 	// Create session in learning_activities
 	dbStartTime := time.Now()
-	kanjiIDs := make([]int64, len(kanji))
-	for i, k := range kanji {
-		kanjiIDs[i] = k.ID
+	kanjiIDs := make([]int64, 0, len(kanji))
+	for _, k := range kanji {
+		kanjiIDs = append(kanjiIDs, k.ID)
 	}
 
 	configMap := map[string]interface{}{
@@ -189,6 +189,25 @@ func (h *WordBuilderHandler) StartSession(c *fiber.Ctx) error {
 	}
 
 	// Convert kanji to response format
+	// If kanji is empty but we have valid words, extract kanji IDs from valid words
+	if len(kanji) == 0 && len(validWords) > 0 {
+		kanjiIDSet := make(map[int64]bool)
+		for _, word := range validWords {
+			for _, kanjiID := range word.KanjiIDs {
+				kanjiIDSet[kanjiID] = true
+			}
+		}
+		kanjiIDsFromWords := make([]int64, 0, len(kanjiIDSet))
+		for id := range kanjiIDSet {
+			kanjiIDsFromWords = append(kanjiIDsFromWords, id)
+		}
+		var err error
+		kanji, err = h.getKanjiDetails(kanjiIDsFromWords)
+		if err != nil {
+			log.Printf("[StartSession] Failed to fetch kanji details from valid words: %v", err)
+		}
+	}
+
 	kanjiData := make([]KanjiData, len(kanji))
 	for i, k := range kanji {
 		kanjiData[i] = KanjiData{
@@ -352,7 +371,7 @@ func (h *WordBuilderHandler) RefreshKanji(c *fiber.Ctx) error {
 			}
 
 			var existingItemIDs []int64
-			if activity.ItemIDs != nil && len(activity.ItemIDs) > 0 {
+			if len(activity.ItemIDs) > 0 {
 				existingItemIDs = []int64(activity.ItemIDs)
 			}
 			updatedItemIDs := append(existingItemIDs, newKanjiIDs...)

@@ -86,10 +86,18 @@ export const useWordBuilderStore = create<WordBuilderStore>()(
       setPreferences: (preferences) => set({ preferences }),
       
       initSession: (sessionId, kanji, validWords, timeLimit) => {
+        if (!Array.isArray(kanji) || kanji.length === 0) {
+          return
+        }
+
+        if (!timeLimit || timeLimit <= 0) {
+          timeLimit = 300
+        }
+
         set({
           sessionId,
           kanjiPool: kanji,
-          validWords,
+          validWords: Array.isArray(validWords) ? validWords : [],
           timeLimit,
           timeRemaining: timeLimit,
           currentSlots: [null, null, null, null],

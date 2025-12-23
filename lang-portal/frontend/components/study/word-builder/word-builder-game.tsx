@@ -68,14 +68,21 @@ export function WordBuilderGame({
     const refreshKanjiMutation = useRefreshKanji()
     const submitMutation = useSubmitWordBuilder()
 
-    // Initialize session
+    const normalizedKanji = Array.isArray(kanji) ? kanji : []
+    const normalizedValidWords = Array.isArray(validWords) ? validWords : []
+    const effectiveKanjiPool = kanjiPool && kanjiPool.length > 0 ? kanjiPool : normalizedKanji
+
     useEffect(() => {
-        initSession(sessionId, kanji, validWords, timeLimit)
-    }, [sessionId, kanji, validWords, timeLimit])
+        if (normalizedKanji.length === 0) {
+            return
+        }
+
+        initSession(sessionId, normalizedKanji, normalizedValidWords, timeLimit)
+    }, [sessionId, normalizedKanji, normalizedValidWords, timeLimit, initSession])
 
     // Initialize Swapy for drag-and-drop functionality
     useEffect(() => {
-        if (!containerRef.current || kanjiPool.length === 0) return
+        if (!containerRef.current || effectiveKanjiPool.length === 0) return
 
         const initializeSwapy = () => {
             if (!containerRef.current) return
@@ -136,7 +143,7 @@ export function WordBuilderGame({
                 if (fromSlot.startsWith('pool-kanji-') && toSlot.startsWith('slot-')) {
                     const kanjiId = parseInt(fromSlot.replace('pool-kanji-', ''))
                     const slotIndex = parseInt(toSlot.replace('slot-', ''))
-                    const kanji = kanjiPool.find(k => k.id === kanjiId)
+                    const kanji = effectiveKanjiPool.find(k => k.id === kanjiId)
                     if (kanji) {
                         // Update state - React will re-render the slot with proper element
                         placeKanjiInSlot(kanji, slotIndex)
@@ -167,7 +174,7 @@ export function WordBuilderGame({
                                 const kanjiId = parseInt(kanjiIdMatch[1])
                                 const toIndex = parseInt(toSlot.replace('slot-', ''))
                                 const storeState = useWordBuilderStore.getState()
-                                const kanji = kanjiPool.find(k => k.id === kanjiId) ||
+                                const kanji = effectiveKanjiPool.find(k => k.id === kanjiId) ||
                                     storeState.currentSlots.find(k => k?.id === kanjiId)
                                 if (kanji) {
                                     placeKanjiInSlot(kanji, toIndex)
@@ -237,7 +244,7 @@ export function WordBuilderGame({
                 swapyInstance.current = null
             }
         }
-    }, [kanjiPool, placeKanjiInSlot, removeKanjiFromSlot, swapSlots])
+    }, [effectiveKanjiPool, placeKanjiInSlot, removeKanjiFromSlot, swapSlots])
 
     // Update Swapy when slots or kanji pool changes
     useEffect(() => {
@@ -251,7 +258,7 @@ export function WordBuilderGame({
             })
             return () => cancelAnimationFrame(frameId)
         }
-    }, [currentSlots, kanjiPool])
+    }, [currentSlots, effectiveKanjiPool])
 
     // Force kanji pool re-render when slots are cleared
     // This ensures pool items are visible after Swapy moves elements
@@ -348,7 +355,7 @@ export function WordBuilderGame({
 
     const checkIfMoreWordsPossible = () => {
         // Simple check: if we have less than 2 kanji left, suggest refresh
-        const remainingKanji = kanjiPool.filter(k =>
+        const remainingKanji = effectiveKanjiPool.filter(k =>
             !currentSlots.some(s => s?.id === k.id)
         )
 
@@ -496,9 +503,9 @@ export function WordBuilderGame({
                         </div>
                         <div className="flex-1 min-h-0 overflow-hidden" key={`kanji-pool-${poolRenderKey}`}>
                             {isMobile ? (
-                                <WordBuilderKanjiPoolMobile kanji={kanjiPool} />
+                                <WordBuilderKanjiPoolMobile kanji={effectiveKanjiPool} />
                             ) : (
-                                <WordBuilderKanjiPool kanji={kanjiPool} />
+                                <WordBuilderKanjiPool kanji={effectiveKanjiPool} />
                             )}
                         </div>
                     </div>

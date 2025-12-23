@@ -43,20 +43,7 @@ export default function WordBuilderPage() {
                 time_limit: preferences.time_limit,
             })
 
-            // Log session data for debugging
-            console.log('[WordBuilder] Session started:', {
-                session_id: session.session_id,
-                kanji_count: session.kanji?.length || 0,
-                valid_words_count: session.valid_words?.length || 0,
-                time_limit: session.time_limit,
-            })
-
-            // Warn if no valid words (shouldn't happen after backend fix)
             if (!session.valid_words || session.valid_words.length === 0) {
-                console.warn('[WordBuilder] WARNING: No valid words returned from API!', {
-                    kanji_ids: session.kanji?.map(k => k.id) || [],
-                    kanji_chars: session.kanji?.map(k => k.character) || [],
-                })
                 toast.warning("No valid words found for selected kanji. Please try again.")
             }
 
@@ -87,7 +74,7 @@ export default function WordBuilderPage() {
     useEffect(() => {
         if (!hasAutoStartedRef.current && hasConfiguredPreferences(preferences) && !startMutation.isPending) {
             hasAutoStartedRef.current = true
-            handleStart()
+            handleStart().catch(() => { })
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
@@ -110,7 +97,7 @@ export default function WordBuilderPage() {
                     <WordBuilderConfig
                         onStart={handleStart}
                         isLoading={startMutation.isPending}
-                        isMobile={isMobile}
+                        isMobile={isMobile ?? false}
                     />
                 </div>
             </SubscriptionGate>
@@ -126,8 +113,8 @@ export default function WordBuilderPage() {
             <div className="h-[calc(100vh-4rem)] overflow-hidden">
                 <WordBuilderGame
                     sessionId={sessionData.session_id}
-                    kanji={sessionData.kanji}
-                    validWords={sessionData.valid_words}
+                    kanji={sessionData.kanji || []}
+                    validWords={sessionData.valid_words || []}
                     timeLimit={sessionData.time_limit}
                     onComplete={handleComplete}
                     onShowSettings={handleShowSettings}
