@@ -88,6 +88,10 @@ type clerkAuth struct {
 	cache   map[string]cachedUser
 	// configurable TTL for cache entries
 	cacheTTL time.Duration
+
+	// Mutex map to serialize user creation per clerk_id to prevent race conditions
+	userCreationMu    sync.Mutex
+	userCreationLocks map[string]*sync.Mutex
 }
 
 // cachedUser is the value stored in the in-memory cache.
@@ -129,9 +133,10 @@ func newClerkAuth(postgresDB *gorm.DB) (*clerkAuth, error) {
 		jwks: jwks,
 		db:   postgresDB,
 		// Get validation settings from environment
-		audience: os.Getenv("CLERK_AUDIENCE"),
-		issuer:   os.Getenv("CLERK_ISSUER"),
-		cache:    make(map[string]cachedUser),
+		audience:          os.Getenv("CLERK_AUDIENCE"),
+		issuer:            os.Getenv("CLERK_ISSUER"),
+		cache:             make(map[string]cachedUser),
+		userCreationLocks: make(map[string]*sync.Mutex),
 	}
 
 	// Configure cache TTL from env, default to 5 minutes
@@ -258,74 +263,73 @@ func (caa *clerkAuth) Middleware() fiber.Handler {
 				caa.setCachedUser(sub, user)
 			} else {
 				// User doesn't exist, create them
-				log.Printf("No user found for Clerk ID %s, creating new user", sub)
+				// Use per-clerk-id mutex to serialize user creation and prevent race conditions
+				lock := caa.getUserCreationLock(sub)
+				lock.Lock()
+				defer lock.Unlock()
 
-				// Fetch real user data from Clerk API
-				clerkUser, err := fetchClerkUser(sub)
-				var email, name string
-
-				if err != nil {
-					log.Printf("Failed to fetch user data from Clerk API for user %s: %v", sub, err)
-					email, _ = claims["email"].(string)
-					if email == "" {
-						email = fmt.Sprintf("%s@clerk.user", sub)
-					}
-					name, _ = claims["name"].(string)
-					if name == "" {
-						name = "User"
-					}
+				// Double-check after acquiring lock - another request might have created the user
+				if err := caa.db.Where("clerk_id = ?", sub).First(&user).Error; err == nil {
+					c.Locals("user_id", user.ID)
+					log.Printf("Mapped Clerk user %s to internal user_id %d (created by concurrent request)", sub, user.ID)
+					caa.setCachedUser(sub, user)
 				} else {
-					log.Printf("Successfully fetched user data from Clerk API for user %s", sub)
+					log.Printf("No user found for Clerk ID %s, creating new user", sub)
 
-					// Get primary email
-					email = fmt.Sprintf("%s@clerk.user", sub)
-					for _, emailAddr := range clerkUser.EmailAddresses {
-						if emailAddr.Primary {
-							email = emailAddr.EmailAddress
-							break
+					// Fetch real user data from Clerk API
+					clerkUser, err := fetchClerkUser(sub)
+					var email, name string
+
+					if err != nil {
+						log.Printf("Failed to fetch user data from Clerk API for user %s: %v", sub, err)
+						email, _ = claims["email"].(string)
+						if email == "" {
+							email = fmt.Sprintf("%s@clerk.user", sub)
 						}
-					}
-					if email == fmt.Sprintf("%s@clerk.user", sub) && len(clerkUser.EmailAddresses) > 0 {
-						email = clerkUser.EmailAddresses[0].EmailAddress
-					}
-
-					// Get display name
-					name = "User"
-					if clerkUser.FullName != nil && *clerkUser.FullName != "" {
-						name = *clerkUser.FullName
-					} else if clerkUser.FirstName != nil && *clerkUser.FirstName != "" {
-						if clerkUser.LastName != nil && *clerkUser.LastName != "" {
-							name = *clerkUser.FirstName + " " + *clerkUser.LastName
-						} else {
-							name = *clerkUser.FirstName
+						name, _ = claims["name"].(string)
+						if name == "" {
+							name = "User"
 						}
-					} else if clerkUser.Username != nil && *clerkUser.Username != "" {
-						name = *clerkUser.Username
-					}
-
-					log.Printf("Using real user data: email=%s, name=%s", email, name)
-				}
-
-				// Create user - if duplicate key error, just query for existing user
-				user = models.User{
-					ClerkID:     sub,
-					Email:       email,
-					DisplayName: &name,
-				}
-
-				if err := caa.db.Create(&user).Error; err != nil {
-					// Handle race condition: if user was created by concurrent request, just find it
-					if strings.Contains(err.Error(), "duplicate key") || strings.Contains(err.Error(), "23505") {
-						if queryErr := caa.db.Where("clerk_id = ?", sub).First(&user).Error; queryErr != nil {
-							log.Printf("Failed to create or find user for Clerk ID %s: %v", sub, queryErr)
-							if caa.allowDevFallback {
-								c.Locals("user_id", int64(1))
-								log.Printf("Using dev fallback user_id=1 for Clerk user %s", sub)
-							}
-							return c.Next()
-						}
-						log.Printf("User %s was created concurrently, using existing user_id %d", sub, user.ID)
 					} else {
+						log.Printf("Successfully fetched user data from Clerk API for user %s", sub)
+
+						// Get primary email
+						email = fmt.Sprintf("%s@clerk.user", sub)
+						for _, emailAddr := range clerkUser.EmailAddresses {
+							if emailAddr.Primary {
+								email = emailAddr.EmailAddress
+								break
+							}
+						}
+						if email == fmt.Sprintf("%s@clerk.user", sub) && len(clerkUser.EmailAddresses) > 0 {
+							email = clerkUser.EmailAddresses[0].EmailAddress
+						}
+
+						// Get display name
+						name = "User"
+						if clerkUser.FullName != nil && *clerkUser.FullName != "" {
+							name = *clerkUser.FullName
+						} else if clerkUser.FirstName != nil && *clerkUser.FirstName != "" {
+							if clerkUser.LastName != nil && *clerkUser.LastName != "" {
+								name = *clerkUser.FirstName + " " + *clerkUser.LastName
+							} else {
+								name = *clerkUser.FirstName
+							}
+						} else if clerkUser.Username != nil && *clerkUser.Username != "" {
+							name = *clerkUser.Username
+						}
+
+						log.Printf("Using real user data: email=%s, name=%s", email, name)
+					}
+
+					// Create user
+					user = models.User{
+						ClerkID:     sub,
+						Email:       email,
+						DisplayName: &name,
+					}
+
+					if err := caa.db.Create(&user).Error; err != nil {
 						log.Printf("Failed to create user for Clerk ID %s: %v", sub, err)
 						if caa.allowDevFallback {
 							c.Locals("user_id", int64(1))
@@ -333,31 +337,37 @@ func (caa *clerkAuth) Middleware() fiber.Handler {
 						}
 						return c.Next()
 					}
-				} else {
+
 					log.Printf("Created and mapped Clerk user %s to new internal user_id %d", sub, user.ID)
+
+					// Set up defaults (idempotent - use FirstOrCreate to avoid errors if already exists)
+					settings := models.UserSettings{
+						UserID:            user.ID,
+						HideEnglish:       false,
+						UILanguage:        "en",
+						Timezone:          "UTC",
+						DailyReviewTarget: 20,
+						CurrentJLPTLevel:  5,
+					}
+					caa.db.FirstOrCreate(&settings, models.UserSettings{UserID: user.ID})
+
+					var role models.Role
+					if err := caa.db.Where("role_name = 'student'").First(&role).Error; err == nil {
+						userRole := models.UserRole{UserID: user.ID, RoleID: role.ID}
+						// Use ON CONFLICT DO NOTHING to handle race conditions gracefully
+						if err := caa.db.FirstOrCreate(&userRole, models.UserRole{UserID: user.ID, RoleID: role.ID}).Error; err != nil {
+							// If duplicate key error, ignore it - role already exists
+							if !strings.Contains(err.Error(), "duplicate key") && !strings.Contains(err.Error(), "23505") {
+								log.Printf("Failed to create user role for user %d: %v", user.ID, err)
+							}
+						}
+					}
+
+					// Cache the newly created user
+					caa.setCachedUser(sub, user)
+
+					c.Locals("user_id", user.ID)
 				}
-
-				// Set up defaults (idempotent - use FirstOrCreate to avoid errors if already exists)
-				settings := models.UserSettings{
-					UserID:            user.ID,
-					HideEnglish:       false,
-					UILanguage:        "en",
-					Timezone:          "UTC",
-					DailyReviewTarget: 20,
-					CurrentJLPTLevel:  5,
-				}
-				caa.db.FirstOrCreate(&settings, models.UserSettings{UserID: user.ID})
-
-				var role models.Role
-				if err := caa.db.Where("role_name = 'student'").First(&role).Error; err == nil {
-					userRole := models.UserRole{UserID: user.ID, RoleID: role.ID}
-					caa.db.FirstOrCreate(&userRole, models.UserRole{UserID: user.ID, RoleID: role.ID})
-				}
-
-				// Cache the resolved or newly created user
-				caa.setCachedUser(sub, user)
-
-				c.Locals("user_id", user.ID)
 			}
 		} else if caa.allowDevFallback {
 			c.Locals("user_id", int64(1))
@@ -398,4 +408,17 @@ func (caa *clerkAuth) setCachedUser(clerkID string, user models.User) {
 		Email:     email,
 		ExpiresAt: time.Now().Add(ttl),
 	}
+}
+
+// getUserCreationLock returns a mutex for the given clerk_id to serialize user creation.
+func (caa *clerkAuth) getUserCreationLock(clerkID string) *sync.Mutex {
+	caa.userCreationMu.Lock()
+	defer caa.userCreationMu.Unlock()
+
+	lock, exists := caa.userCreationLocks[clerkID]
+	if !exists {
+		lock = &sync.Mutex{}
+		caa.userCreationLocks[clerkID] = lock
+	}
+	return lock
 }
