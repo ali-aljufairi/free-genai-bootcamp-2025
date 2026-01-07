@@ -170,8 +170,17 @@ func (h *KanjiHandler) GetRandomKanji(c *fiber.Ctx) error {
 
 	kanjiModel, err := h.Store.GetRandom(jlpt, hasSVG)
 	if err != nil {
+		// Log the actual error for debugging
+		c.App().Config().ErrorHandler(c, err)
+		
+		errorMsg := "Failed to get random kanji"
+		if err.Error() == "record not found" {
+			errorMsg = "No kanji found in database"
+		}
+		
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to get random kanji",
+			"error":  errorMsg,
+			"detail": err.Error(),
 		})
 	}
 

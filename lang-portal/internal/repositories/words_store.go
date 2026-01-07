@@ -120,6 +120,19 @@ func (s *WordsStore) Search(params SearchWordsParams) ([]models.Word, int64, err
 // GetRandom returns a single random word
 func (s *WordsStore) GetRandom() (*models.Word, error) {
 	var word models.Word
+	
+	// First, check if there are any words in the database
+	var count int64
+	if err := s.DB.Model(&models.Word{}).Count(&count).Error; err != nil {
+		return nil, err
+	}
+	
+	if count == 0 {
+		return nil, gorm.ErrRecordNotFound
+	}
+	
+	// Use database-agnostic random ordering
+	// RANDOM() works for both SQLite and PostgreSQL
 	if err := s.DB.Order("RANDOM()").Limit(1).First(&word).Error; err != nil {
 		return nil, err
 	}

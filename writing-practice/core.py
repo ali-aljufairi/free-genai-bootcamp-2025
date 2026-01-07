@@ -206,7 +206,7 @@ class JapaneseApp:
             if token:
                 headers["Authorization"] = f"Bearer {token}"
 
-            response = requests.get(url, headers=headers)
+            response = requests.get(url, headers=headers, timeout=10)
             if response.status_code == 200:
                 word_data = response.json()
                 logger.debug(f"Received word data: {word_data}")
@@ -226,9 +226,22 @@ class JapaneseApp:
                     self.current_word.get("romaji", ""),
                     "Write this word in Japanese characters",
                 )
-
-            logger.error(f"Error fetching random word: {response.status_code}")
-            return "", "", "", "Error fetching word. Please try again."
+            else:
+                error_detail = f"HTTP {response.status_code}"
+                try:
+                    error_data = response.json()
+                    error_detail = error_data.get("error", error_data.get("detail", error_detail))
+                except:
+                    error_detail = response.text if response.text else error_detail
+                
+                logger.error(f"Error fetching random word: {error_detail}")
+                return "", "", "", f"Error fetching word: {error_detail}"
+        except requests.exceptions.Timeout:
+            logger.error("Timeout fetching random word from API")
+            return "", "", "", "API request timed out"
+        except requests.exceptions.ConnectionError as e:
+            logger.error(f"Connection error fetching random word: {str(e)}")
+            return "", "", "", f"Connection error: {str(e)}"
         except Exception as e:
             logger.error(f"Error in get_random_word: {str(e)}")
             return "", "", "", f"An error occurred: {str(e)}"

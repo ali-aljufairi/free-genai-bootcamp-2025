@@ -144,6 +144,17 @@ func (s *KanjiStore) GetRandom(jlpt *int, hasSVG bool) (*kanji.KanjiModel, error
 		query = query.Where("strokes_svg IS NOT NULL AND strokes_svg != ''")
 	}
 
+	// Check if there are any matching records
+	var count int64
+	countQuery := query
+	if err := countQuery.Count(&count).Error; err != nil {
+		return nil, err
+	}
+	
+	if count == 0 {
+		return nil, gorm.ErrRecordNotFound
+	}
+
 	var kanjiModel kanji.KanjiModel
 	if err := query.Order("RANDOM()").Limit(1).First(&kanjiModel).Error; err != nil {
 		return nil, err

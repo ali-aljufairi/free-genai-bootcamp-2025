@@ -133,8 +133,18 @@ func (h *WordsHandler) SearchWords(c *fiber.Ctx) error {
 func (h *WordsHandler) GetRandomWord(c *fiber.Ctx) error {
 	word, err := h.Store.GetRandom()
 	if err != nil {
+		// Log the actual error for debugging
+		c.App().Config().ErrorHandler(c, err)
+		
+		// Return more descriptive error
+		errorMsg := "Failed to get random word"
+		if err.Error() == "record not found" {
+			errorMsg = "No words found in database"
+		}
+		
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to get random word",
+			"error": errorMsg,
+			"detail": err.Error(),
 		})
 	}
 
@@ -142,6 +152,14 @@ func (h *WordsHandler) GetRandomWord(c *fiber.Ctx) error {
 	japanese := word.Kana
 	if word.Kanji != nil && *word.Kanji != "" {
 		japanese = *word.Kanji
+	}
+	
+	// Validate that we have valid data
+	if japanese == "" && word.Kana == "" {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Word has no readable form",
+			"detail": "Both Kanji and Kana are empty",
+		})
 	}
 
 	// Convert to response format expected by Python service
