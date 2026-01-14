@@ -5,6 +5,7 @@ import { WordBuilderConfig } from "@/components/study/configs/word-builder-confi
 import { WordBuilderGame } from "@/components/study/word-builder/word-builder-game"
 import { useStartWordBuilder } from "@/hooks/api/use-word-builder"
 import { useIsMobile } from "@/hooks/use-mobile"
+import { useUserProfile } from "@/hooks/api/useGroup"
 import { useWordBuilderStore } from "@/stores/word-builder-store"
 import { toast } from "sonner"
 import { SubscriptionGate } from "@/components/subscription/subscription-gate"
@@ -32,9 +33,21 @@ export default function WordBuilderPage() {
     const [showConfig, setShowConfig] = useState(true)
     const [sessionData, setSessionData] = useState<any>(null)
     const isMobile = useIsMobile()
-    const { preferences } = useWordBuilderStore()
+    const { preferences, setPreferences } = useWordBuilderStore()
+    const { data: userProfile } = useUserProfile()
     const startMutation = useStartWordBuilder()
     const hasAutoStartedRef = useRef(false)
+
+    // Sync JLPT level from user profile
+    useEffect(() => {
+        if (userProfile?.settings?.current_jlpt_level && 
+            userProfile.settings.current_jlpt_level !== preferences.jlpt_level) {
+            setPreferences({
+                ...preferences,
+                jlpt_level: userProfile.settings.current_jlpt_level
+            })
+        }
+    }, [userProfile?.settings?.current_jlpt_level, preferences, setPreferences])
 
     const handleStart = async () => {
         try {

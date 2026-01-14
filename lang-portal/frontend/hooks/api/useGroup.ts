@@ -15,6 +15,12 @@ export interface UserProfile {
   };
   settings?: {
     current_jlpt_level?: number;
+    hide_english?: boolean;
+    ui_language?: string;
+    timezone?: string;
+    daily_review_target?: number;
+    jlpt_level_assessed_at?: string;
+    jlpt_level_assessment_method?: string;
   };
   [key: string]: any;
 }

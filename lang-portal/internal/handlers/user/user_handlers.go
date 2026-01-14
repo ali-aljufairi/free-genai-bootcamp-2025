@@ -299,6 +299,10 @@ func (h *UserHandler) UpdateUserSettings(c *fiber.Ctx) error {
 		updates["daily_review_target"] = *req.DailyReviewTarget
 	}
 	if req.CurrentJLPTLevel != nil {
+		// Validate JLPT level range (1-5)
+		if *req.CurrentJLPTLevel < 1 || *req.CurrentJLPTLevel > 5 {
+			return c.Status(400).JSON(fiber.Map{"error": "JLPT level must be between 1 and 5"})
+		}
 		updates["current_jlpt_level"] = *req.CurrentJLPTLevel
 	}
 	if req.JLPTLevelAssessedAt != nil {
@@ -308,23 +312,56 @@ func (h *UserHandler) UpdateUserSettings(c *fiber.Ctx) error {
 		updates["jlpt_level_assessment_method"] = *req.JLPTLevelAssessmentMethod
 	}
 
-	// Update or create settings
-	var settings models.UserSettings
-	if err := h.DB.Where("user_id = ?", userIDInt).First(&settings).Error; err != nil {
-		// Create new settings
-		settings = models.UserSettings{
-			UserID:            userIDInt,
-			HideEnglish:       false,
-			UILanguage:        "en",
-			Timezone:          "UTC",
-			DailyReviewTarget: 20,
-			CurrentJLPTLevel:  5,
+	// If no updates, return early
+	if len(updates) == 0 {
+		// Get existing settings or return default
+		var settings models.UserSettings
+		if err := h.DB.Where("user_id = ?", userIDInt).First(&settings).Error; err != nil {
+			// Return default settings if not found
+			settings = models.UserSettings{
+				UserID:            userIDInt,
+				HideEnglish:       false,
+				UILanguage:        "en",
+				Timezone:          "UTC",
+				DailyReviewTarget: 20,
+				CurrentJLPTLevel:  5,
+			}
 		}
+		return c.JSON(settings)
+	}
+
+	// Use FirstOrCreate to ensure settings exist, then update
+	var settings models.UserSettings
+	result := h.DB.Where("user_id = ?", userIDInt).FirstOrCreate(&settings, models.UserSettings{
+		UserID:            userIDInt,
+		HideEnglish:       false,
+		UILanguage:        "en",
+		Timezone:          "UTC",
+		DailyReviewTarget: 20,
+		CurrentJLPTLevel:  5,
+	})
+
+	if result.Error != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"error":   "Failed to get or create user settings",
+			"details": result.Error.Error(),
+		})
 	}
 
 	// Apply updates
 	if err := h.DB.Model(&settings).Updates(updates).Error; err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Failed to update user settings"})
+		return c.Status(500).JSON(fiber.Map{
+			"error":   "Failed to update user settings",
+			"details": err.Error(),
+		})
+	}
+
+	// Reload settings to get updated values
+	if err := h.DB.Where("user_id = ?", userIDInt).First(&settings).Error; err != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"error":   "Failed to reload user settings",
+			"details": err.Error(),
+		})
 	}
 
 	return c.JSON(settings)
