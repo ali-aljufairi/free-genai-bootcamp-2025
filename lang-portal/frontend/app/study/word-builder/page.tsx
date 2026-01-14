@@ -9,6 +9,10 @@ import { useUserProfile } from "@/hooks/api/useGroup"
 import { useWordBuilderStore } from "@/stores/word-builder-store"
 import { toast } from "sonner"
 import { SubscriptionGate } from "@/components/subscription/subscription-gate"
+import { useRouter } from "next/navigation"
+import { navigateWithTransition } from "@/lib/view-transitions"
+import { Button } from "@/components/ui/button"
+import { ArrowLeft } from "lucide-react"
 
 const defaultPreferences = {
     jlpt_level: 5,
@@ -30,6 +34,7 @@ function hasConfiguredPreferences(prefs: typeof defaultPreferences): boolean {
 }
 
 export default function WordBuilderPage() {
+    const router = useRouter()
     const [showConfig, setShowConfig] = useState(true)
     const [sessionData, setSessionData] = useState<any>(null)
     const isMobile = useIsMobile()
@@ -38,9 +43,15 @@ export default function WordBuilderPage() {
     const startMutation = useStartWordBuilder()
     const hasAutoStartedRef = useRef(false)
 
+    const handleBack = async () => {
+        await navigateWithTransition(router, "/study", {
+            transitionName: 'page',
+        })
+    }
+
     // Sync JLPT level from user profile
     useEffect(() => {
-        if (userProfile?.settings?.current_jlpt_level && 
+        if (userProfile?.settings?.current_jlpt_level &&
             userProfile.settings.current_jlpt_level !== preferences.jlpt_level) {
             setPreferences({
                 ...preferences,
@@ -101,11 +112,21 @@ export default function WordBuilderPage() {
         return (
             <SubscriptionGate feature="Word Builder">
                 <div className="space-y-5">
-                    <div className="flex flex-col gap-3">
-                        <h1 className="text-3xl font-bold tracking-tight">Word Builder</h1>
-                        <p className="text-muted-foreground">
-                            Build Japanese words by combining kanji characters in this fun timed game!
-                        </p>
+                    <div className="flex items-center gap-3">
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleBack}
+                            className="h-9 w-9 p-0"
+                        >
+                            <ArrowLeft className="h-5 w-5" />
+                        </Button>
+                        <div className="flex flex-col gap-3 flex-1">
+                            <h1 className="text-3xl font-bold tracking-tight">Word Builder</h1>
+                            <p className="text-muted-foreground">
+                                Build Japanese words by combining kanji characters in this fun timed game!
+                            </p>
+                        </div>
                     </div>
                     <WordBuilderConfig
                         onStart={handleStart}

@@ -70,14 +70,14 @@ func (h *GrammarHandler) generateJLPTGrammarQuestions(userID int64, config *Gram
 	}
 
 	var rows []struct {
-		ID               int64   `gorm:"column:id"`
-		QuestionID       int64   `gorm:"column:question_id"`
-		QuestionType     string  `gorm:"column:question_type"`
-		QuestionText     string  `gorm:"column:question_text"`
-		Answers          string  `gorm:"column:answers"` // JSONB as string
-		CorrectAnswerIndex int   `gorm:"column:correct_answer_index"`
-		Explanation      *string `gorm:"column:explanation"`
-		Level            int     `gorm:"column:level"`
+		ID                 int64   `gorm:"column:id"`
+		QuestionID         int64   `gorm:"column:question_id"`
+		QuestionType       string  `gorm:"column:question_type"`
+		QuestionText       string  `gorm:"column:question_text"`
+		Answers            string  `gorm:"column:answers"` // JSONB as string
+		CorrectAnswerIndex int     `gorm:"column:correct_answer_index"`
+		Explanation        *string `gorm:"column:explanation"`
+		Level              int     `gorm:"column:level"`
 	}
 
 	err := query.Order("RANDOM()").Limit(limit).Find(&rows).Error
@@ -168,14 +168,14 @@ func (h *GrammarHandler) generateSRSGrammarQuestions(userID int64, config *Gramm
 	}
 
 	var rows []struct {
-		ID               int64   `gorm:"column:id"`
-		QuestionID       int64   `gorm:"column:question_id"`
-		QuestionType     string  `gorm:"column:question_type"`
-		QuestionText     string  `gorm:"column:question_text"`
-		Answers          string  `gorm:"column:answers"` // JSONB as string
-		CorrectAnswerIndex int   `gorm:"column:correct_answer_index"`
-		Explanation      *string `gorm:"column:explanation"`
-		Level            int     `gorm:"column:level"`
+		ID                 int64   `gorm:"column:id"`
+		QuestionID         int64   `gorm:"column:question_id"`
+		QuestionType       string  `gorm:"column:question_type"`
+		QuestionText       string  `gorm:"column:question_text"`
+		Answers            string  `gorm:"column:answers"` // JSONB as string
+		CorrectAnswerIndex int     `gorm:"column:correct_answer_index"`
+		Explanation        *string `gorm:"column:explanation"`
+		Level              int     `gorm:"column:level"`
 	}
 
 	err = dbQuery.Order("RANDOM()").Find(&rows).Error
@@ -208,4 +208,3 @@ func (h *GrammarHandler) generateSRSGrammarQuestions(userID int64, config *Gramm
 
 	return questions, nil
 }
-

@@ -44,7 +44,6 @@ export function UserSettingsTab() {
     const queryClient = useQueryClient()
     const [hasInitialized, setHasInitialized] = useState(false)
     const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle")
-    const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
     const initializationRef = useRef(false)
     const lastSavedSettingsRef = useRef<{
         hide_english?: boolean
@@ -63,39 +62,49 @@ export function UserSettingsTab() {
 
     // Initialize form from user profile (only once on mount)
     useEffect(() => {
-        if (userProfile?.settings && !initializationRef.current) {
-            setHideEnglish(userProfile.settings.hide_english ?? false)
-            setUILanguage(userProfile.settings.ui_language ?? "en")
-            setTimezone(userProfile.settings.timezone ?? "UTC")
-            setDailyReviewTarget(userProfile.settings.daily_review_target ?? 20)
-            setCurrentJLPTLevel(userProfile.settings.current_jlpt_level ?? 5)
+        if (userProfile?.id && !initializationRef.current) {
+            // Initialize even if settings don't exist yet
+            const settings = userProfile.settings || {}
+            setHideEnglish(settings.hide_english ?? false)
+            setUILanguage(settings.ui_language ?? "en")
+            setTimezone(settings.timezone ?? "UTC")
+            setDailyReviewTarget(settings.daily_review_target ?? 20)
+            setCurrentJLPTLevel(settings.current_jlpt_level ?? 5)
             setHasInitialized(true)
             initializationRef.current = true
             // Store the initial values
             lastSavedSettingsRef.current = {
-                hide_english: userProfile.settings.hide_english ?? false,
-                ui_language: userProfile.settings.ui_language ?? "en",
-                timezone: userProfile.settings.timezone ?? "UTC",
-                daily_review_target: userProfile.settings.daily_review_target ?? 20,
-                current_jlpt_level: userProfile.settings.current_jlpt_level ?? 5,
+                hide_english: settings.hide_english ?? false,
+                ui_language: settings.ui_language ?? "en",
+                timezone: settings.timezone ?? "UTC",
+                daily_review_target: settings.daily_review_target ?? 20,
+                current_jlpt_level: settings.current_jlpt_level ?? 5,
             }
         }
         // Only initialize once - don't overwrite user changes when profile refetches
-    }, [userProfile?.settings])
+    }, [userProfile?.id, userProfile?.settings])
 
-    // Auto-save all settings with debouncing
+    // Auto-save all settings immediately on change
     useEffect(() => {
         if (!userProfile?.id || !hasInitialized) return
 
-        // Clear any existing timeout
-        if (saveTimeoutRef.current) {
-            clearTimeout(saveTimeoutRef.current)
+        // Check if values have changed from what we last saved
+        const lastSaved = lastSavedSettingsRef.current
+        if (lastSaved &&
+            hideEnglish === lastSaved.hide_english &&
+            uiLanguage === lastSaved.ui_language &&
+            timezone === lastSaved.timezone &&
+            dailyReviewTarget === lastSaved.daily_review_target &&
+            currentJLPTLevel === lastSaved.current_jlpt_level) {
+            // No changes, don't save
+            return
         }
 
-        setSaveStatus("saving")
-
-        saveTimeoutRef.current = setTimeout(async () => {
+        // Save immediately - no debounce needed for discrete user actions
+        const saveSettings = async () => {
             try {
+                setSaveStatus("saving")
+
                 const settingsToSave = {
                     hide_english: hideEnglish,
                     ui_language: uiLanguage,
@@ -123,13 +132,9 @@ export function UserSettingsTab() {
                     description: error instanceof Error ? error.message : "Unknown error"
                 })
             }
-        }, 500) // Debounce 500ms
-
-        return () => {
-            if (saveTimeoutRef.current) {
-                clearTimeout(saveTimeoutRef.current)
-            }
         }
+
+        saveSettings()
     }, [hideEnglish, uiLanguage, timezone, dailyReviewTarget, currentJLPTLevel, hasInitialized, userProfile?.id, queryClient])
 
     if (profileLoading) {
