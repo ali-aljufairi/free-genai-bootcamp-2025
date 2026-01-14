@@ -45,6 +45,14 @@ export function UserSettingsTab() {
     const [hasInitialized, setHasInitialized] = useState(false)
     const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle")
     const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+    const initializationRef = useRef(false)
+    const lastSavedSettingsRef = useRef<{
+        hide_english?: boolean
+        ui_language?: string
+        timezone?: string
+        daily_review_target?: number
+        current_jlpt_level?: number
+    } | null>(null)
 
     // Form state
     const [hideEnglish, setHideEnglish] = useState(false)
@@ -53,16 +61,26 @@ export function UserSettingsTab() {
     const [dailyReviewTarget, setDailyReviewTarget] = useState(20)
     const [currentJLPTLevel, setCurrentJLPTLevel] = useState(5)
 
-    // Initialize form from user profile
+    // Initialize form from user profile (only once on mount)
     useEffect(() => {
-        if (userProfile?.settings) {
+        if (userProfile?.settings && !initializationRef.current) {
             setHideEnglish(userProfile.settings.hide_english ?? false)
             setUILanguage(userProfile.settings.ui_language ?? "en")
             setTimezone(userProfile.settings.timezone ?? "UTC")
             setDailyReviewTarget(userProfile.settings.daily_review_target ?? 20)
             setCurrentJLPTLevel(userProfile.settings.current_jlpt_level ?? 5)
             setHasInitialized(true)
+            initializationRef.current = true
+            // Store the initial values
+            lastSavedSettingsRef.current = {
+                hide_english: userProfile.settings.hide_english ?? false,
+                ui_language: userProfile.settings.ui_language ?? "en",
+                timezone: userProfile.settings.timezone ?? "UTC",
+                daily_review_target: userProfile.settings.daily_review_target ?? 20,
+                current_jlpt_level: userProfile.settings.current_jlpt_level ?? 5,
+            }
         }
+        // Only initialize once - don't overwrite user changes when profile refetches
     }, [userProfile?.settings])
 
     // Auto-save all settings with debouncing
@@ -78,15 +96,21 @@ export function UserSettingsTab() {
 
         saveTimeoutRef.current = setTimeout(async () => {
             try {
-                await userApi.updateUserSettings(userProfile.id.toString(), {
+                const settingsToSave = {
                     hide_english: hideEnglish,
                     ui_language: uiLanguage,
                     timezone: timezone,
                     daily_review_target: dailyReviewTarget,
                     current_jlpt_level: currentJLPTLevel,
-                })
+                }
 
-                // Invalidate queries to refresh user profile
+                await userApi.updateUserSettings(userProfile.id.toString(), settingsToSave)
+
+                // Update our ref to track what we just saved
+                lastSavedSettingsRef.current = settingsToSave
+
+                // Invalidate queries so other components see the update
+                // But our initialization guard prevents overwriting local state
                 queryClient.invalidateQueries({ queryKey: ['user', 'profile'] })
 
                 setSaveStatus("saved")
