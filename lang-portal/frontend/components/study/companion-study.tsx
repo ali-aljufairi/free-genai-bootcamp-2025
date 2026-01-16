@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useCompanionStudyStore } from "@/stores/companion-study-store";
 import { useIsMobile } from "@/components/ui/use-mobile";
 import { subscriptionApi } from "@/services/api";
+import * as Sentry from "@sentry/nextjs";
 
 // Get Vapi public key from environment variable
 const VAPI_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPI_PUBLIC_KEY;
@@ -251,6 +252,7 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
                         setCallStartTime(new Date());
                     });
                     vapiRef.current.on("call-end", async () => {
+                        console.log('Vapi call-end event received');
                         await handleCallEnd();
                     });
                     vapiRef.current.on("speech-start", () => {
@@ -260,6 +262,22 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
                     vapiRef.current.on("speech-end", () => {
                         setAssistantIsSpeaking(false);
                         setCallStatus("listening");
+                    });
+                    // Listen for connection status changes
+                    vapiRef.current.on("status-update", (status: any) => {
+                        console.log('Vapi status update:', status);
+                        // Log status changes for debugging disconnection issues
+                        if (status?.status === 'disconnected' || status?.status === 'failed') {
+                            console.warn('Vapi connection issue detected:', status);
+                            Sentry.captureMessage('Vapi connection status change', {
+                                level: 'warning',
+                                tags: {
+                                    location: 'companion-study',
+                                    status: status?.status,
+                                },
+                                extra: status,
+                            });
+                        }
                     });
                     // Add message event listener for transcription
                     vapiRef.current.on("message", (message: any) => {
@@ -293,11 +311,43 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
                             // Don't show error to user for transcription issues
                         }
                     });
-                    vapiRef.current.on("error", (err: any) => {
+                    vapiRef.current.on("error", async (err: any) => {
+                        console.error('Vapi SDK error:', err);
+                        // Log error details for debugging
+                        const errorDetails = {
+                            message: err?.message || 'Unknown error',
+                            code: err?.code,
+                            type: err?.type,
+                            callStatus: callStatus,
+                            hasCallStarted: callStartTime !== null,
+                            sessionId: sessionId,
+                            assistantId: selectedAssistant,
+                        };
+                        console.error('Vapi error details:', errorDetails);
+                        
+                        // Log to Sentry for production debugging
+                        Sentry.captureException(err, {
+                            tags: {
+                                location: 'companion-study',
+                                component: 'VapiSDK',
+                                errorType: 'vapi-connection-error',
+                            },
+                            extra: errorDetails,
+                        });
+                        
+                        // Use handleCallEnd to ensure session is saved even on error
                         setCallStatus("ended");
                         setAssistantIsSpeaking(false);
-                        toast.error("Call Error", { description: err?.message || "Unknown error" });
-                        cleanup();
+                        toast.error("Call Error", { 
+                            description: err?.message || "Connection lost. Your session will be saved." 
+                        });
+                        
+                        // If call was active, try to save session before cleanup
+                        if (callStartTime !== null) {
+                            await handleCallEnd();
+                        } else {
+                            cleanup();
+                        }
                     });
                     setIsVapiInitialized(true);
                 } catch (error: any) {
