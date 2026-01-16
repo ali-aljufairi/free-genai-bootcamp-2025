@@ -37,12 +37,11 @@ export default function Dashboard() {
 
   // Get username from user profile
   const username = useMemo(() => {
-    const userProfileData = userProfile as any;
-    if (userProfileData?.user?.display_name) {
-      return userProfileData.user.display_name;
+    if (userProfile?.user?.display_name) {
+      return userProfile.user.display_name;
     }
-    if (userProfileData?.user?.email) {
-      return userProfileData.user.email.split("@")[0];
+    if (userProfile?.user?.email) {
+      return userProfile.user.email.split("@")[0];
     }
     return "Learner";
   }, [userProfile]);

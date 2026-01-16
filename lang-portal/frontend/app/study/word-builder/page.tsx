@@ -5,8 +5,8 @@ import { WordBuilderConfig } from "@/components/study/configs/word-builder-confi
 import { WordBuilderGame } from "@/components/study/word-builder/word-builder-game"
 import { useStartWordBuilder } from "@/hooks/api/use-word-builder"
 import { useIsMobile } from "@/hooks/use-mobile"
-import { useUserProfile } from "@/hooks/api/useGroup"
 import { useWordBuilderStore } from "@/stores/word-builder-store"
+import { useUserSettingsStore } from "@/stores/user-settings-store"
 import { toast } from "sonner"
 import { SubscriptionGate } from "@/components/subscription/subscription-gate"
 import { useRouter } from "next/navigation"
@@ -39,7 +39,7 @@ export default function WordBuilderPage() {
     const [sessionData, setSessionData] = useState<any>(null)
     const isMobile = useIsMobile()
     const { preferences, setPreferences } = useWordBuilderStore()
-    const { data: userProfile } = useUserProfile()
+    const globalJlptLevel = useUserSettingsStore((s) => s.currentJlptLevel)
     const startMutation = useStartWordBuilder()
     const hasAutoStartedRef = useRef(false)
 
@@ -49,21 +49,12 @@ export default function WordBuilderPage() {
         })
     }
 
-    // Sync JLPT level from user profile
-    useEffect(() => {
-        if (userProfile?.settings?.current_jlpt_level &&
-            userProfile.settings.current_jlpt_level !== preferences.jlpt_level) {
-            setPreferences({
-                ...preferences,
-                jlpt_level: userProfile.settings.current_jlpt_level
-            })
-        }
-    }, [userProfile?.settings?.current_jlpt_level, preferences, setPreferences])
+    const effectiveJlptLevel = preferences.jlpt_level === 5 && globalJlptLevel ? globalJlptLevel : preferences.jlpt_level
 
     const handleStart = async () => {
         try {
             const session = await startMutation.mutateAsync({
-                jlpt_level: preferences.jlpt_level,
+                jlpt_level: effectiveJlptLevel,
                 time_limit: preferences.time_limit,
             })
 

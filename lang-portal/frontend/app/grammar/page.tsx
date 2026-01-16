@@ -42,14 +42,13 @@ export default function GrammarPage() {
 
   // Initialize selected levels based on user's JLPT level
   const defaultLevels = useMemo(() => {
-    // The user profile has a nested settings object with current_jlpt_level
-    const userLevel = (userProfile as any)?.settings?.current_jlpt_level;
-    if (userLevel && typeof userLevel === 'number') {
+    const userLevel = userProfile?.settings?.current_jlpt_level;
+    if (userLevel && typeof userLevel === "number") {
       return getLevelsForUserLevel(userLevel);
     }
     // Default to N5 if user level not available
     return ["N5"];
-  }, [(userProfile as any)?.settings?.current_jlpt_level]);
+  }, [userProfile?.settings?.current_jlpt_level]);
 
   const [selectedLevels, setSelectedLevels] = useState<Set<JLPTLevel>>(
     () => new Set(defaultLevels as JLPTLevel[])

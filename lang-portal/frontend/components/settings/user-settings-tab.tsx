@@ -11,6 +11,7 @@ import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "sonner"
 import { userApi } from "@/services/api"
+import { useUserSettingsStore } from "@/stores/user-settings-store"
 
 const JLPT_LEVELS = [
     { value: 5, label: "N5 (Beginner)" },
@@ -60,9 +61,11 @@ export function UserSettingsTab() {
     const [dailyReviewTarget, setDailyReviewTarget] = useState(20)
     const [currentJLPTLevel, setCurrentJLPTLevel] = useState(5)
 
+    const setJlptInStore = useUserSettingsStore((s) => s.setFromSettings)
+
     // Initialize form from user profile (only once on mount)
     useEffect(() => {
-        if (userProfile?.id && !initializationRef.current) {
+        if (userProfile?.user?.id && !initializationRef.current) {
             // Initialize even if settings don't exist yet
             const settings = userProfile.settings || {}
             setHideEnglish(settings.hide_english ?? false)
@@ -86,7 +89,7 @@ export function UserSettingsTab() {
 
     // Auto-save all settings immediately on change
     useEffect(() => {
-        if (!userProfile?.id || !hasInitialized) return
+        if (!userProfile?.user?.id || !hasInitialized) return
 
         // Check if values have changed from what we last saved
         const lastSaved = lastSavedSettingsRef.current
@@ -113,7 +116,9 @@ export function UserSettingsTab() {
                     current_jlpt_level: currentJLPTLevel,
                 }
 
-                await userApi.updateUserSettings(userProfile.id.toString(), settingsToSave)
+                await userApi.updateUserSettings(userProfile.user.id.toString(), settingsToSave)
+
+                setJlptInStore(currentJLPTLevel)
 
                 // Update our ref to track what we just saved
                 lastSavedSettingsRef.current = settingsToSave
@@ -179,10 +184,14 @@ export function UserSettingsTab() {
                             <Input
                                 id="daily-review-target"
                                 type="number"
-                                min="1"
-                                max="100"
+                                min={1}
+                                max={100}
                                 value={dailyReviewTarget}
-                                onChange={(e) => setDailyReviewTarget(parseInt(e.target.value) || 20)}
+                                onChange={(e) => {
+                                    const parsed = parseInt(e.target.value, 10);
+                                    if (Number.isNaN(parsed)) return;
+                                    setDailyReviewTarget(Math.min(100, Math.max(1, parsed)));
+                                }}
                                 className="pl-9"
                             />
                         </div>

@@ -2,26 +2,29 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { groupApi, userApi } from "@/services/api";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { toast } from "sonner";
 import { Group } from "@/types/api";
+import { useUserSettingsStore } from "@/stores/user-settings-store";
 
 export interface UserProfile {
-  id: number;
-  favorite_group_id?: number | null;
-  user?: {
-    display_name?: string;
+  user: {
+    id: number;
+    favorite_group_id?: number | null;
+    display_name?: string | null;
     email?: string;
   };
-  settings?: {
-    current_jlpt_level?: number;
-    hide_english?: boolean;
-    ui_language?: string;
-    timezone?: string;
-    daily_review_target?: number;
-    jlpt_level_assessed_at?: string;
-    jlpt_level_assessment_method?: string;
+  settings: {
+    user_id: number;
+    current_jlpt_level: number;
+    hide_english: boolean;
+    ui_language: string;
+    timezone: string;
+    daily_review_target: number;
+    jlpt_level_assessed_at?: string | null;
+    jlpt_level_assessment_method?: string | null;
   };
+  // Additional fields from backend we don't strictly type here
   [key: string]: any;
 }
 
@@ -77,9 +80,18 @@ export function useUserProfile() {
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
+  const setFromProfile = useUserSettingsStore((s) => s.setFromProfile);
+
+  // Keep the global user settings store in sync with the profile response
+  useEffect(() => {
+    if (data?.settings?.current_jlpt_level != null) {
+      setFromProfile(data.settings.current_jlpt_level);
+    }
+  }, [data?.settings?.current_jlpt_level, setFromProfile]);
+
   const favoriteGroupId = useMemo(() => {
-    return data?.favorite_group_id ?? null;
-  }, [data?.favorite_group_id]);
+    return data?.user?.favorite_group_id ?? null;
+  }, [data?.user?.favorite_group_id]);
 
   return { 
     data, 

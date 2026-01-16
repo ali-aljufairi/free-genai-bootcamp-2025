@@ -22,9 +22,7 @@ export function StatsCards() {
     return levelMap[level] || "N5";
   };
 
-  // Access user profile data (backend returns UserProfile with user and settings)
-  const userProfileData = userProfile as any;
-  const jlptLevel = getJLPTLevel(userProfileData?.settings?.current_jlpt_level);
+  const jlptLevel = getJLPTLevel(userProfile?.settings?.current_jlpt_level);
   const sessionsCompleted = stats?.total_sessions_completed ?? 0;
 
   return (

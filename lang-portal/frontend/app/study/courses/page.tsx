@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { flashcardsV2Api } from "@/services/api"
 import type { Course, Unit, Flashcard, FlashcardConfig, FlashcardSession } from "@/types/api"
+import { useUserSettingsStore } from "@/stores/user-settings-store"
 
 export default function StudyCoursesPage() {
     const [courses, setCourses] = useState<Course[]>([])
@@ -17,6 +18,7 @@ export default function StudyCoursesPage() {
     const [idx, setIdx] = useState(0)
     const [sel, setSel] = useState<number | null>(null)
     const [count, setCount] = useState<number>(10)
+    const globalJlptLevel = useUserSettingsStore((s) => s.currentJlptLevel)
 
     useEffect(() => {
         flashcardsV2Api.courses().then(setCourses).catch(() => setCourses([]))
@@ -37,7 +39,12 @@ export default function StudyCoursesPage() {
             content_source: 'unit',
             course_id: courseId,
             unit_id: unitId ?? undefined,
-            filters: { jlpt_levels: [], parts_of_speech: [], difficulty_levels: [], has_kanji: undefined },
+            filters: {
+                jlpt_levels: globalJlptLevel ? [globalJlptLevel] : [],
+                parts_of_speech: [],
+                difficulty_levels: [],
+                has_kanji: undefined,
+            },
             word_options: {
                 show_kana: true,
                 show_kanji: true,

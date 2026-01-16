@@ -16,7 +16,7 @@ import type {
 } from "@/types/api"
 import { useWordFlashcardStore } from "@/stores/word-flashcard-store"
 import { useIsMobile } from "@/components/ui/use-mobile"
-import { useUserProfile } from "@/hooks/api/useGroup"
+import { useUserSettingsStore } from "@/stores/user-settings-store"
 import { WordFlashcardConfig } from "./configs/word-flashcard-config"
 import { FlashcardSession as FlashcardSessionComponent } from "./shared/flashcard-session"
 import { FlashcardResults } from "./shared/flashcard-results"
@@ -51,7 +51,7 @@ export function WordsFlashcard() {
     // Zustand store
     const store = useWordFlashcardStore()
     const queryClient = useQueryClient()
-    const { data: userProfile } = useUserProfile()
+    const globalJlptLevel = useUserSettingsStore((s) => s.currentJlptLevel)
     const {
         level, selectedCourse, selectedUnit, count, selectedPartsOfSpeech,
         showKana, showKanji, showRomaji, showEnglish,
@@ -61,12 +61,7 @@ export function WordsFlashcard() {
         setShowOptions, setAskOptions, validateAndFixOptions
     } = store
 
-    // Sync JLPT level from user profile
-    useEffect(() => {
-        if (userProfile?.settings?.current_jlpt_level && userProfile.settings.current_jlpt_level !== level) {
-            setLevel(userProfile.settings.current_jlpt_level)
-        }
-    }, [userProfile?.settings?.current_jlpt_level, level, setLevel])
+    const effectiveLevel = level === 5 && globalJlptLevel ? globalJlptLevel : level
 
     // Auto-start session if preferences exist and haven't auto-started yet
     useEffect(() => {
@@ -238,7 +233,7 @@ export function WordsFlashcard() {
                 course_id: courseId,
                 unit_id: unitId,
                 filters: {
-                    jlpt_levels: [level],
+                    jlpt_levels: [effectiveLevel],
                     parts_of_speech: selectedPartsOfSpeech,
                     difficulty_levels: [],
                     has_kanji: undefined
@@ -298,7 +293,7 @@ export function WordsFlashcard() {
             course_id: courseId,
             unit_id: unitId,
             filters: {
-                jlpt_levels: [level],
+                jlpt_levels: [effectiveLevel],
                 parts_of_speech: selectedPartsOfSpeech,
                 difficulty_levels: [],
                 has_kanji: undefined

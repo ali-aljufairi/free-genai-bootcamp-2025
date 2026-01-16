@@ -330,22 +330,34 @@ func (h *UserHandler) UpdateUserSettings(c *fiber.Ctx) error {
 		return c.JSON(settings)
 	}
 
-	// Use FirstOrCreate to ensure settings exist, then update
+	// Ensure settings row exists (avoid duplicate key race with FirstOrCreate)
 	var settings models.UserSettings
-	result := h.DB.Where("user_id = ?", userIDInt).FirstOrCreate(&settings, models.UserSettings{
-		UserID:            userIDInt,
-		HideEnglish:       false,
-		UILanguage:        "en",
-		Timezone:          "UTC",
-		DailyReviewTarget: 20,
-		CurrentJLPTLevel:  5,
-	})
-
-	if result.Error != nil {
-		return c.Status(500).JSON(fiber.Map{
-			"error":   "Failed to get or create user settings",
-			"details": result.Error.Error(),
-		})
+	if err := h.DB.Where("user_id = ?", userIDInt).First(&settings).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			// Create default settings
+			settings = models.UserSettings{
+				UserID:            userIDInt,
+				HideEnglish:       false,
+				UILanguage:        "en",
+				Timezone:          "UTC",
+				DailyReviewTarget: 20,
+				CurrentJLPTLevel:  5,
+			}
+			if err := h.DB.Create(&settings).Error; err != nil {
+				// In case of a race where another request created the row, try loading it once
+				if err := h.DB.Where("user_id = ?", userIDInt).First(&settings).Error; err != nil {
+					return c.Status(500).JSON(fiber.Map{
+						"error":   "Failed to get or create user settings",
+						"details": err.Error(),
+					})
+				}
+			}
+		} else {
+			return c.Status(500).JSON(fiber.Map{
+				"error":   "Failed to get user settings",
+				"details": err.Error(),
+			})
+		}
 	}
 
 	// Apply updates

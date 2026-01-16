@@ -14,7 +14,7 @@ import type {
 } from "@/types/api"
 import { useKanjiFlashcardStore } from "@/stores/kanji-flashcard-store"
 import { useIsMobile } from "@/components/ui/use-mobile"
-import { useUserProfile } from "@/hooks/api/useGroup"
+import { useUserSettingsStore } from "@/stores/user-settings-store"
 import { KanjiFlashcardConfig } from "./configs/kanji-flashcard-config"
 import { FlashcardSession as FlashcardSessionComponent } from "./shared/flashcard-session"
 import { FlashcardResults } from "./shared/flashcard-results"
@@ -49,7 +49,7 @@ export function KanjiFlashcard() {
     // Zustand store
     const store = useKanjiFlashcardStore()
     const queryClient = useQueryClient()
-    const { data: userProfile } = useUserProfile()
+    const globalJlptLevel = useUserSettingsStore((s) => s.currentJlptLevel)
     const {
         level, selectedGroup, count,
         showCharacter, showOnyomi, showKunyomi, showKanjiEnglish,
@@ -59,12 +59,7 @@ export function KanjiFlashcard() {
         setKanjiShowOptions, setKanjiAskOptions, validateAndFixKanjiOptions
     } = store
 
-    // Sync JLPT level from user profile
-    useEffect(() => {
-        if (userProfile?.settings?.current_jlpt_level && userProfile.settings.current_jlpt_level !== level) {
-            setLevel(userProfile.settings.current_jlpt_level)
-        }
-    }, [userProfile?.settings?.current_jlpt_level, level, setLevel])
+    const effectiveLevel = level === 5 && globalJlptLevel ? globalJlptLevel : level
 
     // Auto-start session if preferences exist and haven't auto-started yet
     useEffect(() => {
@@ -215,7 +210,7 @@ export function KanjiFlashcard() {
                 content_source: contentSource,
                 ...(groupId !== undefined && { group_id: groupId }),
                 filters: {
-                    jlpt_levels: [level],
+                    jlpt_levels: [effectiveLevel],
                     parts_of_speech: [],
                     difficulty_levels: [],
                     has_kanji: undefined
@@ -271,7 +266,7 @@ export function KanjiFlashcard() {
             content_source: contentSource,
             ...(groupId !== undefined && { group_id: groupId }),
             filters: {
-                jlpt_levels: [level],
+                jlpt_levels: [effectiveLevel],
                 parts_of_speech: [],
                 difficulty_levels: [],
                 has_kanji: undefined
@@ -440,7 +435,7 @@ export function KanjiFlashcard() {
                 onStudyAgain={startSession}
                 onNewConfiguration={resetSession}
                 isLoading={startSessionMutation.isPending || isSubmitting}
-                isMobile={isMobile}
+                isMobile={isMobile ?? false}
                 isSubmitting={isSubmitting}
             />
         )
@@ -480,7 +475,7 @@ export function KanjiFlashcard() {
                 onTimerChange={setTimerDuration}
                 onStart={startSession}
                 isLoading={startSessionMutation.isPending}
-                isMobile={isMobile}
+                isMobile={isMobile ?? false}
             />
         )
     }

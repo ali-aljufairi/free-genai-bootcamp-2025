@@ -13,6 +13,7 @@ import type {
 } from "@/types/api"
 import { useGrammarStore } from "@/stores/grammar-store"
 import { useIsMobile } from "@/components/ui/use-mobile"
+import { useUserSettingsStore } from "@/stores/user-settings-store"
 import { GrammarQuizConfig as GrammarQuizConfigComponent } from "./configs/grammar-quiz-config"
 import { FlashcardResults } from "./shared/flashcard-results"
 import { MobileGrammarQuiz } from "./mobile/mobile-grammar-quiz"
@@ -70,10 +71,13 @@ export function GrammarQuiz() {
     // Zustand store
     const store = useGrammarStore()
     const queryClient = useQueryClient()
+    const globalJlptLevel = useUserSettingsStore((s) => s.currentJlptLevel)
     const {
         level, questionType, useSRS, count, requiredCorrectCount, timerDuration,
         setLevel, setQuestionType, setUseSRS, setCount, setRequiredCorrectCount, setTimerDuration
     } = store
+
+    const effectiveLevel = level === 5 && globalJlptLevel ? globalJlptLevel : level
 
     // Auto-start if user has configured preferences, otherwise show config
     useEffect(() => {
@@ -207,7 +211,7 @@ export function GrammarQuiz() {
     const prefetchNextSession = async () => {
         try {
             const config: GrammarQuizConfig = {
-                level: level,
+                level: effectiveLevel,
                 question_type: questionType,
                 use_srs: useSRS,
                 question_count: count,
@@ -232,7 +236,7 @@ export function GrammarQuiz() {
 
     const startSession = async () => {
         const config: GrammarQuizConfig = {
-            level: level,
+            level: effectiveLevel,
             question_type: questionType,
             use_srs: useSRS,
             question_count: count,

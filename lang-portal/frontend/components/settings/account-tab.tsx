@@ -37,14 +37,14 @@ export function AccountTab() {
     }, [userProfile?.user?.display_name, clerkUser?.fullName])
 
     const handleSaveProfile = async () => {
-        if (!userProfile?.id) {
+        if (!userProfile?.user?.id) {
             toast.error("User ID not found")
             return
         }
 
         setIsSaving(true)
         try {
-            await userApi.updateUser(userProfile.id.toString(), {
+            await userApi.updateUser(userProfile.user.id.toString(), {
                 display_name: displayName || null,
             })
             toast.success("Profile updated successfully")

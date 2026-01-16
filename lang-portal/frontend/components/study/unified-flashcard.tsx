@@ -25,8 +25,11 @@ import type {
   ContentFilters
 } from "@/types/api"
 import { BookOpen, Brain, Play, RotateCcw, Check, X, Clock, Target } from "lucide-react"
+import { useUserSettingsStore } from "@/stores/user-settings-store"
 
 export function UnifiedFlashcard() {
+  const globalJlptLevel = useUserSettingsStore((s) => s.currentJlptLevel)
+
   // Session state
   const [session, setSession] = useState<FlashcardSession | null>(null)
   const [cards, setCards] = useState<Flashcard[]>([])
@@ -82,7 +85,7 @@ export function UnifiedFlashcard() {
 
   // Filter options
   const [filters, setFilters] = useState<ContentFilters>({
-    jlpt_levels: [5],
+    jlpt_levels: [globalJlptLevel || 5],
     parts_of_speech: [],
     difficulty_levels: [],
     has_kanji: undefined,
@@ -92,12 +95,9 @@ export function UnifiedFlashcard() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [coursesData, partsData] = await Promise.all([
-          flashcardsV2Api.courses(),
-          flashcardsV2Api.partsOfSpeech(),
-        ])
+        const coursesData = await flashcardsV2Api.courses()
         setCourses(coursesData)
-        setPartsOfSpeech(partsData)
+        setPartsOfSpeech([])
       } catch (error) {
         console.error("Failed to load initial data:", error)
       }
