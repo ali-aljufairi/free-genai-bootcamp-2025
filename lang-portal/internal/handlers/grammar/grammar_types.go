@@ -29,6 +29,7 @@ type GrammarQuestion struct {
 	QuestionID       int64    `json:"question_id"`       // FK to jlpt_questions
 	QuestionType     string   `json:"question_type"`    // grammar_choice, passage_grammar, sentence_composition
 	QuestionText     string   `json:"question_text"`     // Question with blank already included
+	Passage          *string  `json:"passage,omitempty"`  // Reading passage for passage_grammar questions
 	Answers          []string `json:"answers"`          // Array of answer options
 	CorrectIndex     int      `json:"correct_index"`     // Index of correct answer in answers array
 	Explanation      *string  `json:"explanation"`      // Explanation shown when wrong

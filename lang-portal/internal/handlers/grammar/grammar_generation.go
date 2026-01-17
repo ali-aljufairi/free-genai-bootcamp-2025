@@ -39,8 +39,6 @@ func (h *GrammarHandler) generateJLPTGrammarQuestions(userID int64, config *Gram
 		requiredCorrectCount = *config.RequiredCorrectCount
 	}
 
-	// Build query to join jlpt_grammar_questions with jlpt_questions
-	// Exclude questions that have been answered correctly enough times
 	query := h.db.Table("jlpt_grammar_questions").
 		Select(`
 			jlpt_grammar_questions.id,
@@ -50,12 +48,16 @@ func (h *GrammarHandler) generateJLPTGrammarQuestions(userID int64, config *Gram
 			jlpt_grammar_questions.answers,
 			jlpt_grammar_questions.correct_answer_index,
 			jlpt_grammar_questions.explanation,
-			jlpt_questions.level
+			jlpt_questions.level,
+			COALESCE(
+				NULLIF(jlpt_questions.raw_data->'general'->>'txt_read', ''),
+				''
+			) as passage
 		`).
 		Joins("JOIN jlpt_questions ON jlpt_grammar_questions.question_id = jlpt_questions.id").
 		Joins("LEFT JOIN progress p ON jlpt_grammar_questions.id = p.item_id AND p.user_id = ? AND p.item_type = 'grammar'", userID).
 		Where("jlpt_questions.level = ?", config.Level).
-		// Exclude questions that have been answered correctly enough times
+		Where("jlpt_questions.tag = ?", "grammar").
 		Where("p.correct_cnt IS NULL OR p.correct_cnt < ?", requiredCorrectCount)
 
 	// Filter by question type if not "all"
@@ -74,6 +76,7 @@ func (h *GrammarHandler) generateJLPTGrammarQuestions(userID int64, config *Gram
 		QuestionID         int64   `gorm:"column:question_id"`
 		QuestionType       string  `gorm:"column:question_type"`
 		QuestionText       string  `gorm:"column:question_text"`
+		Passage            string  `gorm:"column:passage"` // Reading passage for passage_grammar
 		Answers            string  `gorm:"column:answers"` // JSONB as string
 		CorrectAnswerIndex int     `gorm:"column:correct_answer_index"`
 		Explanation        *string `gorm:"column:explanation"`
@@ -94,11 +97,18 @@ func (h *GrammarHandler) generateJLPTGrammarQuestions(userID int64, config *Gram
 			continue
 		}
 
+		// Set passage only if it's not empty and question type is passage_grammar
+		var passage *string
+		if row.QuestionType == "passage_grammar" && row.Passage != "" {
+			passage = &row.Passage
+		}
+
 		question := GrammarQuestion{
 			ID:           row.ID,
 			QuestionID:   row.QuestionID,
 			QuestionType: row.QuestionType,
 			QuestionText: row.QuestionText,
+			Passage:      passage,
 			Answers:      answers,
 			CorrectIndex: row.CorrectAnswerIndex,
 			Explanation:  row.Explanation,
@@ -143,6 +153,8 @@ func (h *GrammarHandler) generateSRSGrammarQuestions(userID int64, config *Gramm
 	}
 
 	// Build query to get grammar questions
+	// CRITICAL: Filter by tag='grammar' to ensure we only get grammar questions, not listening/reading/word questions
+	// Extract Japanese passage from raw_data->general->txt_read (this is the full reading passage in Japanese)
 	dbQuery := h.db.Table("jlpt_grammar_questions").
 		Select(`
 			jlpt_grammar_questions.id,
@@ -152,10 +164,15 @@ func (h *GrammarHandler) generateSRSGrammarQuestions(userID int64, config *Gramm
 			jlpt_grammar_questions.answers,
 			jlpt_grammar_questions.correct_answer_index,
 			jlpt_grammar_questions.explanation,
-			jlpt_questions.level
+			jlpt_questions.level,
+			COALESCE(
+				NULLIF(jlpt_questions.raw_data->'general'->>'txt_read', ''),
+				''
+			) as passage
 		`).
 		Joins("JOIN jlpt_questions ON jlpt_grammar_questions.question_id = jlpt_questions.id").
-		Where("jlpt_grammar_questions.id IN (?)", itemIDs)
+		Where("jlpt_grammar_questions.id IN (?)", itemIDs).
+		Where("jlpt_questions.tag = ?", "grammar") // Ensure only grammar questions are returned
 
 	// Filter by question type if not "all"
 	if config.QuestionType != GrammarQuestionTypeAll {
@@ -172,6 +189,7 @@ func (h *GrammarHandler) generateSRSGrammarQuestions(userID int64, config *Gramm
 		QuestionID         int64   `gorm:"column:question_id"`
 		QuestionType       string  `gorm:"column:question_type"`
 		QuestionText       string  `gorm:"column:question_text"`
+		Passage            string  `gorm:"column:passage"` // Reading passage for passage_grammar
 		Answers            string  `gorm:"column:answers"` // JSONB as string
 		CorrectAnswerIndex int     `gorm:"column:correct_answer_index"`
 		Explanation        *string `gorm:"column:explanation"`
@@ -192,11 +210,18 @@ func (h *GrammarHandler) generateSRSGrammarQuestions(userID int64, config *Gramm
 			continue
 		}
 
+		// Set passage only if it's not empty and question type is passage_grammar
+		var passage *string
+		if row.QuestionType == "passage_grammar" && row.Passage != "" {
+			passage = &row.Passage
+		}
+
 		question := GrammarQuestion{
 			ID:           row.ID,
 			QuestionID:   row.QuestionID,
 			QuestionType: row.QuestionType,
 			QuestionText: row.QuestionText,
+			Passage:      passage,
 			Answers:      answers,
 			CorrectIndex: row.CorrectAnswerIndex,
 			Explanation:  row.Explanation,

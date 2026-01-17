@@ -9,7 +9,8 @@ import type {
     GrammarQuizSession,
     GrammarAnswer,
     GrammarSubmission,
-    GrammarResult
+    GrammarResult,
+    Flashcard
 } from "@/types/api"
 import { useGrammarStore } from "@/stores/grammar-store"
 import { useIsMobile } from "@/components/ui/use-mobile"
@@ -139,7 +140,6 @@ export function GrammarQuiz() {
         mutationFn: (config: GrammarQuizConfig) => grammarApi.start(config),
         onSuccess: (data) => {
             setSession(data)
-            // Ensure questions is always an array, even if null/undefined from API
             setQuestions(data.questions && Array.isArray(data.questions) ? data.questions : [])
             setCurrentIndex(0)
             setSelectedOption(null)
@@ -150,14 +150,12 @@ export function GrammarQuiz() {
             setShowResults(false)
         },
         onError: (error) => {
-            console.error("Failed to start grammar quiz:", error)
             alert("Failed to start quiz. Please try again.")
         }
     })
 
     // Calculate results locally without waiting for backend
     const calculateLocalResults = (finalAnswers: GrammarAnswer[]): GrammarResult => {
-        // Safety check: ensure questions is a valid array
         const validQuestions = questions && Array.isArray(questions) ? questions : []
 
         const correctCount = finalAnswers.filter(answer => {
@@ -175,7 +173,7 @@ export function GrammarQuiz() {
             percentage: percentage,
             correct_count: correctCount,
             wrong_count: total - correctCount,
-            duration: 0, // We don't track duration locally yet
+            duration: 0,
             results: finalAnswers.map(answer => {
                 const question = validQuestions.find(q => q.id === answer.question_id)
                 return {
@@ -192,18 +190,12 @@ export function GrammarQuiz() {
 
     const submitSessionMutation = useMutation({
         mutationFn: (submission: GrammarSubmission) => grammarApi.submit(submission),
-        onSuccess: (data) => {
-            // Background submission completed - no need to update UI
+        onSuccess: () => {
             setIsSubmitting(false)
-            console.log("Background submission completed successfully")
-
-            // Prefetch next session in background
             prefetchNextSession()
         },
-        onError: (error) => {
-            console.error("Background submission failed:", error)
+        onError: () => {
             setIsSubmitting(false)
-            // Don't show alert for background submission failures
         }
     })
 
@@ -229,8 +221,8 @@ export function GrammarQuiz() {
                 queryFn: () => grammarApi.start(config),
                 staleTime: 2 * 60 * 1000, // 2 minutes
             })
-        } catch (error) {
-            console.log("Prefetch failed (non-critical):", error)
+        } catch {
+            // Prefetch failed, non-critical
         }
     }
 
@@ -250,10 +242,8 @@ export function GrammarQuiz() {
         const cachedData = queryClient.getQueryData(cacheKey)
 
         if (cachedData) {
-            // Use cached session
             const data = cachedData as GrammarQuizSession
             setSession(data)
-            // Ensure questions is always an array, even if null/undefined from cache
             setQuestions(data.questions && Array.isArray(data.questions) ? data.questions : [])
             setCurrentIndex(0)
             setSelectedOption(null)
@@ -334,10 +324,37 @@ export function GrammarQuiz() {
         setResults(null)
     }
 
-    // Custom rendering for grammar question
     const renderGrammarQuestion = (question: GrammarQuestion) => {
+        const passageQuestionCount = question.question_type === 'passage_grammar' 
+            ? questions.filter(q => q.question_id === question.question_id && q.question_type === 'passage_grammar').length
+            : 0
+        
+        const passageQuestionIndex = question.question_type === 'passage_grammar' && passageQuestionCount > 0
+            ? questions.filter(q => q.question_id === question.question_id && q.question_type === 'passage_grammar')
+                .sort((a, b) => a.question_text.localeCompare(b.question_text))
+                .findIndex(q => q.id === question.id) + 1
+            : 0
+
         return (
-            <div className="flex flex-col items-center gap-4">
+            <div className="flex flex-col items-center gap-4 w-full">
+                {question.question_type === 'passage_grammar' && question.passage && (
+                    <div className={`w-full ${isMobile ? 'max-w-full max-h-[250px]' : 'max-w-4xl max-h-[400px]'} mb-4 p-4 bg-muted/30 rounded-lg border border-muted overflow-y-auto`}>
+                        <div className="text-sm leading-relaxed whitespace-pre-wrap font-japanese">
+                            {question.passage.split('\u3000').map((paragraph, idx) => (
+                                paragraph.trim() && (
+                                    <p key={idx} className="mb-3 last:mb-0">
+                                        {paragraph.trim()}
+                                    </p>
+                                )
+                            ))}
+                        </div>
+                    </div>
+                )}
+                {question.question_type === 'passage_grammar' && passageQuestionCount > 1 && (
+                    <div className="text-sm text-muted-foreground mb-2">
+                        Question {passageQuestionIndex} of {passageQuestionCount} in this passage
+                    </div>
+                )}
                 <p className={isMobile ? "text-2xl font-medium leading-relaxed text-center" : "text-4xl font-medium leading-relaxed text-center"}>
                     {question.question_text}
                 </p>
@@ -414,7 +431,6 @@ export function GrammarQuiz() {
         return <FlashcardSkeleton isMobile={isMobile} />
     }
 
-    // Check if there are no questions - handle null/undefined/empty cases
     if (!session || !questions || !Array.isArray(questions) || questions.length === 0) {
         const emptyMessage = useSRS
             ? "There are no items for Review"
@@ -442,7 +458,6 @@ export function GrammarQuiz() {
 
     const currentQuestion = questions[currentIndex]
 
-    // Safety check: if current question is invalid, show error
     if (!currentQuestion || !currentQuestion.answers || !Array.isArray(currentQuestion.answers) || currentQuestion.answers.length === 0) {
         return (
             <div className="flex items-center justify-center min-h-[calc(100vh-8rem)]">
@@ -484,31 +499,26 @@ export function GrammarQuiz() {
         )
     }
 
-    // Desktop layout - convert all grammar questions to flashcard format for shared component
     const flashcardFormats = questions.map(q => {
-        // Handle null/undefined answers gracefully
         const answers = q.answers && Array.isArray(q.answers) && q.answers.length > 0
             ? q.answers
             : []
 
         return {
             id: q.id,
-            type: 'word' as const, // Use 'word' type to match Flashcard type, but we'll handle grammar rendering
+            type: 'word' as const,
             question: { question_text: q.question_text },
             answer: { answer: answers[q.correct_index] || '' },
             options: answers.map((answer) => ({ answer })),
             correct_index: q.correct_index,
             item_id: q.id,
             item_type: 'grammar' as const,
-            explanation: q.explanation, // Add explanation for display
-        }
-    }) as any // Type assertion needed since we're extending Flashcard type
+            explanation: q.explanation,
+        } as Flashcard
+    })
 
-    // Need to create a custom progress component or modify FlashcardSession to accept label
-    // For now, let's create a simple wrapper that uses FlashcardSession but with custom progress
     return (
         <div className="space-y-6">
-            {/* Custom Progress with "Question" label */}
             <div className="space-y-3">
                 <div className="flex justify-between text-lg text-muted-foreground items-center">
                     <span>Question {currentIndex + 1} of {questions.length}</span>
@@ -539,18 +549,20 @@ export function GrammarQuiz() {
                 </div>
             </div>
 
-            {/* Question Card with Options */}
             {flashcardFormats[currentIndex] && (
                 <FlashcardQuestionCard
                     card={flashcardFormats[currentIndex]}
                     selectedOption={selectedOption}
                     isCorrect={isCorrect}
                     explanation={currentQuestion?.explanation}
-                    renderQuestion={(card: any) => {
+                    renderQuestion={(card) => {
                         const q = questions.find(q => q.id === card.id) || currentQuestion
                         return renderGrammarQuestion(q)
                     }}
-                    renderOption={(option: any) => renderGrammarOption(option.answer || option)}
+                    renderOption={(option) => {
+                        const optionText = typeof option === 'string' ? option : (option as any).answer || ''
+                        return renderGrammarOption(optionText)
+                    }}
                     onOptionSelect={handleOptionSelect}
                     isMobile={false}
                 />

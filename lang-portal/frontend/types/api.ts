@@ -251,6 +251,7 @@ export interface GrammarQuestion {
   question_id: number
   question_type: string
   question_text: string
+  passage?: string | null
   answers: string[]
   correct_index: number
   explanation?: string | null
