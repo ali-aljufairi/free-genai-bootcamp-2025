@@ -356,7 +356,11 @@ export function GrammarQuiz() {
                     </div>
                 )}
                 <p className={isMobile ? "text-2xl font-medium leading-relaxed text-center" : "text-4xl font-medium leading-relaxed text-center"}>
-                    {question.question_text}
+                    {question.question_text
+                        .replace(/<br\s*\/?>/gi, ' ')
+                        .replace(/&nbsp;/g, ' ')
+                        .replace(/<[^>]*>/g, '')
+                        .trim()}
                 </p>
             </div>
         )
