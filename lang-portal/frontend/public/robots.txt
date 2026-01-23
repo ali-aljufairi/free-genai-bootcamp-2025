@@ -5,5 +5,5 @@ Disallow: /sign-in/
 Disallow: /sign-up/
 Disallow: /settings/
 
-Sitemap: https://sorami.app/sitemap.xml
+Sitemap: https://sorami.aljufairi.org/sitemap.xml
 

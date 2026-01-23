@@ -353,14 +353,15 @@ export default function HomePage() {
                     </Button>
                   </Link>
                 )}
-                <Button
-                  size="lg"
-                  variant="outline"
-                  className="px-8"
-                  onClick={() => router.push("/pricing")}
-                >
-                  View Pricing
-                </Button>
+                <Link href="/pricing">
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    className="px-8"
+                  >
+                    View Pricing
+                  </Button>
+                </Link>
               </div>
             </div>
 
