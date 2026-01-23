@@ -9,5 +9,6 @@ This includes:
 - Any other style that is inconsistent with the file
 - not needed console.log() or debug stfuff
 - is UseEffect needed here or not please check wether it is need or can be replaced with React Query
+- Make sure there is no one huge fille with a lot of work break down the files into smaller chuckes plesae
 
 Report at the end with only a 1-3 sentence summary of what you changed

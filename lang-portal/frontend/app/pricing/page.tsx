@@ -7,10 +7,13 @@ import { PricingTable } from "@clerk/nextjs"
 import { Badge } from "@/components/ui/badge"
 import Link from "next/link"
 import { useSubscription } from "@/components/subscription/subscription-gate"
+import { useTourContinuation } from "@/hooks/use-tour-continuation"
 
 export default function PricingPage() {
     const [isVisible, setIsVisible] = useState(false)
     const { isLoaded, hasActiveSubscription, plan } = useSubscription()
+    // Continue tour if needed
+    useTourContinuation()
 
     useEffect(() => {
         setIsVisible(true)
@@ -25,7 +28,7 @@ export default function PricingPage() {
     return (
         <main className="flex flex-col gap-12 pb-20 pt-8 overflow-hidden">
             {/* Hero Section */}
-            <section className="container mx-auto px-4">
+            <section id="pricing-hero" className="container mx-auto px-4">
                 <div className="text-center max-w-3xl mx-auto">
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
@@ -71,7 +74,7 @@ export default function PricingPage() {
             </section>
 
             {/* Pricing Table Section */}
-            <section className="container mx-auto px-4">
+            <section id="pricing-table-section" className="container mx-auto px-4">
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: isVisible ? 1 : 0, y: isVisible ? 0 : 20 }}

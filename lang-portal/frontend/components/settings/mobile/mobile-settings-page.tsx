@@ -1,6 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useTransition } from "react"
+import { useRouter } from "next/navigation"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { User, Brain, Languages, CheckCircle, Puzzle, Settings, ChevronRight } from "lucide-react"
@@ -10,6 +12,7 @@ import { WordFlashcardSettings } from "@/components/settings/word-flashcard-sett
 import { KanjiFlashcardSettings } from "@/components/settings/kanji-flashcard-settings"
 import { GrammarQuizSettings } from "@/components/settings/grammar-quiz-settings"
 import { WordBuilderSettings } from "@/components/settings/word-builder-settings"
+import { useSubscription } from "@/components/subscription/subscription-gate"
 
 type SettingsSection = 
   | "account" 
@@ -61,6 +64,18 @@ const settingsSections = [
 
 export function MobileSettingsPage() {
   const [activeSection, setActiveSection] = useState<SettingsSection>(null)
+  const router = useRouter()
+  const [isPending, startTransition] = useTransition()
+  const { isLoaded, hasActiveSubscription } = useSubscription()
+
+  // Redirect non-subscribed users to pricing page
+  useEffect(() => {
+    if (isLoaded && !hasActiveSubscription) {
+      startTransition(() => {
+        router.push('/pricing')
+      })
+    }
+  }, [isLoaded, hasActiveSubscription, router, startTransition])
 
   if (activeSection) {
     return (
@@ -119,7 +134,7 @@ export function MobileSettingsPage() {
             >
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
-                  <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <div className="shrink-0 w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
                     <Icon className="w-5 h-5 text-primary" />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -128,7 +143,7 @@ export function MobileSettingsPage() {
                       {section.description}
                     </p>
                   </div>
-                  <ChevronRight className="w-5 h-5 text-muted-foreground flex-shrink-0" />
+                  <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0" />
                 </div>
               </CardContent>
             </Card>

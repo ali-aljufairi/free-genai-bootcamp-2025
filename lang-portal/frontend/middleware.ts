@@ -18,6 +18,7 @@ const isPublicRoute = createRouteMatcher([
   '/events',
   '/support',
   '/help',
+  '/study', // Allow study page for tour (individual study sessions are still protected)
 ]);
 
 export default clerkMiddleware(async (auth, req) => {

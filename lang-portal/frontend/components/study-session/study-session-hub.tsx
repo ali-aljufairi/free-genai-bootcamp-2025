@@ -399,7 +399,11 @@ export function StudySessionHub() {
                 delay: index * 0.05  // Staggered animation for visual appeal
               }}
             >
-              <div data-swapy-item={`item-${option.type}`} className="h-full">  {/* Swapy item identifier */}
+              <div 
+                data-swapy-item={`item-${option.type}`} 
+                id={`study-card-${option.type}`}
+                className="h-full"
+              >
                 {isMobile ? (
                   <MobileStudyCard
                     title={option.title}

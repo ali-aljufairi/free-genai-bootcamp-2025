@@ -1,5 +1,8 @@
 "use client"
 
+import { useEffect } from "react"
+import { useTransition } from "react"
+import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { AccountTab } from "@/components/settings/account-tab"
@@ -11,9 +14,22 @@ import { WordBuilderSettings } from "@/components/settings/word-builder-settings
 import { User, Brain, Languages, CheckCircle, Puzzle, Settings, Loader2 } from "lucide-react"
 import { useIsMobile } from "@/components/ui/use-mobile"
 import { MobileSettingsPage } from "@/components/settings/mobile/mobile-settings-page"
+import { useSubscription } from "@/components/subscription/subscription-gate"
 
 export default function SettingsPage() {
   const isMobile = useIsMobile()
+  const router = useRouter()
+  const [isPending, startTransition] = useTransition()
+  const { isLoaded, hasActiveSubscription } = useSubscription()
+
+  // Redirect non-subscribed users to pricing page
+  useEffect(() => {
+    if (isLoaded && !hasActiveSubscription) {
+      startTransition(() => {
+        router.push('/pricing')
+      })
+    }
+  }, [isLoaded, hasActiveSubscription, router, startTransition])
 
   // Show loading state during SSR/hydration to prevent hydration mismatch
   if (isMobile === undefined) {
