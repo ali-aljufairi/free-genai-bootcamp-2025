@@ -21,8 +21,9 @@ export function useAddToGroup() {
       }
     },
     onSuccess: () => {
-      // Invalidate groups query to refresh data
       queryClient.invalidateQueries({ queryKey: ['groups'] });
+      queryClient.invalidateQueries({ queryKey: ['words'] });
+      queryClient.invalidateQueries({ queryKey: ['kanji'] });
     },
     onError: (error: Error) => {
       toast.error("Failed to add to group", {
@@ -67,16 +68,14 @@ export function useAddToFavorites() {
         );
 
         if (existingFavoritesGroup) {
-          // Use the existing "Favorites" group
-          favoritesId = existingFavoritesGroup.id;
+          favoritesId = parseInt(existingFavoritesGroup.id, 10);
           
           // Set it as the user's favorite group if not already set
           if (favoriteGroupId !== favoritesId) {
             try {
               await userApi.setFavoriteGroup(favoritesId);
               await refetchProfile();
-            } catch (e: any) {
-              console.error("Failed to set favorite group:", e);
+            } catch {
               // Continue anyway - we'll use the existing group
             }
           }
@@ -99,8 +98,7 @@ export function useAddToFavorites() {
             try {
               await userApi.setFavoriteGroup(favoritesId);
               await refetchProfile();
-            } catch (e: any) {
-              console.error("Failed to set favorite group:", e);
+            } catch {
               // Continue anyway - the group was created
             }
           } catch (createError: any) {
@@ -116,12 +114,11 @@ export function useAddToFavorites() {
               );
               
               if (foundGroup) {
-                favoritesId = foundGroup.id;
+                favoritesId = parseInt(foundGroup.id, 10);
                 try {
                   await userApi.setFavoriteGroup(favoritesId);
                   await refetchProfile();
-                } catch (e: any) {
-                  console.error("Failed to set favorite group:", e);
+                } catch {
                   // Continue anyway - we found the group
                 }
               } else {

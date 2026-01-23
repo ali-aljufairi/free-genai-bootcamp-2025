@@ -8,5 +8,6 @@ This includes:
 - Casts to any to get around type issues
 - Any other style that is inconsistent with the file
 - not needed console.log() or debug stfuff
+- is UseEffect needed here or not please check wether it is need or can be replaced with React Query
 
 Report at the end with only a 1-3 sentence summary of what you changed

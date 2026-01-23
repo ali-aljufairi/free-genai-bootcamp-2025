@@ -14,7 +14,6 @@ interface VocabularyGridProps {
   searchTerm?: string;
   favoriteGroupId?: number | null;
   currentFilterGroupId?: number | null;
-  favoritedItems?: Set<string>;
 }
 
 export function VocabularyGrid({
@@ -26,7 +25,6 @@ export function VocabularyGrid({
   searchTerm,
   favoriteGroupId,
   currentFilterGroupId,
-  favoritedItems,
 }: VocabularyGridProps) {
   if (isLoading && items.length === 0) {
     return (
@@ -72,7 +70,6 @@ export function VocabularyGrid({
           onAddToFavorites={onAddToFavorites}
           favoriteGroupId={favoriteGroupId}
           currentFilterGroupId={currentFilterGroupId}
-          favoritedItems={favoritedItems}
         />
       ))}
     </div>

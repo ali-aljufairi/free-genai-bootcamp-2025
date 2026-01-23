@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -10,7 +10,7 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Plus, Loader2 } from "lucide-react";
+import { Plus, Loader2, X } from "lucide-react";
 import { toast } from "sonner";
 import { useVocabularyBrowser } from "@/hooks/api/useVocabularyBrowser";
 import type { UnifiedItem } from "@/hooks/api/useVocabularyBrowser";
@@ -19,6 +19,12 @@ import { useAddToGroup, useAddToFavorites } from "@/hooks/api/useVocabularyActio
 import { useGroups, useCreateGroup, useUserProfile } from "@/hooks/api/useGroup";
 import { VocabularyFilterSidebar } from "./vocabulary-filter-sidebar";
 import { VocabularyGrid } from "./vocabulary-grid";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 const getItemKey = (entry: UnifiedItem) => `${entry.kind}-${entry.item?.id ?? "unknown"}`;
 
@@ -41,17 +47,19 @@ const appendUniqueItems = (current: UnifiedItem[], incoming: UnifiedItem[]) => {
 
 export function VocabularyBrowser() {
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [newGroupName, setNewGroupName] = useState("");
   const [newGroupDesc, setNewGroupDesc] = useState("");
   const [visibleItems, setVisibleItems] = useState<UnifiedItem[]>([]);
-  const [favoritedItems, setFavoritedItems] = useState<Set<string>>(new Set());
   const [selectedGroups, setSelectedGroups] = useState<number[]>([]);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const filtersKeyRef = useRef<string | null>(null);
   const lastSyncedPageRef = useRef(0);
   const lastItemsSignatureRef = useRef<string | null>(null);
   const isRequestingMoreRef = useRef(false);
+  const lastProcessedGroupRef = useRef<number | undefined>(undefined);
 
   // Browser state and filters
   const {
@@ -76,10 +84,15 @@ export function VocabularyBrowser() {
     const groupParam = searchParams.get('group');
     if (groupParam) {
       const groupId = parseInt(groupParam, 10);
-      if (!isNaN(groupId)) {
+      if (!isNaN(groupId) && lastProcessedGroupRef.current !== groupId) {
+        lastProcessedGroupRef.current = groupId;
         setGroup(groupId);
         setSelectedGroups([groupId]);
       }
+    } else if (lastProcessedGroupRef.current !== undefined) {
+      lastProcessedGroupRef.current = undefined;
+      setGroup(undefined);
+      setSelectedGroups([]);
     }
   }, [searchParams, setGroup]);
 
@@ -150,25 +163,45 @@ export function VocabularyBrowser() {
     return groups?.map(g => ({ id: parseInt(g.id, 10), name: g.name })) ?? undefined;
   }, [groups]);
 
-  // Track favorited items when they're added
   const handleAddToFavorites = useCallback(async (itemId: number, type: 'word' | 'kanji') => {
-    const itemKey = `${type}-${itemId}`;
     await addToFavorites(itemId, type);
-    // Mark as favorited
-    setFavoritedItems(prev => new Set(prev).add(itemKey));
   }, [addToFavorites]);
 
-  // When viewing favorite group, mark all visible items as favorited
-  useEffect(() => {
-    if (favoriteGroupId && filters.group === favoriteGroupId && visibleItems.length > 0) {
-      const newFavoritedItems = new Set(favoritedItems);
-      visibleItems.forEach(item => {
-        const itemKey = `${item.kind}-${item.item.id}`;
-        newFavoritedItems.add(itemKey);
-      });
-      setFavoritedItems(newFavoritedItems);
-    }
-  }, [favoriteGroupId, filters.group, visibleItems, favoritedItems]);
+  const hasActiveFilters = useMemo(() => {
+    return !!(
+      filters.search ||
+      filters.hasKanji !== undefined ||
+      (filters.partOfSpeech && filters.partOfSpeech.length > 0) ||
+      filters.jlpt !== undefined ||
+      filters.correctCountMin !== undefined ||
+      filters.onyomi !== undefined ||
+      filters.kunyomi !== undefined ||
+      filters.sortBy !== 'default' ||
+      filters.group !== undefined ||
+      selectedGroups.length > 0
+    );
+  }, [filters, selectedGroups.length]);
+
+  const handleClearAllFilters = useCallback(() => {
+    setSearch("");
+    setContentType("words");
+    setHasKanji(undefined);
+    setPartOfSpeech([]);
+    setJlpt(undefined);
+    setCorrectCountMin(undefined);
+    setOnyomi(undefined);
+    setKunyomi(undefined);
+    setSortBy('default');
+    setGroup(undefined);
+    setSelectedGroups([]);
+    lastProcessedGroupRef.current = undefined;
+    
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete('group');
+    const newSearch = params.toString();
+    const newUrl = newSearch ? `${pathname}?${newSearch}` : pathname;
+    router.replace(newUrl);
+  }, [setSearch, setContentType, setHasKanji, setPartOfSpeech, setJlpt, setCorrectCountMin, setOnyomi, setKunyomi, setSortBy, setGroup, searchParams, pathname, router]);
 
   const handleCreateGroup = async () => {
     if (!newGroupName.trim()) return;
@@ -283,13 +316,35 @@ export function VocabularyBrowser() {
           onSortByChange={setSortBy}
           onGroupChange={setGroup}
         />
-        <Input
-          type="search"
-          placeholder="Search vocabulary..."
-          className="w-full sm:max-w-md"
-          value={filters.search || ""}
-          onChange={(e) => setSearch(e.target.value)}
-        />
+        <div className="relative w-full sm:max-w-md flex items-center">
+          <Input
+            type="search"
+            placeholder="Search vocabulary..."
+            className="w-full pr-10"
+            value={filters.search || ""}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          {hasActiveFilters && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-1 h-7 w-7"
+                    onClick={handleClearAllFilters}
+                    aria-label="Clear filters"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Clear filters</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+        </div>
       </div>
       <div className="flex gap-2 shrink-0">
         <DropdownMenu open={isCreateOpen} onOpenChange={setIsCreateOpen}>
@@ -379,7 +434,6 @@ export function VocabularyBrowser() {
           searchTerm={filters.search}
           favoriteGroupId={favoriteGroupId}
           currentFilterGroupId={filters.group}
-          favoritedItems={favoritedItems}
         />
       </div>
 
@@ -394,7 +448,6 @@ export function VocabularyBrowser() {
           searchTerm={filters.search}
           favoriteGroupId={favoriteGroupId}
           currentFilterGroupId={filters.group}
-          favoritedItems={favoritedItems}
         />
       </div>
       {loadStatus}

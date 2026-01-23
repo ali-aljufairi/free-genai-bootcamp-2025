@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import type { ContentType, VocabularyBrowserFilters } from "./api/useVocabularyBrowser";
 
 export interface UseVocabularyBrowserStateReturn {
@@ -36,7 +36,7 @@ export function useVocabularyBrowserState(): UseVocabularyBrowserStateReturn {
   const [group, setGroup] = useState<number | undefined>(undefined);
   const [page, setPage] = useState(1);
 
-  const togglePartOfSpeech = (pos: string) => {
+  const togglePartOfSpeech = useCallback((pos: string) => {
     setPage(1);
     setPartOfSpeech(prev => {
       if (prev.includes(pos)) {
@@ -44,7 +44,7 @@ export function useVocabularyBrowserState(): UseVocabularyBrowserStateReturn {
       }
       return [...prev, pos];
     });
-  };
+  }, []);
 
   const filters: VocabularyBrowserFilters = {
     search,
@@ -60,46 +60,46 @@ export function useVocabularyBrowserState(): UseVocabularyBrowserStateReturn {
   };
 
   // Wrapper functions that reset page to 1 when filters change
-  const wrappedSetSearch = (value: string) => {
+  const wrappedSetSearch = useCallback((value: string) => {
     setPage(1);
     setSearch(value);
-  };
-  const wrappedSetContentType = (value: ContentType) => {
+  }, []);
+  const wrappedSetContentType = useCallback((value: ContentType) => {
     setPage(1);
     setContentType(value);
-  };
-  const wrappedSetHasKanji = (value: boolean | undefined) => {
+  }, []);
+  const wrappedSetHasKanji = useCallback((value: boolean | undefined) => {
     setPage(1);
     setHasKanji(value);
-  };
-  const wrappedSetPartOfSpeech = (value: string[]) => {
+  }, []);
+  const wrappedSetPartOfSpeech = useCallback((value: string[]) => {
     setPage(1);
     setPartOfSpeech(value);
-  };
-  const wrappedSetJlpt = (value: number | undefined) => {
+  }, []);
+  const wrappedSetJlpt = useCallback((value: number | undefined) => {
     setPage(1);
     setJlpt(value);
-  };
-  const wrappedSetCorrectCountMin = (value: number | undefined) => {
+  }, []);
+  const wrappedSetCorrectCountMin = useCallback((value: number | undefined) => {
     setPage(1);
     setCorrectCountMin(value);
-  };
-  const wrappedSetOnyomi = (value: boolean | undefined) => {
+  }, []);
+  const wrappedSetOnyomi = useCallback((value: boolean | undefined) => {
     setPage(1);
     setOnyomi(value);
-  };
-  const wrappedSetKunyomi = (value: boolean | undefined) => {
+  }, []);
+  const wrappedSetKunyomi = useCallback((value: boolean | undefined) => {
     setPage(1);
     setKunyomi(value);
-  };
-  const wrappedSetSortBy = (value: 'frequency' | 'default') => {
+  }, []);
+  const wrappedSetSortBy = useCallback((value: 'frequency' | 'default') => {
     setPage(1);
     setSortBy(value);
-  };
-  const wrappedSetGroup = (value: number | undefined) => {
+  }, []);
+  const wrappedSetGroup = useCallback((value: number | undefined) => {
     setPage(1);
     setGroup(value);
-  };
+  }, []);
 
   return {
     filters: { ...filters, page },

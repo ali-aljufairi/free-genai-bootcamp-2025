@@ -16,18 +16,12 @@ interface VocabularyCardProps {
   onAddToFavorites?: (itemId: number, type: 'word' | 'kanji') => void;
   favoriteGroupId?: number | null;
   currentFilterGroupId?: number | null;
-  favoritedItems?: Set<string>;
 }
 
-export function VocabularyCard({ item, groups = [], onAddToGroup, onAddToFavorites, favoriteGroupId, currentFilterGroupId, favoritedItems }: VocabularyCardProps) {
+export function VocabularyCard({ item, groups = [], onAddToGroup, onAddToFavorites, favoriteGroupId, currentFilterGroupId }: VocabularyCardProps) {
   const [selectedGroups, setSelectedGroups] = useState<number[]>([]);
   
-  // Check if item is favorited
-  // 1. If we're viewing the favorite group, all items are favorited
-  // 2. If item was recently added to favorites (tracked in state)
-  const itemKey = `${item.kind}-${item.item.id}`;
-  const isFavorited = (favoriteGroupId && currentFilterGroupId === favoriteGroupId) || 
-                      (favoritedItems?.has(itemKey) ?? false);
+  const isFavorited = favoriteGroupId && currentFilterGroupId === favoriteGroupId;
 
   const handleAddToSelectedGroups = () => {
     if (!onAddToGroup || selectedGroups.length === 0) return;
