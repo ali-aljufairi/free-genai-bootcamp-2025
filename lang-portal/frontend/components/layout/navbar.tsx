@@ -9,10 +9,11 @@ export default function Navbar() {
   const pathname = usePathname()
   const { isSignedIn } = useUser()
 
-  // Only show navbar on homepage
+  // Show navbar on homepage and public pages (pricing, terms, privacy, business-info)
   const isHomePage = pathname === "/"
+  const isPublicPage = pathname === "/pricing" || pathname === "/terms" || pathname === "/privacy" || pathname === "/business-info"
 
-  if (!isHomePage) return null
+  if (!isHomePage && !isPublicPage) return null
 
   return (
     <>

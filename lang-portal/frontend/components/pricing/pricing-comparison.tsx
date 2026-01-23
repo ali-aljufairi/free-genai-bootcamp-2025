@@ -39,6 +39,26 @@ const features: Feature[] = [
         pro: true,
     },
     {
+        name: "Writing Practice",
+        basic: true,
+        pro: true,
+    },
+    {
+        name: "Sentence Constructor (AI Chat)",
+        basic: true,
+        pro: true,
+    },
+    {
+        name: "Speech to Image Learning",
+        basic: true,
+        pro: true,
+    },
+    {
+        name: "Learning Resources (AI Agent)",
+        basic: true,
+        pro: true,
+    },
+    {
         name: "AI Companion Sessions",
         basic: "10 sessions/month",
         pro: "Unlimited",
@@ -119,15 +139,17 @@ export function PricingComparison() {
                                     )}
                                 >
                                     <td className="p-4 text-sm md:text-base font-medium">
-                                        {feature.name}
-                                        {feature.highlight && (
-                                            <Badge
-                                                variant="outline"
-                                                className="ml-2 text-xs bg-blue-500/10 text-blue-600 border-blue-500/30 dark:bg-blue-500/20 dark:text-blue-400"
-                                            >
-                                                Pro Exclusive
-                                            </Badge>
-                                        )}
+                                        <div className="flex items-center gap-2">
+                                            {feature.name}
+                                            {feature.highlight && (
+                                                <Badge
+                                                    variant="outline"
+                                                    className="text-xs bg-blue-500/10 text-blue-600 border-blue-500/30 dark:bg-blue-500/20 dark:text-blue-400"
+                                                >
+                                                    Pro Exclusive
+                                                </Badge>
+                                            )}
+                                        </div>
                                     </td>
                                     <td className="p-4 text-center">
                                         {typeof feature.basic === "boolean" ? (
@@ -174,14 +196,14 @@ export function PricingComparison() {
                                     <Check className="h-4 w-4 text-green-500 mt-0.5 shrink-0" />
                                     <span>
                                         <strong className="text-foreground">Unlimited AI Companion:</strong> Practice
-                                        conversational Japanese without session limits
+                                        conversational Japanese without session limits. Perfect for intensive practice and building fluency.
                                     </span>
                                 </li>
                                 <li className="flex items-start gap-2">
                                     <Check className="h-4 w-4 text-green-500 mt-0.5 shrink-0" />
                                     <span>
                                         <strong className="text-foreground">Feature Request Priority:</strong> Get early
-                                        access to new features and influence product development
+                                        access to new features and influence product development. Your feedback shapes the platform.
                                     </span>
                                 </li>
                             </ul>
@@ -191,15 +213,19 @@ export function PricingComparison() {
                             <ul className="space-y-2 text-sm text-muted-foreground">
                                 <li className="flex items-start gap-2">
                                     <Check className="h-4 w-4 text-green-500 mt-0.5 shrink-0" />
-                                    <span>All core learning tools and study modes</span>
+                                    <span>All core learning tools: flashcards, quizzes, writing practice, and more</span>
                                 </li>
                                 <li className="flex items-start gap-2">
                                     <Check className="h-4 w-4 text-green-500 mt-0.5 shrink-0" />
-                                    <span>Progress tracking and analytics</span>
+                                    <span>Comprehensive progress tracking with detailed analytics and insights</span>
                                 </li>
                                 <li className="flex items-start gap-2">
                                     <Check className="h-4 w-4 text-green-500 mt-0.5 shrink-0" />
-                                    <span>Regular updates and improvements</span>
+                                    <span>Regular updates with new features, content, and improvements</span>
+                                </li>
+                                <li className="flex items-start gap-2">
+                                    <Check className="h-4 w-4 text-green-500 mt-0.5 shrink-0" />
+                                    <span>Access to JLPT-aligned content for all proficiency levels</span>
                                 </li>
                             </ul>
                         </div>
