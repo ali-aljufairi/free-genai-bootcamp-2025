@@ -22,6 +22,23 @@ func (h *GroupHandler) validateGroupCreateRequest(req *GroupCreateRequest) error
 	return nil
 }
 
+// validateGroupUpdateRequest validates group update request
+func (h *GroupHandler) validateGroupUpdateRequest(req *GroupUpdateRequest) error {
+	if req.Name == "" {
+		return errors.New("name is required")
+	}
+
+	if len(req.Name) > 100 {
+		return errors.New("name cannot exceed 100 characters")
+	}
+
+	if req.Description != nil && len(*req.Description) > 500 {
+		return errors.New("description cannot exceed 500 characters")
+	}
+
+	return nil
+}
+
 // validateGroupOwnership validates that user owns the group
 func (h *GroupHandler) validateGroupOwnership(group *models.Group, userID int64) error {
 	if group.UserID == nil {

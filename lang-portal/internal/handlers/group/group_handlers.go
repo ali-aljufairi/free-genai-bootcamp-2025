@@ -59,6 +59,45 @@ func (h *GroupHandler) CreateGroup(c *fiber.Ctx) error {
 	return c.Status(201).JSON(group)
 }
 
+// UpdateGroup updates an existing group
+func (h *GroupHandler) UpdateGroup(c *fiber.Ctx) error {
+	userID, ok := c.Locals("user_id").(int64)
+	if !ok || userID == 0 {
+		return c.Status(401).JSON(fiber.Map{"error": "User not authenticated"})
+	}
+
+	groupID, err := strconv.ParseInt(c.Params("id"), 10, 64)
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid group ID"})
+	}
+
+	var req GroupUpdateRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid request body"})
+	}
+
+	if err := h.validateGroupUpdateRequest(&req); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	group, err := h.updateGroupInStore(groupID, req.Name, req.Description, userID)
+	if err != nil {
+		// Check for specific error types
+		if err.Error() == "group not found" {
+			return c.Status(404).JSON(fiber.Map{"error": err.Error()})
+		}
+		if err.Error() == "not authorized to modify this group" {
+			return c.Status(403).JSON(fiber.Map{"error": err.Error()})
+		}
+		if err.Error() == "a group with this name already exists" {
+			return c.Status(400).JSON(fiber.Map{"error": err.Error()})
+		}
+		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	return c.JSON(group)
+}
+
 // AddWord adds a word to a group
 func (h *GroupHandler) AddWord(c *fiber.Ctx) error {
 	userID, ok := c.Locals("user_id").(int64)

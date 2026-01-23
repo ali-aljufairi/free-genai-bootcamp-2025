@@ -98,6 +98,7 @@ func (s *FiberServer) RegisterFiberRoutes() {
 	groupHandler := group.NewGroupHandler(groupsStore, groupsService)
 	s.App.Get("/api/langportal/groups", groupHandler.GetGroups)
 	s.App.Post("/api/langportal/groups", groupHandler.CreateGroup)
+	s.App.Put("/api/langportal/groups/:id", groupHandler.UpdateGroup)
 	s.App.Post("/api/langportal/groups/:id/words", groupHandler.AddWord)
 	s.App.Delete("/api/langportal/groups/:id/words/:wordId", groupHandler.RemoveWord)
 	s.App.Post("/api/langportal/groups/:id/kanji", groupHandler.AddKanji)

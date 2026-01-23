@@ -260,6 +260,46 @@ func (s *GroupsStore) GetByID(id int64) (*models.Group, error) {
 	return &group, err
 }
 
+// Update updates a group's name and description
+// Validates name uniqueness per user (if user_id is set)
+func (s *GroupsStore) Update(id int64, name string, description *string) (*models.Group, error) {
+	var group models.Group
+	if err := s.DB.First(&group, id).Error; err != nil {
+		return nil, err
+	}
+
+	// Check for name conflicts with other groups from the same user
+	// If user_id is nil (system group), check against other system groups
+	// If user_id is set, check against other groups from the same user
+	var existingGroup models.Group
+	query := s.DB.Where("id != ? AND name = ?", id, name)
+	
+	if group.UserID == nil {
+		// System group - check against other system groups
+		query = query.Where("user_id IS NULL")
+	} else {
+		// User group - check against other groups from the same user
+		query = query.Where("user_id = ?", *group.UserID)
+	}
+	
+	if err := query.First(&existingGroup).Error; err == nil {
+		// Another group with the same name exists
+		return nil, errors.New("a group with this name already exists")
+	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+		// Unexpected error
+		return nil, err
+	}
+
+	// Update the group
+	group.Name = name
+	group.Description = description
+	if err := s.DB.Save(&group).Error; err != nil {
+		return nil, err
+	}
+
+	return &group, nil
+}
+
 // AddWord adds a word to a group
 func (s *GroupsStore) AddWord(groupID, wordID int64) error {
 	// Check if word_groups table exists, if not create entry

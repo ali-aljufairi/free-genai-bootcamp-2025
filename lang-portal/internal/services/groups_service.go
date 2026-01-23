@@ -25,6 +25,21 @@ func (s *GroupsService) CreateGroup(name string, description *string, userID int
 	return s.Store.GetOrCreate(name, description, userID)
 }
 
+// UpdateGroup updates a group with ownership check
+func (s *GroupsService) UpdateGroup(groupID int64, name string, description *string, userID int64) (*models.Group, error) {
+	group, err := s.Store.GetByID(groupID)
+	if err != nil {
+		return nil, errors.New("group not found")
+	}
+
+	if group.UserID == nil || *group.UserID != userID {
+		return nil, errors.New("not authorized to modify this group")
+	}
+
+	// The repository Update method will check for name conflicts
+	return s.Store.Update(groupID, name, description)
+}
+
 // AddWord adds a word to a group with ownership check
 func (s *GroupsService) AddWord(groupID, wordID, userID int64) error {
 	group, err := s.Store.GetByID(groupID)

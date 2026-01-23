@@ -71,6 +71,38 @@ export function useCreateGroup() {
 }
 
 /**
+ * Hook to update an existing group
+ * Returns both React Query mutation object and a convenience async function
+ */
+export function useUpdateGroup() {
+  const queryClient = useQueryClient();
+
+  const mutation = useMutation({
+    mutationFn: ({ groupId, ...data }: { groupId: number; name: string; description?: string }) => 
+      groupApi.updateGroup(groupId, data),
+    onSuccess: () => {
+      toast.success("Group updated");
+      // Invalidate and refetch groups
+      queryClient.invalidateQueries({ queryKey: ['groups'] });
+    },
+    onError: (error: Error) => {
+      toast.error("Failed to update group", { description: error.message || "Unknown error" });
+    },
+  });
+
+  // Provide backward-compatible async function
+  const updateGroup = async ({ groupId, ...data }: { groupId: number; name: string; description?: string }) => {
+    return mutation.mutateAsync({ groupId, ...data });
+  };
+
+  return {
+    ...mutation,
+    updateGroup,
+    isLoading: mutation.isPending,
+  };
+}
+
+/**
  * Hook to get current user profile including favorite_group_id
  */
 export function useUserProfile() {
@@ -118,6 +150,27 @@ export function useSetFavoriteGroup() {
     },
     onError: (error: Error) => {
       toast.error("Failed to set favorite group", { description: error.message || "Unknown error" });
+    },
+  });
+}
+
+/**
+ * Hook to remove a word from a group
+ */
+export function useRemoveWordFromGroup() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ groupId, wordId }: { groupId: number; wordId: number }) => 
+      groupApi.removeWord(groupId, wordId),
+    onSuccess: () => {
+      toast.success("Word removed from group");
+      // Invalidate groups and words queries
+      queryClient.invalidateQueries({ queryKey: ['groups'] });
+      queryClient.invalidateQueries({ queryKey: ['words'] });
+    },
+    onError: (error: Error) => {
+      toast.error("Failed to remove word", { description: error.message || "Unknown error" });
     },
   });
 }

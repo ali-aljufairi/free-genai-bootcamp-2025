@@ -128,6 +128,8 @@ export function createApiService(client: ApiClient) {
     getGroups: () => client.get<any[]>(endpoint('/groups')),
     createGroup: (data: { name: string; description?: string }) => 
       client.post<any>(endpoint('/groups'), data),
+    updateGroup: (groupId: number, data: { name: string; description?: string }) => 
+      client.put<any>(endpoint(`/groups/${groupId}`), data),
     addWord: (groupId: number, wordId: number) => 
       client.post<{ success: boolean }>(endpoint(`/groups/${groupId}/words`), { word_id: wordId }),
     removeWord: (groupId: number, wordId: number) => 

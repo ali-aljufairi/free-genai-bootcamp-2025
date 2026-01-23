@@ -8,6 +8,12 @@ type GroupCreateRequest struct {
 	Description *string `json:"description" validate:"omitempty,max=500"`
 }
 
+// GroupUpdateRequest represents a request to update a group
+type GroupUpdateRequest struct {
+	Name        string  `json:"name" validate:"required,min=1,max=100"`
+	Description *string `json:"description" validate:"omitempty,max=500"`
+}
+
 // GroupResponse represents a group in responses
 type GroupResponse struct {
 	ID          int64     `json:"id"`
