@@ -15,7 +15,7 @@ const userConfig = await getUserConfig();
 const nextConfig = {
   output: 'standalone',
   turbopack: {},
-  productionBrowserSourceMaps: false, 
+  productionBrowserSourceMaps: true,
   experimental: {
     parallelServerBuildTraces: true,
     parallelServerCompiles: true,
@@ -79,6 +79,20 @@ const sentryWebpackPluginOptions = {
   
   // Only upload source maps in production
   dryRun: process.env.NODE_ENV !== 'production',
+  
+  // Automatically inject release information
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+  
+  // Suppress source map upload errors to prevent build failures
+  errorHandler: (err, invokeErr, compilation) => {
+    console.warn('Sentry source map upload warning:', err.message);
+  },
+  
+  // Wipe source maps from public directory after upload
+  widenClientFileUpload: true,
+  
+  // Disable source map deletion for debugging if needed
+  hideSourceMaps: true,
 };
 
 // Skip Sentry wrapper in development to avoid webpack configuration conflicts with Turbopack

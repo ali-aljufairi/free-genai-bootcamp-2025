@@ -54,8 +54,10 @@ ARG SENTRY_AUTH_TOKEN
 ENV SENTRY_AUTH_TOKEN=$SENTRY_AUTH_TOKEN
 
 # Build the application using wattpm
+# Source maps will be automatically uploaded by @sentry/nextjs webpack plugin during build
+# The manual upload command is a fallback in case the webpack plugin doesn't run
 RUN pnpm run build && \
-    (npm run sentry:sourcemaps || echo "Sentry source map upload failed, continuing...")
+    (pnpm run sentry:sourcemaps || echo "Manual Sentry source map upload skipped or failed (webpack plugin should handle this)")
 
 # ================================
 # Stage 2: Production runner
