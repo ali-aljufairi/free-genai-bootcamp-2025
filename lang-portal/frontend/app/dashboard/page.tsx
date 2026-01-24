@@ -7,17 +7,30 @@ import { ProgressCircle } from "@/components/dashboard/progress-circle"
 import { ActivityFeed } from "@/components/dashboard/activity-feed"
 import { StreakCalendar } from "@/components/dashboard/streak-calendar"
 import { StatsCards } from "@/components/dashboard/stats-cards"
+import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton"
 
 import { BookOpen, Clock, TrendingUp } from "lucide-react"
+import { useAuth } from "@clerk/nextjs"
 import { useLastStudySession, useStudyProgress, useQuickStats } from "@/hooks/api/useDashboard"
 import { useUserProfile } from "@/hooks/api/useGroup"
 import { useMemo } from "react"
 
 export default function Dashboard() {
+  const { isLoaded, isSignedIn } = useAuth();
   const { data: lastSession } = useLastStudySession();
   const { data: studyProgress, isLoading: progressLoading } = useStudyProgress();
   const { data: quickStats } = useQuickStats();
   const { data: userProfile } = useUserProfile();
+
+  // Show loading skeleton while authentication is initializing
+  if (!isLoaded) {
+    return <DashboardSkeleton />;
+  }
+
+  // Safety check: redirect should happen via middleware, but adding extra safety
+  if (!isSignedIn) {
+    return null;
+  }
 
   // Calculate progress value from study progress
   const progressValue = useMemo(() => {

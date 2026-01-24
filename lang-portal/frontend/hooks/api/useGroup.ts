@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@clerk/nextjs";
 import { groupApi, userApi } from "@/services/api";
 import { useEffect, useMemo } from "react";
 import { toast } from "sonner";
@@ -106,10 +107,13 @@ export function useUpdateGroup() {
  * Hook to get current user profile including favorite_group_id
  */
 export function useUserProfile() {
+  const { isLoaded, isSignedIn } = useAuth();
+  
   const { data, isLoading, error, refetch } = useQuery<UserProfile>({
     queryKey: ['user', 'profile'],
     queryFn: () => userApi.getMe(),
     staleTime: 5 * 60 * 1000, // 5 minutes
+    enabled: isLoaded && isSignedIn,
   });
 
   const setFromProfile = useUserSettingsStore((s) => s.setFromProfile);
