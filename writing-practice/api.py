@@ -5,6 +5,7 @@ import base64
 from PIL import Image
 import io
 import logging
+import requests
 from core import JapaneseApp
 from models import WordFeedback, SentenceFeedback, KanjiResponse, KanjiFeedback
 import uvicorn
@@ -72,12 +73,8 @@ async def get_random_sentence(
         if authorization and authorization.lower().startswith("bearer "):
             token = authorization.split(" ", 1)[1]
 
-        # First get a random word
+        # First get a random word - this will raise exceptions on failure
         japanese, english, romaji, _ = japanese_app.get_random_word(token)
-
-        if not japanese:
-            logger.error("Failed to get random word")
-            raise HTTPException(status_code=500, detail="Failed to get a random word")
 
         # Generate a sentence using this word
         word_data = (
@@ -106,11 +103,23 @@ async def get_random_sentence(
                 romaji=romaji,
                 word=japanese,
             )
+    except requests.exceptions.Timeout as e:
+        error_msg = "Request to word service timed out. Please try again."
+        logger.error(f"Error generating random sentence: {error_msg} - {str(e)}")
+        raise HTTPException(status_code=504, detail=error_msg)
+    except requests.exceptions.ConnectionError as e:
+        error_msg = "Unable to connect to word service. Please check if the service is available."
+        logger.error(f"Error generating random sentence: {error_msg} - {str(e)}")
+        raise HTTPException(status_code=503, detail=error_msg)
+    except ValueError as e:
+        # This covers API errors and invalid data
+        error_msg = f"Failed to get a random word: {str(e)}"
+        logger.error(f"Error generating random sentence: {error_msg}")
+        raise HTTPException(status_code=500, detail=error_msg)
     except Exception as e:
-        logger.error(f"Error generating random sentence: {str(e)}")
-        raise HTTPException(
-            status_code=500, detail=f"Error generating random sentence: {str(e)}"
-        )
+        error_msg = f"Error generating random sentence: {str(e)}"
+        logger.error(error_msg, exc_info=True)
+        raise HTTPException(status_code=500, detail=error_msg)
 
 
 @api.get("/api/writing/random-word-sentence", response_model=RandomSentenceResponse)
@@ -125,12 +134,8 @@ async def get_random_word_sentence(
         if authorization and authorization.lower().startswith("bearer "):
             token = authorization.split(" ", 1)[1]
 
-        # First get a random word
+        # First get a random word - this will raise exceptions on failure
         japanese, english, romaji, _ = japanese_app.get_random_word(token)
-
-        if not japanese:
-            logger.error("Failed to get random word")
-            raise HTTPException(status_code=500, detail="Failed to get a random word")
 
         # Generate a sentence using this word
         word_data = (
@@ -159,11 +164,23 @@ async def get_random_word_sentence(
                 romaji=romaji,
                 word=japanese,
             )
+    except requests.exceptions.Timeout as e:
+        error_msg = "Request to word service timed out. Please try again."
+        logger.error(f"Error generating word and sentence: {error_msg} - {str(e)}")
+        raise HTTPException(status_code=504, detail=error_msg)
+    except requests.exceptions.ConnectionError as e:
+        error_msg = "Unable to connect to word service. Please check if the service is available."
+        logger.error(f"Error generating word and sentence: {error_msg} - {str(e)}")
+        raise HTTPException(status_code=503, detail=error_msg)
+    except ValueError as e:
+        # This covers API errors and invalid data
+        error_msg = f"Failed to get a random word: {str(e)}"
+        logger.error(f"Error generating word and sentence: {error_msg}")
+        raise HTTPException(status_code=500, detail=error_msg)
     except Exception as e:
-        logger.error(f"Error generating word and sentence: {str(e)}")
-        raise HTTPException(
-            status_code=500, detail=f"Error generating word and sentence: {str(e)}"
-        )
+        error_msg = f"Error generating word and sentence: {str(e)}"
+        logger.error(error_msg, exc_info=True)
+        raise HTTPException(status_code=500, detail=error_msg)
 
 
 @api.post("/api/writing/feedback-word", response_model=FeedbackResponse)

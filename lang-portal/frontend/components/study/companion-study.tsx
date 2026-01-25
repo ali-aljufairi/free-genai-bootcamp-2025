@@ -529,23 +529,46 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
                     });
                     vapiRef.current.on("error", async (err: any) => {
                         console.error('Vapi SDK error:', err);
+                        
+                        // Extract error message from various possible structures
+                        let errorMessage = 'Unknown error';
+                        if (err instanceof Error) {
+                            errorMessage = err.message;
+                        } else if (err?.error?.errorMsg) {
+                            errorMessage = err.error.errorMsg;
+                        } else if (err?.error?.message) {
+                            errorMessage = err.error.message;
+                        } else if (err?.message) {
+                            errorMessage = err.message;
+                        } else if (typeof err === 'string') {
+                            errorMessage = err;
+                        }
+                        
                         // Log error details for debugging
                         const errorDetails = {
-                            message: err?.message || 'Unknown error',
-                            code: err?.code,
-                            type: err?.type,
+                            originalError: err,
+                            message: errorMessage,
+                            code: err?.code || err?.error?.code,
+                            type: err?.type || err?.error?.type,
                             callStatus: callStatus,
                             hasCallStarted: callStartTime !== null,
                             sessionId: sessionId,
                             assistantId: selectedAssistant,
+                            timestamp: err?.timestamp,
+                            errorObject: err?.error,
                         };
                         console.error('Vapi error details:', errorDetails);
                         
-                        // Check if this is a recoverable error
+                        // Check if this is a recoverable error (use original err for pattern matching)
                         const recoverable = isRecoverableError(err);
                         
+                        // Convert to proper Error instance for Sentry
+                        const sentryError = err instanceof Error 
+                            ? err 
+                            : new Error(errorMessage);
+                        
                         // Log to Sentry for production debugging
-                        Sentry.captureException(err, {
+                        Sentry.captureException(sentryError, {
                             tags: {
                                 location: 'companion-study',
                                 component: 'VapiSDK',
@@ -559,7 +582,7 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
                         if (callStartTime === null) {
                             cleanup();
                             toast.error("Connection Error", { 
-                                description: err?.message || "Failed to start call. Please try again." 
+                                description: errorMessage !== 'Unknown error' ? errorMessage : "Failed to start call. Please try again." 
                             });
                             return;
                         }
@@ -576,12 +599,12 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
                         setCallStatus("ended");
                         setAssistantIsSpeaking(false);
                         
-                        const errorMessage = recoverable 
+                        const userErrorMessage = recoverable 
                             ? "Connection lost after reconnection attempts. Your session will be saved."
-                            : err?.message || "Connection error. Your session will be saved.";
+                            : (errorMessage !== 'Unknown error' ? errorMessage : "Connection error. Your session will be saved.");
                             
                         toast.error("Call Error", { 
-                            description: errorMessage
+                            description: userErrorMessage
                         });
                         
                         // Save session before cleanup

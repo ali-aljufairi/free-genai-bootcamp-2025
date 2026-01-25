@@ -196,7 +196,14 @@ class JapaneseApp:
             return "", target, "C", f"Error processing submission: {str(e)}"
 
     def get_random_word(self, token: str | None = None):
-        """Get a random word from API"""
+        """Get a random word from API
+        
+        Raises:
+            requests.exceptions.Timeout: If the API request times out
+            requests.exceptions.ConnectionError: If there's a connection error
+            ValueError: If the API returns an error response or invalid data
+            Exception: For other unexpected errors
+        """
         try:
             # Use the /api/langportal/words/random endpoint directly
             url = f"{self.api_base_url}/api/langportal/words/random"
@@ -211,9 +218,17 @@ class JapaneseApp:
                 word_data = response.json()
                 logger.debug(f"Received word data: {word_data}")
 
+                # Validate that we received valid word data
+                japanese = word_data.get("japanese", "")
+                if not japanese:
+                    # Check if we have kana as fallback
+                    if not word_data.get("kana", ""):
+                        logger.error("Received word data with no japanese or kana fields")
+                        raise ValueError("API returned word with no readable form (both japanese and kana are empty)")
+
                 # Store the full response
                 self.current_word = {
-                    "japanese": word_data.get("japanese", ""),
+                    "japanese": japanese or word_data.get("kana", ""),
                     "english": word_data.get("english", ""),
                     "romaji": word_data.get("romaji", ""),
                     "parts": word_data.get("parts", {"type": "noun"}),
@@ -227,24 +242,34 @@ class JapaneseApp:
                     "Write this word in Japanese characters",
                 )
             else:
+                # Extract error details from response
                 error_detail = f"HTTP {response.status_code}"
+                error_message = f"Failed to fetch random word from API"
                 try:
                     error_data = response.json()
                     error_detail = error_data.get("error", error_data.get("detail", error_detail))
+                    error_message = f"{error_message}: {error_detail}"
                 except:
                     error_detail = response.text if response.text else error_detail
+                    error_message = f"{error_message}: {error_detail}"
                 
-                logger.error(f"Error fetching random word: {error_detail}")
-                return "", "", "", f"Error fetching word: {error_detail}"
-        except requests.exceptions.Timeout:
-            logger.error("Timeout fetching random word from API")
-            return "", "", "", "API request timed out"
+                logger.error(f"Error fetching random word: {error_message} (Status: {response.status_code})")
+                raise ValueError(error_message)
+        except requests.exceptions.Timeout as e:
+            error_msg = f"Timeout fetching random word from API (URL: {url})"
+            logger.error(error_msg)
+            raise requests.exceptions.Timeout(error_msg) from e
         except requests.exceptions.ConnectionError as e:
-            logger.error(f"Connection error fetching random word: {str(e)}")
-            return "", "", "", f"Connection error: {str(e)}"
+            error_msg = f"Connection error fetching random word from API (URL: {url}): {str(e)}"
+            logger.error(error_msg)
+            raise requests.exceptions.ConnectionError(error_msg) from e
+        except (ValueError, requests.exceptions.Timeout, requests.exceptions.ConnectionError):
+            # Re-raise these exceptions as-is
+            raise
         except Exception as e:
-            logger.error(f"Error in get_random_word: {str(e)}")
-            return "", "", "", f"An error occurred: {str(e)}"
+            error_msg = f"Unexpected error in get_random_word (URL: {url}): {str(e)}"
+            logger.error(error_msg, exc_info=True)
+            raise Exception(error_msg) from e
 
     def generate_sentence(self, word):
         """Generate a sentence using Groq API with JSON mode"""
