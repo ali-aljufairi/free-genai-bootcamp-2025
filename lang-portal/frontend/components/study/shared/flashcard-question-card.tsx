@@ -39,7 +39,7 @@ export function FlashcardQuestionCard({
                             className="text-center space-y-2 min-h-[120px] flex flex-col items-center justify-center"
                         >
                             {renderQuestion(card)}
-                            
+
                             {/* Show explanation only if wrong answer */}
                             {selectedOption !== null && isCorrect === false && explanation && (
                                 <motion.div
@@ -49,7 +49,10 @@ export function FlashcardQuestionCard({
                                     className="mt-4 p-3 bg-muted/50 rounded-lg border border-muted w-full"
                                 >
                                     <p className="text-sm text-muted-foreground font-medium mb-1">Explanation:</p>
-                                    <p className="text-sm">{explanation}</p>
+                                    <div
+                                        className="text-sm text-left"
+                                        dangerouslySetInnerHTML={{ __html: explanation }}
+                                    />
                                 </motion.div>
                             )}
                         </motion.div>
@@ -73,7 +76,7 @@ export function FlashcardQuestionCard({
                         className="text-center mb-16 space-y-6"
                     >
                         {renderQuestion(card)}
-                        
+
                         {/* Show explanation only if wrong answer */}
                         {selectedOption !== null && isCorrect === false && explanation && (
                             <motion.div
@@ -83,7 +86,10 @@ export function FlashcardQuestionCard({
                                 className="mt-6 p-4 bg-muted/50 rounded-lg border border-muted max-w-2xl mx-auto"
                             >
                                 <p className="text-sm text-muted-foreground font-medium mb-2">Explanation:</p>
-                                <p className="text-sm">{explanation}</p>
+                                <div
+                                    className="text-sm text-left"
+                                    dangerouslySetInnerHTML={{ __html: explanation }}
+                                />
                             </motion.div>
                         )}
                     </motion.div>
