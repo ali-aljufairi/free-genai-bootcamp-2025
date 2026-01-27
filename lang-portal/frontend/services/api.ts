@@ -19,6 +19,10 @@ import {
   GrammarQuizSession,
   GrammarSubmission,
   GrammarResult,
+  ReadingQuizConfig,
+  ReadingQuizSession,
+  ReadingSubmission,
+  ReadingResult,
   ChatSession,
   SaveChatSessionRequest,
   SaveSkillAssessmentRequest,
@@ -226,6 +230,17 @@ export function createApiService(client: ApiClient) {
       client.post<{ message: string; grammar_id: number }>(endpoint(`/grammar/${id}/learned`)),
   };
 
+  const readingApi = {
+    start: (config: ReadingQuizConfig) => 
+      client.post<ReadingQuizSession>(endpoint('/reading/start'), config),
+    submit: (submission: ReadingSubmission) => 
+      client.post<ReadingResult>(endpoint('/reading/submit'), submission),
+    history: (page: number = 1, pageSize: number = 10) => 
+      client.get<{ sessions: ReadingQuizSession[], total: number, page: number, pageSize: number, totalPages: number }>(
+        endpoint(`/reading/history?page=${page}&pageSize=${pageSize}`)
+      ),
+  };
+
   const chatApi = {
     saveSession: (request: SaveChatSessionRequest) => 
       client.post<{ id: number; session_id: string; created?: boolean; updated?: boolean }>(
@@ -275,6 +290,7 @@ export function createApiService(client: ApiClient) {
     user: userApi,
     flashcardsV2: flashcardsV2Api,
     grammar: grammarApi,
+    reading: readingApi,
     chat: chatApi,
     wordBuilder: wordBuilderApi,
     subscription: subscriptionApi,
@@ -295,6 +311,7 @@ export const groupApi = api.group;
 export const userApi = api.user;
 export const flashcardsV2Api = api.flashcardsV2;
 export const grammarApi = api.grammar;
+export const readingApi = api.reading;
 export const chatApi = api.chat;
 export const wordBuilderApi = api.wordBuilder;
 export const subscriptionApi = api.subscription;

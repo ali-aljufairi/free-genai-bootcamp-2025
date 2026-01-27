@@ -8,6 +8,7 @@ import (
 	"lang-portal/internal/handlers/flashcard"
 	"lang-portal/internal/handlers/grammar"
 	"lang-portal/internal/handlers/group"
+	"lang-portal/internal/handlers/reading"
 	"lang-portal/internal/handlers/kanji"
 	"lang-portal/internal/handlers/session"
 	"lang-portal/internal/handlers/speech"
@@ -169,6 +170,12 @@ func (s *FiberServer) RegisterFiberRoutes() {
 	s.App.Post("/api/langportal/grammar/start", grammarHandler.StartGrammarQuiz)
 	s.App.Post("/api/langportal/grammar/submit", grammarHandler.SubmitGrammarQuiz)
 	s.App.Get("/api/langportal/grammar/history", grammarHandler.GetGrammarQuizHistory)
+
+	// Reading quiz routes
+	readingHandler := reading.NewReadingHandler(s.postgresDB)
+	s.App.Post("/api/langportal/reading/start", readingHandler.StartReadingQuiz)
+	s.App.Post("/api/langportal/reading/submit", readingHandler.SubmitReadingQuiz)
+	s.App.Get("/api/langportal/reading/history", readingHandler.GetReadingQuizHistory)
 
 	// Grammar browsing routes
 	grammarStore := repositories.NewGrammarStore(s.postgresDB)

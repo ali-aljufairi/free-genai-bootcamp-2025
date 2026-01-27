@@ -299,6 +299,63 @@ export interface GrammarResult {
   results: QuestionResult[]
 }
 
+// Reading Quiz Types
+export type ReadingQuestionType = 'information_search' | 'long_passage' | 'medium_passage' | 'reading_comprehensive' | 'reading_topic' | 'short_passage' | 'all'
+
+export interface ReadingQuizConfig {
+  level: number
+  question_type: ReadingQuestionType
+  use_srs: boolean // If true, only show questions that need review (due items)
+  question_count: number
+  time_limit?: number
+  shuffle_options: boolean
+  required_correct_count?: number
+}
+
+export interface ReadingQuestion {
+  id: number
+  question_id: number
+  question_type: string
+  question_text: string
+  passage?: string | null
+  answers: string[]
+  correct_index: number
+  explanation?: string | null
+  level: number
+}
+
+export interface ReadingQuizSession {
+  id: number
+  user_id: number
+  config: ReadingQuizConfig
+  questions: ReadingQuestion[]
+  started_at: string
+  ended_at?: string
+  score?: number
+  total: number
+}
+
+export interface ReadingAnswer {
+  question_id: number
+  answer: number
+}
+
+export interface ReadingSubmission {
+  session_id: number
+  answers: ReadingAnswer[]
+}
+
+export interface ReadingResult {
+  session_id: number
+  score: number
+  total: number
+  percentage: number
+  correct_count: number
+  wrong_count: number
+  duration: number
+  results: QuestionResult[]
+}
+
 // Chat Types
 export interface ChatMessage {
   id: string

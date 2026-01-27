@@ -206,6 +206,5 @@ When working on this codebase, prioritize understanding the **service boundaries
 5. **Fix existing components** rather than creating new unified solutions
 
 ### Working with Database
-
-- **Always request table structures** before proposing schema changes
-- **Use existing progress tracking tables** rather than creating new ones
+- Always request table structures** before proposing schema changes
+- if you need change do migration file and then migrate the databas
