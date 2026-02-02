@@ -325,10 +325,10 @@ export function GrammarQuiz() {
     }
 
     const renderGrammarQuestion = (question: GrammarQuestion) => {
-        const passageQuestionCount = question.question_type === 'passage_grammar' 
+        const passageQuestionCount = question.question_type === 'passage_grammar'
             ? questions.filter(q => q.question_id === question.question_id && q.question_type === 'passage_grammar').length
             : 0
-        
+
         const passageQuestionIndex = question.question_type === 'passage_grammar' && passageQuestionCount > 0
             ? questions.filter(q => q.question_id === question.question_id && q.question_type === 'passage_grammar')
                 .sort((a, b) => a.question_text.localeCompare(b.question_text))
@@ -339,15 +339,10 @@ export function GrammarQuiz() {
             <div className="flex flex-col items-center gap-4 w-full">
                 {question.question_type === 'passage_grammar' && question.passage && (
                     <div className={`w-full ${isMobile ? 'max-w-full max-h-[250px]' : 'max-w-4xl max-h-[400px]'} mb-4 p-4 bg-muted/30 rounded-lg border border-muted overflow-y-auto`}>
-                        <div className="text-sm leading-relaxed whitespace-pre-wrap font-japanese">
-                            {question.passage.split('\u3000').map((paragraph, idx) => (
-                                paragraph.trim() && (
-                                    <p key={idx} className="mb-3 last:mb-0">
-                                        {paragraph.trim()}
-                                    </p>
-                                )
-                            ))}
-                        </div>
+                        <div
+                            className="text-sm leading-relaxed font-japanese"
+                            dangerouslySetInnerHTML={{ __html: question.passage }}
+                        />
                     </div>
                 )}
                 {question.question_type === 'passage_grammar' && passageQuestionCount > 1 && (
@@ -355,19 +350,16 @@ export function GrammarQuiz() {
                         Question {passageQuestionIndex} of {passageQuestionCount} in this passage
                     </div>
                 )}
-                <p className={isMobile ? "text-2xl font-medium leading-relaxed text-center" : "text-4xl font-medium leading-relaxed text-center"}>
-                    {question.question_text
-                        .replace(/<br\s*\/?>/gi, ' ')
-                        .replace(/&nbsp;/g, ' ')
-                        .replace(/<[^>]*>/g, '')
-                        .trim()}
-                </p>
+                <div
+                    className={isMobile ? "text-2xl font-medium leading-relaxed text-center" : "text-4xl font-medium leading-relaxed text-center"}
+                    dangerouslySetInnerHTML={{ __html: question.question_text.trim() }}
+                />
             </div>
         )
     }
 
     const renderGrammarOption = (option: string) => {
-        return option
+        return <span dangerouslySetInnerHTML={{ __html: option }} />
     }
 
     // Render orchestration

@@ -99,7 +99,7 @@ export function MobileGrammarQuiz({
                             className="text-center space-y-4 min-h-[120px] flex flex-col items-center justify-center"
                         >
                             {renderQuestion(question)}
-                            
+
                             {/* Show explanation only if wrong answer */}
                             {selectedOption !== null && !isCorrect && question.explanation && (
                                 <motion.div
@@ -109,7 +109,10 @@ export function MobileGrammarQuiz({
                                     className="mt-4 p-3 bg-muted/50 rounded-lg border border-muted"
                                 >
                                     <p className="text-sm text-muted-foreground font-medium mb-1">Explanation:</p>
-                                    <p className="text-sm">{question.explanation}</p>
+                                    <div
+                                        className="text-sm text-left"
+                                        dangerouslySetInnerHTML={{ __html: question.explanation }}
+                                    />
                                 </motion.div>
                             )}
                         </motion.div>
