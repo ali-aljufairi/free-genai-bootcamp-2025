@@ -445,14 +445,9 @@ export function WordBuilderGame({
     }
 
     return (
-        <div className="flex flex-col h-[calc(100vh-8rem)] overflow-hidden">
-            {/* Header */}
-            <div className="shrink-0">
-                <h2 className="text-2xl font-bold">Word Builder</h2>
-            </div>
-
+        <div className="flex flex-col h-full overflow-hidden">
             {/* Stats */}
-            <div className="shrink-0 mt-3">
+            <div className="shrink-0">
                 <WordBuilderStats
                     wordsFormed={formedWords.length}
                     totalAttempts={totalAttempts}

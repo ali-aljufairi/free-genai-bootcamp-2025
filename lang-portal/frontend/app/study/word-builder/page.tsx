@@ -115,7 +115,7 @@ export default function WordBuilderPage() {
                         <div className="flex flex-col gap-3 flex-1">
                             <h1 className="text-3xl font-bold tracking-tight">Word Builder</h1>
                             <p className="text-muted-foreground">
-                                Build Japanese words by combining kanji characters in this fun timed game!
+                                Drag kanji into the slots to form any valid Japanese word—use 2, 3, or 4 characters. Timed game.
                             </p>
                         </div>
                     </div>
@@ -135,15 +135,33 @@ export default function WordBuilderPage() {
 
     return (
         <SubscriptionGate feature="Word Builder">
-            <div className="h-[calc(100vh-4rem)] overflow-hidden">
-                <WordBuilderGame
-                    sessionId={sessionData.session_id}
-                    kanji={sessionData.kanji || []}
-                    validWords={sessionData.valid_words || []}
-                    timeLimit={sessionData.time_limit}
-                    onComplete={handleComplete}
-                    onShowSettings={handleShowSettings}
-                />
+            <div className="flex flex-col h-[calc(100vh-4rem)] overflow-hidden space-y-5">
+                <div className="flex items-center gap-3 shrink-0">
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleBack}
+                        className="h-9 w-9 p-0"
+                    >
+                        <ArrowLeft className="h-5 w-5" />
+                    </Button>
+                    <div className="flex flex-col gap-3 flex-1">
+                        <h1 className="text-3xl font-bold tracking-tight">Word Builder</h1>
+                        <p className="text-muted-foreground">
+                            Drag kanji into the slots to form any valid Japanese word—use 2, 3, or 4 characters.
+                        </p>
+                    </div>
+                </div>
+                <div className="flex-1 min-h-0 overflow-hidden">
+                    <WordBuilderGame
+                        sessionId={sessionData.session_id}
+                        kanji={sessionData.kanji || []}
+                        validWords={sessionData.valid_words || []}
+                        timeLimit={sessionData.time_limit}
+                        onComplete={handleComplete}
+                        onShowSettings={handleShowSettings}
+                    />
+                </div>
             </div>
         </SubscriptionGate>
     )

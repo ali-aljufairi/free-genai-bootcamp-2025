@@ -14,7 +14,7 @@ export function WordBuilderKanjiPoolMobile({ kanji }: WordBuilderKanjiPoolMobile
     const showHints = preferences.show_hints
 
     return (
-        <div className="h-full w-full grid grid-cols-5 gap-1 auto-rows-fr overflow-hidden">
+        <div className="h-full w-full grid grid-cols-5 gap-1 auto-rows-[minmax(2.5rem,1fr)] overflow-hidden">
             {kanji.map((k) => (
                 <div
                     key={k.id}
@@ -26,8 +26,8 @@ export function WordBuilderKanjiPoolMobile({ kanji }: WordBuilderKanjiPoolMobile
                         className="h-full w-full cursor-grab active:cursor-grabbing"
                     >
                         <Card className="glass-card h-full w-full max-h-full max-w-full flex items-center justify-center p-1 transition-colors bg-blue-500/10 border-blue-500/30 [&:hover]:transform-none [&:hover]:scale-100">
-                            <CardContent className="p-0 w-full h-full flex flex-col items-center justify-center min-h-0 overflow-hidden">
-                                <div className="text-xl font-bold mb-0.5 shrink-0">{k.character}</div>
+                            <CardContent className="p-0 w-full h-full flex flex-col items-center justify-center min-h-0 overflow-visible">
+                                <div className="text-[clamp(0.75rem,2vmin,1.25rem)] font-bold leading-none mb-0.5 shrink-0 flex items-center justify-center">{k.character}</div>
                                 {showHints && (
                                     <div className="text-[10px] text-muted-foreground text-center space-y-0.5 shrink-0">
                                         {k.meanings && k.meanings.length > 0 && (

@@ -19,18 +19,21 @@ export function WordBuilderSlotsMobile({ slots, onValidate }: WordBuilderSlotsMo
 
     return (
         <div className="h-full flex flex-col space-y-2">
-            <div className="flex items-center justify-between shrink-0">
-                <h3 className="text-sm font-medium text-muted-foreground">Word Builder</h3>
-                {hasKanji && !preferences.auto_validate && (
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={onValidate}
-                        className="h-8"
-                    >
-                        Validate Word
-                    </Button>
-                )}
+            <div className="flex flex-col gap-0.5 shrink-0">
+                <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-medium text-muted-foreground">Form a word</h3>
+                    {hasKanji && !preferences.auto_validate && (
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={onValidate}
+                            className="h-8"
+                        >
+                            Validate Word
+                        </Button>
+                    )}
+                </div>
+                <p className="text-xs text-muted-foreground">Use 2, 3, or 4 slots to form any valid word</p>
             </div>
             <div className="flex-1 min-h-0 grid grid-cols-2 gap-2">
                 {slots.map((kanji, index) => (
@@ -54,7 +57,7 @@ export function WordBuilderSlotsMobile({ slots, onValidate }: WordBuilderSlotsMo
                                             exit={{ scale: 0.8, opacity: 0 }}
                                             className="w-full h-full flex flex-col items-center justify-center"
                                         >
-                                            <div className="text-4xl font-bold mb-1">{kanji.character}</div>
+                                            <div className="text-[clamp(1rem,6vmin,2.25rem)] font-bold leading-tight mb-1">{kanji.character}</div>
                                             {showHints && (
                                                 <div className="text-xs text-muted-foreground text-center space-y-0.5">
                                                     {kanji.meanings && kanji.meanings.length > 0 && (

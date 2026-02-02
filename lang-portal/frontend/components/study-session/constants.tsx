@@ -72,7 +72,7 @@ export const studyOptions: StudyOption[] = [
     },
     {
         title: "Word Builder",
-        description: "Build words from kanji in this fun timed game",
+        description: "Form any valid word from kanji (2–4 characters) in this timed game",
         icon: <Puzzle className="h-4 w-4 sm:h-5 sm:w-5 text-amber-500" />,
         image: studyImages.builder,
         type: "word-builder"
