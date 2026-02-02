@@ -1,6 +1,13 @@
 import { GoogleGenAI } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
+// Lazy init so build (no env) doesn't instantiate the client and throw
+function getAI() {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error("GEMINI_API_KEY is not set");
+  }
+  return new GoogleGenAI({ apiKey });
+}
 
 export const maxDuration = 30;
 
@@ -15,15 +22,24 @@ export async function POST(req: Request) {
       });
     }
 
+    let ai;
+    try {
+      ai = getAI();
+    } catch {
+      return new Response(JSON.stringify({ error: "Image generation is not configured" }), {
+        status: 503,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash-image",
+      model: "gemini-3-pro-image-preview",
       contents: `Transform this Japanese text into a visually stunning scene: "${text}". 
   Style: Blend traditional Japanese aesthetics with modern digital art. 
   Key elements: Include symbolic representations of the text's core themes. 
   Mood: Ethereal and imaginative. 
   Technical: 8K resolution with ukiyo-e inspired linework and neon accents.`,
       config: {
-        responseModalities: ["Text","Image"],
+        responseModalities: ["Text", "Image"],
       },
     });
 
