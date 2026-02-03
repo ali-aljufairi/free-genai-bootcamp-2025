@@ -15,7 +15,7 @@ This guide sets up **lang-portal** locally with real Clerk JWTs and seeded conte
 
 Required variables:
 
-```
+```dotenv
 APP_ENV=local
 PORT=8080
 
@@ -37,7 +37,7 @@ SEED_BUNDLE_PATH=/Users/ali/github/free-genai-bootcamp-2025/lang-portal/data/cle
 
 ### Frontend (`lang-portal/frontend/.env.local`)
 
-```
+```dotenv
 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
 CLERK_SECRET_KEY=sk_test_...
 GO_BACKEND_URL=http://localhost:8080
@@ -54,7 +54,7 @@ NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/dashboard
 1. Create a **dedicated dev app** in Clerk.
 2. Add JWT template `sorami-backend` with:
 
-```
+```text
 Issuer: https://clerk.your-dev-domain.com
 Audience: your-audience-claim
 Subject: {{user.id}}

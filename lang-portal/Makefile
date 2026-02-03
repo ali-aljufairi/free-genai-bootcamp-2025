@@ -206,7 +206,7 @@ db-migrate-status:
 # Database seeding
 db-seed: db-seed-ndjson
 
-db-seed-ndjson:
+db-seed-ndjson: load-env
 	@echo "Seeding database with NDJSON files..."
 	@if command -v go >/dev/null 2>&1; then \
 		if [ -z "$$SEED_BUNDLE_PATH" ]; then \
@@ -234,7 +234,7 @@ db-setup: db-reset
 	@echo "Run 'make db-status' to verify."
 
 # Database validation
-db-validate:
+db-validate: load-env
 	@echo "Validating database schema and data..."
 	@if command -v go >/dev/null 2>&1; then \
 		go run ./cmd/validate; \
