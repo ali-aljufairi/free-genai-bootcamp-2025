@@ -50,7 +50,32 @@ DB_NAME=sorami
 
 # Environment
 APP_ENV=development
-ALLOW_DEV_FALLBACK_USER=1
+ALLOW_DEV_FALLBACK_USER=0
+```
+
+## Local Dev (No Fallback)
+
+For local development, **do not rely on the fallback user**. Instead, use a dedicated Clerk **development** app and real JWTs.
+
+### Required Clerk Dev App Settings
+
+1. **Create a separate Clerk app** for development.
+2. **JWT Template** (Dashboard → JWT Templates):
+   - **Template Name**: `sorami-backend`
+   - **Subject**: `{{user.id}}`
+   - **Issuer**: `https://clerk.your-dev-domain.com`
+   - **Audience**: `your-audience-claim`
+   - **Expiration**: `1 hour`
+3. **Allowed Origins**: add `http://localhost:3000`
+
+### Example Backend Env (Dev)
+
+```bash
+CLERK_ISSUER=https://clerk.your-dev-domain.com
+CLERK_JWKS_URL=https://clerk.your-dev-domain.com/.well-known/jwks.json
+CLERK_AUDIENCE=your-audience-claim
+CLERK_SECRET_KEY=sk_test_...
+ALLOW_DEV_FALLBACK_USER=0
 ```
 
 ## Clerk Dashboard Configuration
@@ -263,7 +288,6 @@ The Go backend caches JWKS keys with:
 4. **Update allowed origins in Clerk**
 5. **Test with production keys**
 6. **Monitor logs for issues**
-
 
 
 

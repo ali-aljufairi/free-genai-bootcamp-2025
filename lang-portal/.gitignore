@@ -41,3 +41,5 @@ jlpt_organized/
 *.ndjson
 data/cleaned_json/db/*.ndjson
 seed
+!cmd/seed/
+!cmd/seed/**

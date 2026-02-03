@@ -3,7 +3,7 @@
 .PHONY: help dev dev-backend dev-frontend build clean test
 .PHONY: docker-up docker-down db-reset db-migrate db-migrate-up db-migrate-down db-migrate-status
 .PHONY: db-seed db-seed-ndjson db-seed-kanji db-seed-words db-seed-grammar db-seed-jlpt db-seed-graph db-seed-courses db-seed-study
-.PHONY: db-setup db-status
+.PHONY: db-setup db-status db-validate
 
 # Default target
 help:
@@ -35,6 +35,7 @@ help:
 	@echo "Database - Full Setup:"
 	@echo "  make db-setup          - Complete setup: reset + migrate + seed (NDJSON)"
 	@echo "  make db-status         - Show database status (migrations + row counts)"
+	@echo "  make db-validate       - Validate database schema and seeded data"
 	@echo ""
 	@echo "Quick Start:"
 	@echo "  make db-setup          - Full database setup from scratch"
@@ -208,7 +209,11 @@ db-seed: db-seed-ndjson
 db-seed-ndjson:
 	@echo "Seeding database with NDJSON files..."
 	@if command -v go >/dev/null 2>&1; then \
-		go run ./cmd/seed -ndjson; \
+		if [ -z "$$SEED_BUNDLE_PATH" ]; then \
+			echo "SEED_BUNDLE_PATH is required (path to data/cleaned_json/db)"; \
+			exit 1; \
+		fi; \
+		go run ./cmd/seed -path "$$SEED_BUNDLE_PATH"; \
 	else \
 		echo "Go not found."; \
 		exit 1; \
@@ -227,6 +232,16 @@ db-setup: db-reset
 	@echo ""
 	@echo "Database setup complete!"
 	@echo "Run 'make db-status' to verify."
+
+# Database validation
+db-validate:
+	@echo "Validating database schema and data..."
+	@if command -v go >/dev/null 2>&1; then \
+		go run ./cmd/validate; \
+	else \
+		echo "Go not found."; \
+		exit 1; \
+	fi
 
 # Database status check
 db-status:

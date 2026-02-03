@@ -149,7 +149,7 @@ func newClerkAuth(postgresDB *gorm.DB) (*clerkAuth, error) {
 		ca.cacheTTL = 5 * time.Minute
 	}
 
-	if strings.ToLower(os.Getenv("APP_ENV")) != "prod" && os.Getenv("ALLOW_DEV_FALLBACK_USER") != "0" {
+	if strings.ToLower(os.Getenv("APP_ENV")) != "prod" && os.Getenv("ALLOW_DEV_FALLBACK_USER") == "1" {
 		ca.allowDevFallback = true
 	}
 

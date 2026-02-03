@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	_ "github.com/lib/pq"
 )
@@ -22,7 +23,27 @@ func main() {
 		connStr = os.Getenv("DATABASE_URL")
 	}
 	if connStr == "" {
-		log.Fatal("DATABASE_URL environment variable or -db flag required")
+		// Construct connection string from DB_* vars (same as app/migrate)
+		dbHost := os.Getenv("DB_HOST")
+		dbPort := os.Getenv("DB_PORT")
+		dbUser := os.Getenv("DB_USER")
+		dbPassword := os.Getenv("DB_PASSWORD")
+		dbName := os.Getenv("DB_NAME")
+
+		if dbHost == "" || dbUser == "" || dbName == "" {
+			log.Fatal("DATABASE_URL or DB_HOST/DB_USER/DB_NAME environment variables are required")
+		}
+
+		if dbPort == "" {
+			dbPort = "5432"
+		}
+
+		connStr = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+			dbHost, dbPort, dbUser, dbPassword, dbName)
+	}
+
+	if !strings.Contains(connStr, "sslmode=") {
+		connStr = connStr + "?sslmode=disable"
 	}
 
 	db, err := sql.Open("postgres", connStr)
@@ -89,8 +110,8 @@ func main() {
 
 	// Check minimum row counts for seeded data
 	type rowCheck struct {
-		table      string
-		minRows    int
+		table       string
+		minRows     int
 		description string
 	}
 
@@ -146,10 +167,3 @@ func main() {
 
 	log.Println("\n✅ Database validation passed!")
 }
-
-
-
-
-
-
-
