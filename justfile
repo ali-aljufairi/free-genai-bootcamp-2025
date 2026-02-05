@@ -44,6 +44,17 @@ agent:
       fi
     @echo ""
     @echo "Starting backend and frontend in tmux..."
+    @if [ ! -t 1 ]; then \
+        LOG_DIR="{{ justfile_directory() }}/.codex/logs"; \
+        mkdir -p "$LOG_DIR"; \
+        echo "No interactive TTY detected; starting dev servers in background."; \
+        echo "Logs: $LOG_DIR/dev-backend.log, $LOG_DIR/dev-frontend.log"; \
+        nohup bash -lc "cd '{{ justfile_directory() }}/lang-portal' && just dev-backend" > "$LOG_DIR/dev-backend.log" 2>&1 & \
+          echo $$! > "$LOG_DIR/dev-backend.pid"; \
+        nohup bash -lc "cd '{{ justfile_directory() }}/lang-portal' && just dev-frontend" > "$LOG_DIR/dev-frontend.log" 2>&1 & \
+          echo $$! > "$LOG_DIR/dev-frontend.pid"; \
+        exit 0; \
+    fi
     @if ! command -v tmux >/dev/null 2>&1; then \
         echo "tmux not found. Install tmux or tell me to use another method."; \
         exit 1; \
