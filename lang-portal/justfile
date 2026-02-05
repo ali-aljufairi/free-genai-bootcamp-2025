@@ -1,0 +1,126 @@
+# Sorami lang-portal - Development commands
+# Run from repo root for init/secrets; run from here for dev/build/db.
+
+set dotenv-load
+set shell := ["bash", "-uc"]
+
+# Default: list recipes
+default:
+    @just --list
+
+# === DEVELOPMENT ===
+
+# Start backend with Air hot reloading
+dev-backend:
+    @echo "Starting backend with Air..."
+    @lsof -ti:{{env('PORT', '8080')}} | xargs kill -9 2>/dev/null || true
+    @if command -v air >/dev/null 2>&1; then air; else go install github.com/air-verse/air@latest && air; fi
+
+# Start frontend with bun dev
+dev-frontend:
+    @echo "Starting frontend with bun..."
+    @lsof -ti:3000 | xargs kill -9 2>/dev/null || true
+    @command -v bun >/dev/null 2>&1 || (echo "bun not found. Install: https://bun.sh/" && exit 1)
+    cd frontend && bun run dev
+
+# Start both backend and frontend (run in separate terminals or use tmux)
+dev:
+    @echo "Run 'just dev-backend' in one terminal and 'just dev-frontend' in another"
+    @echo "Or from inside tmux: tmux split-window -h 'just dev-backend'; tmux split-window -v 'just dev-frontend'"
+
+# === BUILD & TEST ===
+
+# Build the Go application
+build:
+    @echo "Building Go application..."
+    CGO_ENABLED=1 go build -o main cmd/api/main.go
+
+# Run Go tests
+test:
+    @echo "Running Go tests..."
+    go test -v ./...
+
+# Clean build artifacts
+clean:
+    @echo "Cleaning build artifacts..."
+    rm -f main build-errors.log build-errors.tmp dbtools
+
+# === DATABASE - DOCKER ===
+
+# Start PostgreSQL database container
+docker-up:
+    @echo "Starting PostgreSQL database..."
+    @test -f Database/docker-compose.yml || (echo "Database/docker-compose.yml not found" && exit 1)
+    @command -v docker >/dev/null 2>&1 || (echo "Docker not found." && exit 1)
+    @if [ -f .env ]; then cd Database && docker compose --env-file ../.env up -d; else cd Database && docker compose up -d; fi
+    @echo "Waiting for database to be ready..."
+    @sleep 5
+    @echo "Database started!"
+
+# Stop PostgreSQL database container
+docker-down:
+    @echo "Stopping PostgreSQL database..."
+    @test -f Database/docker-compose.yml || (echo "Database/docker-compose.yml not found" && exit 1)
+    @if [ -f .env ]; then cd Database && docker compose --env-file ../.env down; else cd Database && docker compose down; fi
+
+# Reset database (remove volumes, restart)
+db-reset: docker-down
+    @if [ -f .env ]; then cd Database && docker compose --env-file ../.env down -v && docker compose --env-file ../.env up -d; else cd Database && docker compose down -v && docker compose up -d; fi
+    @echo "Waiting for database to be ready..."
+    @sleep 8
+    @echo "Database reset complete!"
+
+# === DATABASE - MIGRATIONS ===
+
+# Run all pending migrations
+db-migrate: db-migrate-up
+
+db-migrate-up:
+    @echo "Running database migrations..."
+    go run cmd/migrate/main.go up
+
+# Rollback last migration
+db-migrate-down:
+    @echo "Rolling back last migration..."
+    go run cmd/migrate/main.go down
+
+# Show migration status
+db-migrate-status:
+    @echo "Migration status:"
+    go run cmd/migrate/main.go status
+
+# === DATABASE - SEEDING ===
+
+# Seed database with NDJSON files (requires SEED_BUNDLE_PATH in .env)
+db-seed: db-seed-ndjson
+
+db-seed-ndjson:
+    @echo "Seeding database with NDJSON files..."
+    @test -n "$${SEED_BUNDLE_PATH:-}" || (echo "SEED_BUNDLE_PATH is required (path to data/cleaned_json/db)" && exit 1)
+    go run ./cmd/seed -path "$$SEED_BUNDLE_PATH"
+
+# === DATABASE - FULL SETUP ===
+
+# Complete setup: reset + migrate + seed
+db-setup: db-reset
+    @echo ""
+    @just db-migrate-up
+    @echo ""
+    @just db-seed-ndjson
+    @echo ""
+    @echo "Database setup complete! Run 'just db-status' to verify."
+
+# Validate database schema and seeded data
+db-validate:
+    @echo "Validating database schema and data..."
+    go run ./cmd/validate
+
+# Show database status (migrations + row counts)
+db-status:
+    @echo "=== Database Status ==="
+    @echo ""
+    @echo "Migration Status:"
+    @just db-migrate-status 2>/dev/null || echo "Could not check migration status"
+    @echo ""
+    @echo "Row Counts:"
+    @if [ -f .env ]; then . ./.env && PGPASSWORD="$$DB_PASSWORD" psql -h "$$DB_HOST" -p "$$DB_PORT" -U "$$DB_USER" -d "$$DB_NAME" -c "SELECT 'kanji' as table_name, COUNT(*) as count FROM kanji UNION ALL SELECT 'words', COUNT(*) FROM words UNION ALL SELECT 'grammar_points', COUNT(*) FROM grammar_points UNION ALL SELECT 'jlpt_questions', COUNT(*) FROM jlpt_questions UNION ALL SELECT 'item_relations', COUNT(*) FROM item_relations UNION ALL SELECT 'courses', COUNT(*) FROM courses UNION ALL SELECT 'units', COUNT(*) FROM units ORDER BY table_name;" 2>/dev/null || echo "Could not query database"; else PGPASSWORD='TempSorami!2025' psql -h localhost -p 5432 -U sorami_user -d sorami -c "SELECT 'kanji' as table_name, COUNT(*) as count FROM kanji UNION ALL SELECT 'words', COUNT(*) FROM words UNION ALL SELECT 'grammar_points', COUNT(*) FROM grammar_points UNION ALL SELECT 'jlpt_questions', COUNT(*) FROM jlpt_questions UNION ALL SELECT 'item_relations', COUNT(*) FROM item_relations UNION ALL SELECT 'courses', COUNT(*) FROM courses UNION ALL SELECT 'units', COUNT(*) FROM units ORDER BY table_name;" 2>/dev/null || echo "Could not query database"; fi
