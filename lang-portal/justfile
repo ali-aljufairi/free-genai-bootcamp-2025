@@ -51,16 +51,16 @@ clean:
 [private]
 ensure-db-port:
     @test -f .env || (echo ".env not found. Run 'just init' from repo root." && exit 1)
-    @DB_PORT_VALUE=$${DB_PORT:-}; \
-      if [ -z "$$DB_PORT_VALUE" ]; then \
-          DB_PORT_VALUE=$$(grep -E '^DB_PORT=' .env | tail -n1 | cut -d= -f2-); \
+    @DB_PORT_VALUE=${DB_PORT:-}; \
+      if [ -z "$DB_PORT_VALUE" ]; then \
+          DB_PORT_VALUE=$(grep -E '^DB_PORT=' .env | tail -n1 | cut -d= -f2-); \
       fi; \
-      if [ -z "$$DB_PORT_VALUE" ]; then DB_PORT_VALUE=5432; fi; \
-      if lsof -i:"$$DB_PORT_VALUE" >/dev/null 2>&1; then \
-          NEW_DB_PORT=$$(bash "{{ justfile_directory() }}/../scripts/find-free-port.sh" "$$DB_PORT_VALUE"); \
-          if [ "$$NEW_DB_PORT" != "$$DB_PORT_VALUE" ]; then \
-              echo "DB_PORT $$DB_PORT_VALUE is busy; switching to $$NEW_DB_PORT"; \
-              bash "{{ justfile_directory() }}/../scripts/update-db-port.sh" .env "$$NEW_DB_PORT"; \
+      if [ -z "$DB_PORT_VALUE" ]; then DB_PORT_VALUE=5432; fi; \
+      if lsof -i:"$DB_PORT_VALUE" >/dev/null 2>&1; then \
+          NEW_DB_PORT=$(bash "{{ justfile_directory() }}/../scripts/find-free-port.sh" "$DB_PORT_VALUE"); \
+          if [ "$NEW_DB_PORT" != "$DB_PORT_VALUE" ]; then \
+              echo "DB_PORT $DB_PORT_VALUE is busy; switching to $NEW_DB_PORT"; \
+              bash "{{ justfile_directory() }}/../scripts/update-db-port.sh" .env "$NEW_DB_PORT"; \
           fi; \
       fi
 
@@ -115,14 +115,14 @@ db-seed: db-seed-ndjson
 
 db-seed-ndjson:
     @echo "Seeding database with NDJSON files..."
-    @SEED_PATH="$${SEED_BUNDLE_PATH:-{{ justfile_directory() }}/data/cleaned_json/db}"; \
-      if [ ! -d "$$SEED_PATH" ]; then \
-          echo "Seed path not found: $$SEED_PATH"; \
+    @SEED_PATH="${SEED_BUNDLE_PATH:-{{ justfile_directory() }}/data/cleaned_json/db}"; \
+      if [ ! -d "$SEED_PATH" ]; then \
+          echo "Seed path not found: $SEED_PATH"; \
           echo "Set SEED_BUNDLE_PATH to override."; \
           exit 1; \
       fi; \
-      echo "Using seed path: $$SEED_PATH"; \
-      go run ./cmd/seed -path "$$SEED_PATH"
+      echo "Using seed path: $SEED_PATH"; \
+      go run ./cmd/seed -path "$SEED_PATH"
 
 # === DATABASE - FULL SETUP ===
 
@@ -148,4 +148,4 @@ db-status:
     @just db-migrate-status 2>/dev/null || echo "Could not check migration status"
     @echo ""
     @echo "Row Counts:"
-    @if [ -f .env ]; then . ./.env && PGPASSWORD="$$DB_PASSWORD" psql -h "$$DB_HOST" -p "$$DB_PORT" -U "$$DB_USER" -d "$$DB_NAME" -c "SELECT 'kanji' as table_name, COUNT(*) as count FROM kanji UNION ALL SELECT 'words', COUNT(*) FROM words UNION ALL SELECT 'grammar_points', COUNT(*) FROM grammar_points UNION ALL SELECT 'jlpt_questions', COUNT(*) FROM jlpt_questions UNION ALL SELECT 'item_relations', COUNT(*) FROM item_relations UNION ALL SELECT 'courses', COUNT(*) FROM courses UNION ALL SELECT 'units', COUNT(*) FROM units ORDER BY table_name;" 2>/dev/null || echo "Could not query database"; else PGPASSWORD='TempSorami!2025' psql -h localhost -p 5432 -U sorami_user -d sorami -c "SELECT 'kanji' as table_name, COUNT(*) as count FROM kanji UNION ALL SELECT 'words', COUNT(*) FROM words UNION ALL SELECT 'grammar_points', COUNT(*) FROM grammar_points UNION ALL SELECT 'jlpt_questions', COUNT(*) FROM jlpt_questions UNION ALL SELECT 'item_relations', COUNT(*) FROM item_relations UNION ALL SELECT 'courses', COUNT(*) FROM courses UNION ALL SELECT 'units', COUNT(*) FROM units ORDER BY table_name;" 2>/dev/null || echo "Could not query database"; fi
+    @if [ -f .env ]; then . ./.env && PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c "SELECT 'kanji' as table_name, COUNT(*) as count FROM kanji UNION ALL SELECT 'words', COUNT(*) FROM words UNION ALL SELECT 'grammar_points', COUNT(*) FROM grammar_points UNION ALL SELECT 'jlpt_questions', COUNT(*) FROM jlpt_questions UNION ALL SELECT 'item_relations', COUNT(*) FROM item_relations UNION ALL SELECT 'courses', COUNT(*) FROM courses UNION ALL SELECT 'units', COUNT(*) FROM units ORDER BY table_name;" 2>/dev/null || echo "Could not query database"; else PGPASSWORD='TempSorami!2025' psql -h localhost -p 5432 -U sorami_user -d sorami -c "SELECT 'kanji' as table_name, COUNT(*) as count FROM kanji UNION ALL SELECT 'words', COUNT(*) FROM words UNION ALL SELECT 'grammar_points', COUNT(*) FROM grammar_points UNION ALL SELECT 'jlpt_questions', COUNT(*) FROM jlpt_questions UNION ALL SELECT 'item_relations', COUNT(*) FROM item_relations UNION ALL SELECT 'courses', COUNT(*) FROM courses UNION ALL SELECT 'units', COUNT(*) FROM units ORDER BY table_name;" 2>/dev/null || echo "Could not query database"; fi

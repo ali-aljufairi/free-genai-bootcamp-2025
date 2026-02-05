@@ -33,11 +33,11 @@ agent:
     @cd "{{ justfile_directory() }}/lang-portal" && just db-migrate-up
     @echo ""
     @SEED_PATH="{{ justfile_directory() }}/lang-portal/data/cleaned_json/db"; \
-      if [ -d "$$SEED_PATH" ]; then \
+      if [ -d "$SEED_PATH" ]; then \
           echo "Seeding database..."; \
           cd "{{ justfile_directory() }}/lang-portal" && just db-seed; \
       else \
-          echo "Seed data not found at $$SEED_PATH; skipping db-seed."; \
+          echo "Seed data not found at $SEED_PATH; skipping db-seed."; \
       fi
     @echo ""
     @echo "Starting backend and frontend in tmux..."
@@ -45,7 +45,7 @@ agent:
         echo "tmux not found. Install tmux or tell me to use another method."; \
         exit 1; \
     fi
-    @if [ -n "$$TMUX" ]; then \
+    @if [ -n "$TMUX" ]; then \
         tmux rename-window "sorami-agent"; \
         tmux split-window -h "cd '{{ justfile_directory() }}/lang-portal' && just dev-backend"; \
         tmux split-window -v "cd '{{ justfile_directory() }}/lang-portal' && just dev-frontend"; \
