@@ -10,13 +10,14 @@ interface KanjiStrokeGuideProps {
     onStrokeComplete?: (strokeIndex: number) => void
     showGuide?: boolean
     onToggleGuide?: (show: boolean) => void
+    isDrawing?: boolean
 }
 
-export function KanjiStrokeGuide({ svgData, strokeCount, onStrokeComplete, showGuide: externalShowGuide, onToggleGuide }: KanjiStrokeGuideProps) {
+export function KanjiStrokeGuide({ svgData, strokeCount, onStrokeComplete, showGuide: externalShowGuide, onToggleGuide, isDrawing = false }: KanjiStrokeGuideProps) {
     const [currentStroke, setCurrentStroke] = useState(0) // Start at 0 for first stroke
     const [isPlaying, setIsPlaying] = useState(true) // Auto-play by default
     const [internalShowGuide, setInternalShowGuide] = useState(true)
-    const [displayedStrokes, setDisplayedStrokes] = useState<string[]>([])
+    const [strokeSvgs, setStrokeSvgs] = useState<string[]>([])
     const animationRef = useRef<NodeJS.Timeout | null>(null)
 
     // Use external state if provided, otherwise use internal
@@ -26,7 +27,7 @@ export function KanjiStrokeGuide({ svgData, strokeCount, onStrokeComplete, showG
     // Parse SVG and extract individual strokes
     useEffect(() => {
         if (!svgData) {
-            setDisplayedStrokes([])
+            setStrokeSvgs([])
             return
         }
 
@@ -34,82 +35,95 @@ export function KanjiStrokeGuide({ svgData, strokeCount, onStrokeComplete, showG
             // Fix namespace issues for KanjiVG SVGs by adding the kvg namespace
             let fixedSvgData = svgData
             if (svgData.includes('kvg:') && !svgData.includes('xmlns:kvg')) {
-                // Add kvg namespace if missing
                 fixedSvgData = svgData.replace(
                     /<svg([^>]*)>/,
                     '<svg$1 xmlns:kvg="http://kanjivg.tagaini.net">'
                 )
             }
 
-            // Parse the SVG string
             const parser = new DOMParser()
-            const svgDoc = parser.parseFromString(fixedSvgData, 'image/svg+xml')
-            const svgElement = svgDoc.documentElement
+            let svgDoc = parser.parseFromString(fixedSvgData, 'image/svg+xml')
+            let svgElement = svgDoc.documentElement
 
-            // Check for parsing errors
             const parseError = svgDoc.querySelector('parsererror')
             if (parseError) {
-                // Try to fix by removing kvg namespace attributes
                 console.warn('SVG parsing error, attempting to fix namespace issues:', parseError.textContent)
                 try {
-                    // Remove kvg: prefixes from attributes
                     const cleanedSvg = svgData.replace(/kvg:/g, '').replace(/xmlns:kvg="[^"]*"/g, '')
-                    const cleanedDoc = parser.parseFromString(cleanedSvg, 'image/svg+xml')
-                    const cleanedError = cleanedDoc.querySelector('parsererror')
-                    if (!cleanedError) {
-                        // Successfully parsed after cleaning
-                        const paths = Array.from(cleanedDoc.querySelectorAll('path'))
-                        if (paths.length > 0) {
-                            const strokePaths = paths.map(path => {
-                                const pathClone = path.cloneNode(true) as SVGPathElement
-                                return pathClone.outerHTML
-                            })
-                            setDisplayedStrokes(strokePaths)
-                            setCurrentStroke(0) // Start at first stroke
-                            setIsPlaying(true) // Auto-play by default
-                            return
-                        }
+                    svgDoc = parser.parseFromString(cleanedSvg, 'image/svg+xml')
+                    svgElement = svgDoc.documentElement
+                    const cleanedError = svgDoc.querySelector('parsererror')
+                    if (cleanedError) {
+                        setStrokeSvgs([])
+                        return
                     }
                 } catch (cleanError) {
                     console.warn('Failed to clean SVG:', cleanError)
+                    setStrokeSvgs([])
+                    return
                 }
-                setDisplayedStrokes([])
+            }
+
+            if (!svgElement || svgElement.tagName !== 'svg') {
+                setStrokeSvgs([])
                 return
             }
 
-            // Extract all path elements (strokes)
-            const paths = Array.from(svgElement.querySelectorAll('path'))
+            if (!svgElement.getAttribute('viewBox')) {
+                const width = svgElement.getAttribute('width') || '109'
+                const height = svgElement.getAttribute('height') || '109'
+                svgElement.setAttribute('viewBox', `0 0 ${width} ${height}`)
+            }
+            svgElement.setAttribute('width', '300')
+            svgElement.setAttribute('height', '300')
+            svgElement.setAttribute('preserveAspectRatio', 'xMidYMid meet')
+            svgElement.setAttribute('style', 'display: block;')
 
-            if (paths.length === 0) {
+            const svgClone = svgElement.cloneNode(true) as SVGSVGElement
+            const clonePaths = Array.from(svgClone.querySelectorAll('path'))
+
+            if (clonePaths.length === 0) {
                 console.warn('No path elements found in SVG, but SVG data exists:', svgData.substring(0, 100))
-                // Still set displayed strokes to empty so we can show raw SVG
-                setDisplayedStrokes([])
+                setStrokeSvgs([])
                 return
             }
 
-            const strokePaths = paths.map(path => {
-                const pathClone = path.cloneNode(true) as SVGPathElement
-                // Set stroke color to highlight current stroke
-                return pathClone.outerHTML
-            })
+            const svgs: string[] = []
+            for (let strokeIndex = 0; strokeIndex < clonePaths.length; strokeIndex += 1) {
+                clonePaths.forEach((path, index) => {
+                    if (index <= strokeIndex) {
+                        if (index === strokeIndex) {
+                            path.setAttribute('stroke', '#3b82f6')
+                            path.setAttribute('stroke-width', '3')
+                            path.setAttribute('opacity', '1')
+                        } else {
+                            path.setAttribute('stroke', '#94a3b8')
+                            path.setAttribute('stroke-width', '2')
+                            path.setAttribute('opacity', '0.6')
+                        }
+                    } else {
+                        path.setAttribute('opacity', '0')
+                    }
+                })
+                svgs.push(svgClone.outerHTML)
+            }
 
-            setDisplayedStrokes(strokePaths)
-            // Reset to 0 and auto-start animation when new SVG data is loaded
+            setStrokeSvgs(svgs)
             setCurrentStroke(0)
-            setIsPlaying(true) // Auto-play by default
+            setIsPlaying(true)
         } catch (error) {
             console.error('Error parsing SVG:', error, 'SVG data:', svgData?.substring(0, 200))
-            setDisplayedStrokes([])
+            setStrokeSvgs([])
         }
     }, [svgData])
 
     // Animation effect - loops continuously until stopped, then user can step manually
     useEffect(() => {
-        if (isPlaying && displayedStrokes.length > 0) {
+        if (showGuide && !isDrawing && isPlaying && strokeSvgs.length > 0) {
             animationRef.current = setInterval(() => {
                 setCurrentStroke(prev => {
                     const next = prev + 1
-                    if (next >= displayedStrokes.length) {
+                    if (next >= strokeSvgs.length) {
                         // Loop back to the beginning instead of stopping
                         if (onStrokeComplete) {
                             onStrokeComplete(0)
@@ -135,7 +149,7 @@ export function KanjiStrokeGuide({ svgData, strokeCount, onStrokeComplete, showG
                 clearInterval(animationRef.current)
             }
         }
-    }, [isPlaying, displayedStrokes.length, onStrokeComplete])
+    }, [showGuide, isDrawing, isPlaying, strokeSvgs.length, onStrokeComplete])
 
     const handlePlay = () => {
         // Resume continuous looping from current position
@@ -147,7 +161,7 @@ export function KanjiStrokeGuide({ svgData, strokeCount, onStrokeComplete, showG
     }
 
     const handleNext = () => {
-        if (currentStroke < displayedStrokes.length - 1) {
+        if (currentStroke < strokeSvgs.length - 1) {
             const next = currentStroke + 1
             setCurrentStroke(next)
             if (onStrokeComplete) {
@@ -169,7 +183,7 @@ export function KanjiStrokeGuide({ svgData, strokeCount, onStrokeComplete, showG
         )
     }
 
-    if (displayedStrokes.length === 0) {
+    if (strokeSvgs.length === 0) {
         // SVG exists but couldn't parse paths - try to display raw SVG
         return (
             <div className="w-full h-[300px] border-2 border-blue-200 dark:border-blue-800 rounded-lg overflow-hidden flex items-center justify-center p-4 bg-white dark:bg-gray-900">
@@ -181,80 +195,8 @@ export function KanjiStrokeGuide({ svgData, strokeCount, onStrokeComplete, showG
         )
     }
 
-    // Create SVG with strokes up to current stroke
-    // Parse the original SVG and modify stroke colors
-    let modifiedSvg = svgData
-    try {
-        // Fix namespace issues first
-        let fixedSvgData = svgData
-        if (svgData.includes('kvg:') && !svgData.includes('xmlns:kvg')) {
-            fixedSvgData = svgData.replace(
-                /<svg([^>]*)>/,
-                '<svg$1 xmlns:kvg="http://kanjivg.tagaini.net">'
-            )
-        }
-
-        const parser = new DOMParser()
-        let svgDoc = parser.parseFromString(fixedSvgData, 'image/svg+xml')
-        let svgElement = svgDoc.documentElement
-
-        // Check for parsing errors and try to fix
-        const parseError = svgDoc.querySelector('parsererror')
-        if (parseError) {
-            // Try removing kvg namespace attributes
-            const cleanedSvg = svgData.replace(/kvg:/g, '').replace(/xmlns:kvg="[^"]*"/g, '')
-            svgDoc = parser.parseFromString(cleanedSvg, 'image/svg+xml')
-            svgElement = svgDoc.documentElement
-            const stillError = svgDoc.querySelector('parsererror')
-            if (stillError) {
-                // If still error, just use original SVG
-                console.warn('Could not parse SVG, using original:', stillError.textContent)
-                modifiedSvg = svgData
-            }
-        }
-
-        // Only proceed if we have a valid SVG element
-        if (svgElement && svgElement.tagName === 'svg') {
-            // Ensure SVG has proper viewBox and dimensions
-            if (!svgElement.getAttribute('viewBox')) {
-                const width = svgElement.getAttribute('width') || '109'
-                const height = svgElement.getAttribute('height') || '109'
-                svgElement.setAttribute('viewBox', `0 0 ${width} ${height}`)
-            }
-            // Set SVG to match the kanji character size (300px height container)
-            svgElement.setAttribute('width', '300')
-            svgElement.setAttribute('height', '300')
-            svgElement.setAttribute('preserveAspectRatio', 'xMidYMid meet')
-            svgElement.setAttribute('style', 'display: block;')
-
-            const paths = Array.from(svgElement.querySelectorAll('path'))
-
-            paths.forEach((path, index) => {
-                const pathElement = path as SVGPathElement
-                // Show strokes up to currentStroke
-                if (index <= currentStroke) {
-                    // Highlight current stroke, dim previous ones
-                    if (index === currentStroke) {
-                        pathElement.setAttribute('stroke', '#3b82f6')
-                        pathElement.setAttribute('stroke-width', '3')
-                        pathElement.setAttribute('opacity', '1')
-                    } else {
-                        pathElement.setAttribute('stroke', '#94a3b8')
-                        pathElement.setAttribute('stroke-width', '2')
-                        pathElement.setAttribute('opacity', '0.6')
-                    }
-                } else {
-                    // Hide future strokes by making them transparent
-                    pathElement.setAttribute('opacity', '0')
-                }
-            })
-
-            modifiedSvg = svgElement.outerHTML
-        }
-    } catch (error) {
-        console.error('Error modifying SVG:', error)
-        modifiedSvg = svgData
-    }
+    const safeStrokeIndex = Math.min(currentStroke, strokeSvgs.length - 1)
+    const modifiedSvg = strokeSvgs[safeStrokeIndex] || svgData
 
     return (
         <div className="space-y-4">
@@ -262,13 +204,13 @@ export function KanjiStrokeGuide({ svgData, strokeCount, onStrokeComplete, showG
                 {showGuide && (
                     <div className="flex items-center gap-2">
                         <span className="text-sm text-muted-foreground">
-                            Stroke {currentStroke + 1} of {displayedStrokes.length}
+                            Stroke {safeStrokeIndex + 1} of {strokeSvgs.length}
                         </span>
                         <Button
                             variant="outline"
                             size="icon"
                             onClick={handleReset}
-                            disabled={currentStroke === 0}
+                            disabled={safeStrokeIndex === 0}
                         >
                             <RotateCcw className="h-4 w-4" />
                         </Button>
@@ -287,7 +229,7 @@ export function KanjiStrokeGuide({ svgData, strokeCount, onStrokeComplete, showG
                             variant="outline"
                             size="icon"
                             onClick={handleNext}
-                            disabled={currentStroke >= displayedStrokes.length - 1}
+                            disabled={safeStrokeIndex >= strokeSvgs.length - 1}
                         >
                             <SkipForward className="h-4 w-4" />
                         </Button>
@@ -307,4 +249,3 @@ export function KanjiStrokeGuide({ svgData, strokeCount, onStrokeComplete, showG
         </div>
     )
 }
-
