@@ -3,8 +3,46 @@ package main
 import (
 	"bufio"
 	"os"
+	"path/filepath"
 	"strings"
 )
+
+var (
+	DataDir      string
+	DBDataDir    string
+	KanjiSVGPath string
+	JLPTDataDir  string
+)
+
+func init() {
+	refreshSeedPaths()
+}
+
+func refreshSeedPaths() {
+	dataDir := strings.TrimSpace(os.Getenv("DATA_DIR"))
+	if dataDir == "" {
+		dataDir = "data/cleaned_json"
+	}
+	DataDir = dataDir
+
+	dbDir := strings.TrimSpace(os.Getenv("DB_DATA_DIR"))
+	if dbDir == "" {
+		dbDir = filepath.Join(DataDir, "db")
+	}
+	DBDataDir = dbDir
+
+	svgPath := strings.TrimSpace(os.Getenv("KANJI_SVG_PATH"))
+	if svgPath == "" {
+		svgPath = filepath.Join(DataDir, "kanji_svg_strokes.json")
+	}
+	KanjiSVGPath = svgPath
+
+	jlptDir := strings.TrimSpace(os.Getenv("JLPT_DATA_DIR"))
+	if jlptDir == "" {
+		jlptDir = filepath.Join(DataDir, "jlpt")
+	}
+	JLPTDataDir = jlptDir
+}
 
 // loadEnvFile loads environment variables from .env file
 func loadEnvFile(filename string) error {
@@ -38,5 +76,10 @@ func loadEnvFile(filename string) error {
 		}
 	}
 
-	return scanner.Err()
+	if err := scanner.Err(); err != nil {
+		return err
+	}
+
+	refreshSeedPaths()
+	return nil
 }
