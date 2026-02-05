@@ -121,6 +121,19 @@ db-seed-ndjson:
           echo "Set SEED_BUNDLE_PATH to override."; \
           exit 1; \
       fi; \
+      if command -v psql >/dev/null 2>&1; then \
+          WORDS_COUNT=$(PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -Atc "SELECT COUNT(*) FROM words" 2>/dev/null || true); \
+          if [ -n "$WORDS_COUNT" ]; then \
+              if [ "$WORDS_COUNT" -gt 0 ]; then \
+                  echo "Words already present ($WORDS_COUNT). Skipping db-seed."; \
+                  exit 0; \
+              fi; \
+          else \
+              echo "Could not read word count; continuing with seeding."; \
+          fi; \
+      else \
+          echo "psql not found; skipping pre-seed check."; \
+      fi; \
       echo "Using seed path: $SEED_PATH"; \
       go run ./cmd/seed -path "$SEED_PATH"
 

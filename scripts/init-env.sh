@@ -28,6 +28,14 @@ if [ -f "$SECRETS_FILE" ]; then
     POSTGRES_USER_VALUE="${POSTGRES_USER:-$DB_USER_VALUE}"
     POSTGRES_PASSWORD_VALUE="${POSTGRES_PASSWORD:-$DB_PASSWORD_VALUE}"
     POSTGRES_DB_VALUE="${POSTGRES_DB:-$DB_NAME_VALUE}"
+    SEED_BUNDLE_VALUE="${SEED_BUNDLE_PATH:-}"
+    if [ -z "$SEED_BUNDLE_VALUE" ]; then
+        if [ -d "$ROOT/lang-portal/data/cleaned_json/db" ]; then
+            SEED_BUNDLE_VALUE="$ROOT/lang-portal/data/cleaned_json/db"
+        elif [ -d "$HOME/github/free-genai-bootcamp-2025/lang-portal/data/cleaned_json/db" ]; then
+            SEED_BUNDLE_VALUE="$HOME/github/free-genai-bootcamp-2025/lang-portal/data/cleaned_json/db"
+        fi
+    fi
 
     BACKEND_PORT=$(find_free_port "${PORT:-8080}")
     FRONTEND_PORT=$(find_free_port "${FRONTEND_PORT:-3000}")
@@ -56,7 +64,7 @@ CLERK_AUDIENCE=${CLERK_AUDIENCE:-}
 CLERK_SECRET_KEY=${CLERK_SECRET_KEY:-}
 
 ALLOW_DEV_FALLBACK_USER=${ALLOW_DEV_FALLBACK_USER:-0}
-SEED_BUNDLE_PATH=${SEED_BUNDLE_PATH:-}
+SEED_BUNDLE_PATH=${SEED_BUNDLE_VALUE:-}
 BLUEPRINT_DB_URL=${BLUEPRINT_DB_URL:-./words.db}
 EOF
     echo "Generated lang-portal/.env"
