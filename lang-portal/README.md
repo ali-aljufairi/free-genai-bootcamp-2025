@@ -1,8 +1,4 @@
-# Sorami - Japan### Prerequisites
-- Go 1.21+
-- Node.js 18+ with bun
-- Docker & Docker Compose
-- tmux (recommended for development)anguage Learning Platform
+# Sorami - Japanese Language Learning Platform
 
 A production-grade microservices platform for Japanese language learning, featuring a central Go backend, Next.js frontend, and multiple AI-powered services.
 
@@ -22,79 +18,87 @@ Sorami consists of multiple independently deployable services:
 - Go 1.21+
 - Node.js 22+ with bun
 - Docker & Docker Compose
-- tmux (recommended for development)
+- [just](https://github.com/casey/just) (recommended): `brew install just` or `cargo install just`
+- tmux (optional, for running backend and frontend in one window)
 
-### Development Setup
+### Environment and secrets (from repo root)
 
-1. **Clone and setup:**
+Run once from the **repository root** to populate all `.env` files:
+
+```bash
+cd free-genai-bootcamp-2025
+just secrets-template   # creates ~/.secrets/sorami/.env.template
+# Copy to ~/.secrets/sorami/.env and add your Clerk keys, DB password, API keys
+just init               # generates lang-portal/.env, frontend/.env, agent/.env, etc.; resolves port conflicts
+just doctor             # check go, bun, docker
+```
+
+If you don't use `~/.secrets/sorami/.env`, `just init` falls back to copying each `.env.example` to `.env`; edit those manually.
+
+### Development setup (from lang-portal)
+
+1. **Start PostgreSQL:**
    ```bash
-   git clone https://github.com/Ali-Aljufairi/free-genai-bootcamp-2025.git
-   cd free-genai-bootcamp-2025/lang-portal
+   cd lang-portal
+   just docker-up
    ```
 
-2. **Start PostgreSQL database:**
+2. **Database setup (migrate + seed):**
    ```bash
-   make db-reset
+   just db-setup
+   ```
+   Requires `SEED_BUNDLE_PATH` in `.env` (or in `~/.secrets/sorami/.env` before running `just init`).
+
+3. **Start dev servers** (use two terminals):
+   ```bash
+   just dev-backend   # Go backend with Air
+   just dev-frontend # Next.js with bun
    ```
 
-3. **Import JLPT learning data:**
-   ```bash
-   make db-seed
-   ```
+### Alternative: Make
 
-4. **Start development environment:**
-   ```bash
-   make dev
-   ```
-   This starts both backend (Air) and frontend (bun) in tmux panes.
+The `Makefile` is still available: `make dev`, `make dev-backend`, `make dev-frontend`, `make db-setup`, etc.
 
-### Alternative Development Commands
+## Available commands (just)
 
-- **Start both services in tmux:** `make dev`
-- **Backend only:** `make dev-backend` (runs Air for hot reloading)
-- **Frontend only:** `make dev-frontend` (runs bun dev server)
-- **Database management:** `make docker-up`, `make docker-down`, `make db-reset`
-
-## Available Make Commands
+Run `just` or `just --list` in `lang-portal/` to see all recipes.
 
 ### Development
 ```bash
-make dev              # Start both backend (Air) and frontend (bun) in tmux panes
-make dev-backend      # Start backend with Air hot reloading
-make dev-frontend     # Start frontend with bun dev
+just dev-backend      # Backend with Air hot reloading (uses PORT from .env)
+just dev-frontend     # Frontend with bun dev
 ```
 
 ### Database
 ```bash
-make docker-up        # Start PostgreSQL database container
-make docker-down      # Stop PostgreSQL database container
-make db-reset         # Reset database (stop, remove volumes, restart)
-make db-seed          # Import JLPT data into database
+just docker-up       # Start PostgreSQL container
+just docker-down     # Stop PostgreSQL container
+just db-reset        # Reset DB (remove volumes, restart)
+just db-migrate-up   # Run migrations
+just db-seed-ndjson  # Seed from NDJSON (needs SEED_BUNDLE_PATH)
+just db-setup        # db-reset + migrate + seed
+just db-status       # Migration status + row counts
+just db-validate     # Validate schema and data
 ```
 
-### Building & Testing
+### Build & test
 ```bash
-make build            # Build the Go application
-make test             # Run Go tests
-make clean            # Clean build artifacts
+just build           # Build Go binary
+just test            # Run Go tests
+just clean           # Remove build artifacts
 ```
 
 ## Development Workflow
 
-### System Components Always Running
-- **TypeScript/Frontend**: Always running via `make dev-frontend` or `make dev`
-- **Makefile**: Handles all system orchestration (backend, database, services)
-- **AI Agent Services**: Run independently alongside main development
+### System Components
+- **Backend/Frontend**: Run via `just dev-backend` and `just dev-frontend` (or `make dev` in tmux).
+- **justfile / Makefile**: Orchestrate backend, database, and local commands.
+- **AI services**: Run independently (e.g. `cd ../agent && uv run fastapi dev api.py`).
 
-### Recommended Development Setup
-1. Start main development: `make dev` (backend + frontend in tmux)
-2. Start AI services in separate terminals as needed:
-   ```bash
-   # In separate terminals
-   cd ../agent && uv run fastapi dev api.py
-   cd ../quiz-gen && uv run fastapi dev api.py
-   # etc.
-   ```
+### Recommended setup
+1. From repo root: `just init` (and optionally `just doctor`).
+2. From `lang-portal/`: `just docker-up`, `just db-setup`, then `just dev-backend` and `just dev-frontend` in two terminals.
+3. Start other AI services in separate terminals as needed.
 
 ### Production Deployment
 - Services deploy independently with Docker Compose
@@ -124,7 +128,8 @@ lang-portal/
 │   ├── development/      # Development guides
 │   └── guides/           # Feature guides
 ├── docker-compose.yml     # Local development services
-├── Makefile               # Development orchestration
+├── justfile               # Development commands (just)
+├── Makefile               # Development orchestration (legacy)
 └── go.mod                 # Go dependencies
 ```
 
@@ -139,46 +144,38 @@ lang-portal/
 
 ## Getting Started (Detailed)
 
-### 1. Environment Setup
+### 1. Environment setup
+From the **repo root**:
 ```bash
-# Clone repository
 git clone https://github.com/Ali-Aljufairi/free-genai-bootcamp-2025.git
-cd free-genai-bootcamp-2025/lang-portal
+cd free-genai-bootcamp-2025
 
-# Copy environment files
-cp .env.example .env
-# Edit .env with your Clerk keys and database settings
+just secrets-template   # create ~/.secrets/sorami/.env.template
+# Copy to ~/.secrets/sorami/.env and fill in Clerk, DB, API keys
+just init               # generate all service .env files (port-safe)
+just doctor             # optional: check dependencies
 ```
 
-### 2. Database Setup
-```bash
-# Start fresh PostgreSQL database
-make db-reset
+Or without a secrets file: copy each `.env.example` to `.env` and edit (e.g. `lang-portal/.env`, `lang-portal/frontend/.env`).
 
-# Import JLPT learning content (12K+ kanji, 20K+ words, 15K+ questions)
-make db-seed
+### 2. Database setup (from lang-portal)
+```bash
+cd lang-portal
+just docker-up
+just db-setup   # reset + migrate + seed (requires SEED_BUNDLE_PATH in .env)
 ```
 
-### 3. Development Environment
+### 3. Development servers
 ```bash
-# Start both backend and frontend in tmux panes
-make dev
-
-# Or run individually in separate terminals:
-make dev-backend    # Go backend with Air hot reload
-make dev-frontend   # Next.js with bun dev server
+just dev-backend    # terminal 1
+just dev-frontend   # terminal 2
 ```
 
-### 4. AI Services (Optional)
-Start individual AI services as needed:
+### 4. AI services (optional)
 ```bash
-# Agent service (shopping/search assistant)
 cd ../agent && uv run fastapi dev api.py
-
-# Quiz generation service
 cd ../quiz-gen && uv run fastapi dev api.py
-
-# Other services...
+# etc.
 ```
 
 ## Development Guidelines
@@ -204,26 +201,4 @@ cd ../quiz-gen && uv run fastapi dev api.py
 4. **Follow mobile-first** design principles
 5. **Maintain compatibility** with existing microservice contracts
 
-## Available Make Commands
-
-### Development
-```bash
-make dev              # Start both backend (Air) and frontend (bun) in tmux panes
-make dev-backend      # Start backend with Air hot reloading
-make dev-frontend     # Start frontend with bun dev
-```
-
-### Database
-```bash
-make docker-up        # Start PostgreSQL database container
-make docker-down      # Stop PostgreSQL database container
-make db-reset         # Reset database (stop, remove volumes, restart)
-make db-seed          # Import JLPT data into database
-```
-
-### Building & Testing
-```bash
-make build            # Build the Go application
-make test             # Run Go tests
-make clean            # Clean build artifacts
-```
+For a full list of commands run `just --list` in `lang-portal/`. The `Makefile` remains available for the same targets (e.g. `make dev-backend`, `make db-setup`).

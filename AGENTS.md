@@ -35,7 +35,7 @@ Sorami is a **production-grade microservices platform** for Japanese language le
 
 ### Build Systems
 
-- **Go services**: Use `make` commands (`make build`, `make run`, `make watch`, `make docker-run`)
+- **Go services**: Use `just` from `lang-portal/` (`just build`, `just dev-backend`, `just dev-frontend`, `just db-setup`) or legacy `make` commands
 - **Python services**: Use `uv` package manager with `pyproject.toml` configuration
 - **Frontend**: Next.js 15 with TypeScript, Tailwind CSS, and Radix UI
 
@@ -66,13 +66,27 @@ Sorami is a **production-grade microservices platform** for Japanese language le
 
 ## Development Workflows
 
+### Environment Setup (recommended: just)
+
+From repo root, use [just](https://github.com/casey/just) to populate `.env` files from a single secrets location:
+
+```bash
+just secrets-template   # Creates ~/.secrets/sorami/.env.template
+# Copy to ~/.secrets/sorami/.env and fill in Clerk, DB, API keys
+just init               # Generates .env for lang-portal, frontend, agent, etc.; resolves port conflicts
+just doctor             # Check dependencies (go, bun, docker)
+```
+
+If `~/.secrets/sorami/.env` is missing, `just init` copies each `.env.example` to `.env`.
+
 ### Starting Services
 
 ```bash
-# Go service (lang-portal)
-make run              # Starts backend + frontend dev servers
-make docker-run       # Full Docker Compose setup
-# Note: Uses Air for hot reloading - no manual rebuilds needed
+# Go service (lang-portal) - from lang-portal/
+just dev-backend        # Backend with Air hot reload (or: make dev-backend)
+just dev-frontend       # Frontend with bun (or: make dev-frontend)
+just docker-up          # PostgreSQL
+just db-setup           # Reset + migrate + seed
 
 # Python services
 uv run fastapi dev api.py     # FastAPI development

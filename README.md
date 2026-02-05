@@ -216,10 +216,23 @@ A tool for translating video content between languages, with special focus on ed
 
 To begin exploring the Sorami project collection:
 
-1. Clone this repository
-2. Navigate to the specific project directory you're interested in
-3. Follow the setup instructions in each project's individual README
-4. Most projects can be run using Docker Compose with the provided configuration files
+1. **Clone this repository**
+2. **Setup environment (recommended):** From the repo root, use [just](https://github.com/casey/just) to populate `.env` files from a single secrets location:
+   ```bash
+   brew install just   # or: cargo install just
+   just secrets-template   # creates ~/.secrets/sorami/.env.template
+   # Copy to ~/.secrets/sorami/.env and fill in your keys (Clerk, DB, API keys)
+   just init            # generates .env for lang-portal, agent, frontend, etc.
+   just doctor          # verify dependencies (go, bun, docker)
+   ```
+3. **Run lang-portal:** From `lang-portal/` run `just docker-up`, `just db-setup`, then `just dev-backend` and `just dev-frontend` (in separate terminals).
+4. Follow the setup instructions in each project's individual README.
+5. Most projects can be run using Docker Compose with the provided configuration files.
+
+### Secrets and environment
+
+- **Single source of truth:** Store all secrets in `~/.secrets/sorami/.env`. Run `just init` from the repo root to generate service-specific `.env` files (and to resolve port conflicts).
+- **Fallback:** If `~/.secrets/sorami/.env` does not exist, `just init` copies each `.env.example` into `.env`; you can then edit them manually.
 
 ## Technologies
 
