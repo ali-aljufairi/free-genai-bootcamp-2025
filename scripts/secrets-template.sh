@@ -16,6 +16,11 @@ DB_USER=sorami_user
 DB_PASSWORD=your_secure_password
 DB_NAME=sorami
 
+# === DOCKER POSTGRES (defaults to DB_* above) ===
+POSTGRES_USER=sorami_user
+POSTGRES_PASSWORD=your_secure_password
+POSTGRES_DB=sorami
+
 # === CLERK AUTHENTICATION ===
 CLERK_ISSUER=https://your-clerk-domain.clerk.accounts.dev
 CLERK_JWKS_URL=https://your-clerk-domain.clerk.accounts.dev/.well-known/jwks.json
