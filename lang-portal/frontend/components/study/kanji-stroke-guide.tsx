@@ -79,17 +79,19 @@ export function KanjiStrokeGuide({ svgData, strokeCount, onStrokeComplete, showG
             svgElement.setAttribute('preserveAspectRatio', 'xMidYMid meet')
             svgElement.setAttribute('style', 'display: block;')
 
-            const svgClone = svgElement.cloneNode(true) as SVGSVGElement
-            const clonePaths = Array.from(svgClone.querySelectorAll('path'))
+            const originalPaths = Array.from(svgElement.querySelectorAll('path'))
 
-            if (clonePaths.length === 0) {
+            if (originalPaths.length === 0) {
                 console.warn('No path elements found in SVG, but SVG data exists:', svgData.substring(0, 100))
                 setStrokeSvgs([])
                 return
             }
 
             const svgs: string[] = []
-            for (let strokeIndex = 0; strokeIndex < clonePaths.length; strokeIndex += 1) {
+            for (let strokeIndex = 0; strokeIndex < originalPaths.length; strokeIndex += 1) {
+                const clonedSvg = svgElement.cloneNode(true) as SVGSVGElement
+                const clonePaths = Array.from(clonedSvg.querySelectorAll('path'))
+
                 clonePaths.forEach((path, index) => {
                     if (index <= strokeIndex) {
                         if (index === strokeIndex) {
@@ -105,7 +107,7 @@ export function KanjiStrokeGuide({ svgData, strokeCount, onStrokeComplete, showG
                         path.setAttribute('opacity', '0')
                     }
                 })
-                svgs.push(svgClone.outerHTML)
+                svgs.push(clonedSvg.outerHTML)
             }
 
             setStrokeSvgs(svgs)

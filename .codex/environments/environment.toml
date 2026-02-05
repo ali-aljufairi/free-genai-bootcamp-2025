@@ -3,4 +3,7 @@ version = 1
 name = "free-genai-bootcamp-2025"
 
 [setup]
-script = "just agent"
+script = '''
+just init
+just agent
+'''
