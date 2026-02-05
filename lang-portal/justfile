@@ -47,8 +47,26 @@ clean:
 
 # === DATABASE - DOCKER ===
 
+# Ensure DB_PORT is free; auto-bump in .env and update DATABASE_URL if present
+[private]
+ensure-db-port:
+    @test -f .env || (echo ".env not found. Run 'just init' from repo root." && exit 1)
+    @DB_PORT_VALUE=$${DB_PORT:-}; \
+      if [ -z "$$DB_PORT_VALUE" ]; then \
+          DB_PORT_VALUE=$$(grep -E '^DB_PORT=' .env | tail -n1 | cut -d= -f2-); \
+      fi; \
+      if [ -z "$$DB_PORT_VALUE" ]; then DB_PORT_VALUE=5432; fi; \
+      if lsof -i:"$$DB_PORT_VALUE" >/dev/null 2>&1; then \
+          NEW_DB_PORT=$$(bash "{{ justfile_directory() }}/../scripts/find-free-port.sh" "$$DB_PORT_VALUE"); \
+          if [ "$$NEW_DB_PORT" != "$$DB_PORT_VALUE" ]; then \
+              echo "DB_PORT $$DB_PORT_VALUE is busy; switching to $$NEW_DB_PORT"; \
+              bash "{{ justfile_directory() }}/../scripts/update-db-port.sh" .env "$$NEW_DB_PORT"; \
+          fi; \
+      fi
+
 # Start PostgreSQL database container
 docker-up:
+    @just ensure-db-port
     @echo "Starting PostgreSQL database..."
     @test -f Database/docker-compose.yml || (echo "Database/docker-compose.yml not found" && exit 1)
     @command -v docker >/dev/null 2>&1 || (echo "Docker not found." && exit 1)
@@ -65,6 +83,7 @@ docker-down:
 
 # Reset database (remove volumes, restart)
 db-reset: docker-down
+    @just ensure-db-port
     @if [ -f .env ]; then cd Database && docker compose --env-file ../.env down -v && docker compose --env-file ../.env up -d; else cd Database && docker compose down -v && docker compose up -d; fi
     @echo "Waiting for database to be ready..."
     @sleep 8
@@ -96,8 +115,14 @@ db-seed: db-seed-ndjson
 
 db-seed-ndjson:
     @echo "Seeding database with NDJSON files..."
-    @test -n "$${SEED_BUNDLE_PATH:-}" || (echo "SEED_BUNDLE_PATH is required (path to data/cleaned_json/db)" && exit 1)
-    go run ./cmd/seed -path "$$SEED_BUNDLE_PATH"
+    @SEED_PATH="$${SEED_BUNDLE_PATH:-{{ justfile_directory() }}/data/cleaned_json/db}"; \
+      if [ ! -d "$$SEED_PATH" ]; then \
+          echo "Seed path not found: $$SEED_PATH"; \
+          echo "Set SEED_BUNDLE_PATH to override."; \
+          exit 1; \
+      fi; \
+      echo "Using seed path: $$SEED_PATH"; \
+      go run ./cmd/seed -path "$$SEED_PATH"
 
 # === DATABASE - FULL SETUP ===
 

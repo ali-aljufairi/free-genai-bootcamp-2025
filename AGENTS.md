@@ -2,13 +2,8 @@
 
 ## 🚨 IMPORTANT: Production-Grade Application Guidelines
 
-**ALWAYS CONSULT** with the project maintainer before making ANY changes. This is a **production application** (https://sorami.aljufairi.org/) serving real users.
-
-**CRITICAL REQUIREMENTS:**
-
 - Follow production-grade code practices and patterns
 - Maintain code quality, security, and performance standards
-- Test thoroughly before suggesting changes
 - Respect existing architectural decisions and patterns
 - **NEVER suggest quick fixes or temporary solutions**
 - **ALWAYS understand the existing database schema before proposing changes**
@@ -23,21 +18,14 @@ Sorami is a **production-grade microservices platform** for Japanese language le
 
 ### Core Components
 
-- **lang-portal**: Central Go+Next.js web application with SQLite→PostgreSQL migration in progress
+- **lang-portal**: Central Go+Next.js web application with PostgreSQL (migration complete)
 - **agent**: AI shopping/search assistant using LangGraph and Groq LLM
 - **listening-comp**: JLPT audio comprehension using RAG
 - **quiz-gen**: AI-powered quiz generation for language tests
 - **vocab-importer**: Vocabulary extraction and management
 - **writing-practice**: Handwriting OCR with AI feedback
-- **Database**: Comprehensive PostgreSQL schema for Japanese learning (migration from SQLite ongoing)
+- **Database**: Comprehensive PostgreSQL schema for Japanese learning (SQLite migration complete)
 
-## Technology Patterns
-
-### Build Systems
-
-- **Go services**: Use `make` commands (`make build`, `make run`, `make watch`, `make docker-run`)
-- **Python services**: Use `uv` package manager with `pyproject.toml` configuration
-- **Frontend**: Next.js 15 with TypeScript, Tailwind CSS, and Radix UI
 
 ### UI/UX Design Patterns 🎨
 
@@ -56,28 +44,10 @@ Sorami is a **production-grade microservices platform** for Japanese language le
 - **Python services**: Shared `auth.py` pattern with `verify_bearer()` function
 - **Environment Security**: Always use `.env` files, never hardcode secrets
 
-### Database Migration Status 🚧
 
-- **ONGOING MIGRATION**: SQLite → PostgreSQL for production scalability
-- **Current State**: Mixed environment (SQLite for dev, PostgreSQL for production)
-- **Critical**: Always check current migration status before database changes
-- **Schema Location**: `Database/` directory contains comprehensive PostgreSQL schema
-- **Database Design Philosophy**: The maintainer has put significant thought and effort into the database design with careful attention to:
 
-## Development Workflows
 
-### Starting Services
 
-```bash
-# Go service (lang-portal)
-make run              # Starts backend + frontend dev servers
-make docker-run       # Full Docker Compose setup
-# Note: Uses Air for hot reloading - no manual rebuilds needed
-
-# Python services
-uv run fastapi dev api.py     # FastAPI development
-uv run streamlit run main.py  # Streamlit interface
-```
 
 ### Key Service Endpoints
 
@@ -85,76 +55,11 @@ uv run streamlit run main.py  # Streamlit interface
 - Services integrate with lang-portal via shared authentication
 - Docker Compose configurations include health checks and service dependencies
 
-## AI/LLM Integration Patterns
-
-### Common Libraries
-
-- **LangChain/LangGraph**: Agent frameworks (see `agent/graph.py`)
-- **Groq API**: Primary LLM provider for most services
-- **Pydantic models**: Data validation in `models/schemas.py` files
-
-### Service Communication
-
-- Services communicate via HTTP APIs with JWT authentication
-- Shared data through SQLite (`words.db`) and PostgreSQL databases
-- Integration points documented in individual service READMs
-
-## AI Agent Tools & Capabilities 🤖
-
-Sorami development leverages advanced AI agent tools for database management, web automation, and intelligent code assistance. These tools enable sophisticated analysis, testing, and development workflows.
-
-### PostgreSQL Database Tools 🗄️
-
-The following PostgreSQL analysis and management tools are available for database operations:
-
-- **analyze_db_health**: Analyzes database health including indexes, connections, vacuum status, sequences, and replication
-- **analyze_query_indexes**: Analyzes SQL queries and recommends optimal indexes for performance
-- **analyze_workload_indexes**: Analyzes frequently executed queries across the database and suggests indexes
-- **execute_sql**: Execute any SQL query for database operations and data retrieval
-- **explain_query**: Explains query execution plans with cost estimates and optimization analysis
-- **get_object_details**: Shows detailed information about database objects (tables, views, sequences, extensions)
-- **get_top_queries**: Reports slowest or most resource-intensive queries using pg_stat_statements
-- **list_objects**: List objects in database schemas (tables, views, sequences, extensions)
-- **list_schemas**: List all schemas in the database
-
-### Playwright Web Automation Tools 🌐
-
-Comprehensive browser automation capabilities for testing, scraping, and web interaction:
-
-- **Browser Navigation**: `navigate`, `navigate_back`, `tabs` management
-- **User Interactions**: `click`, `type`, `fill_form`, `select_option`, `hover`, `press_key`
-- **Visual Analysis**: `take_screenshot`, `snapshot` (accessibility), `detect` objects
-- **Content Analysis**: `ocr` text recognition, `find` objects by description
-- **Advanced Interactions**: `drag`, `file_upload`, `handle_dialog`, `evaluate` JavaScript
-- **Network Monitoring**: `network_requests`, `console_messages`, `wait_for` conditions
-- **Browser Management**: `resize`, `install`, `close`
-
-
-### Git & Repository Tools 📚
-
-Version control and repository management:
-
-- **Git Operations**: `add_or_commit`, `push`, `stash`, `checkout`, `branch` management
-- **Code Analysis**: `blame`, `log_or_diff`, `worktree` management
-- **Issue Management**: Create/review comments, get issue details, search assigned issues
-- **Pull Request Tools**: Create reviews, get comments, manage PR workflows
-
-### Additional Development Tools 🛠️
-
-- **Code Search**: `grep_search`, `semantic_search`, `list_code_usages`
-- **File Management**: Create, read, edit files with intelligent context awareness
-- **Terminal Operations**: Execute commands with background process support
-- **Testing**: Run unit tests with coverage analysis
-- **Documentation**: Access comprehensive VS Code API documentation and library docs
-
-These tools enable AI agents to perform sophisticated development tasks including database optimization, automated testing, web scraping, image processing, and comprehensive code analysis while maintaining production-grade standards.
-
 ### Code Quality Standards
 
 - **Production-Grade Only**: Follow enterprise-level coding patterns
 - **Error Handling**: Comprehensive error handling with Sentry integration
 - **Type Safety**: Use TypeScript for frontend, proper Go typing, Pydantic for Python
-- **Code Reviews**: All changes require maintainer approval before implementation
 
 ### File Structure
 
@@ -204,5 +109,5 @@ When working on this codebase, prioritize understanding the **service boundaries
 
 ### Working with Database
 
-- **Always request table structures** before proposing schema changes
-- **Use existing progress tracking tables** rather than creating new ones
+- Database are found in lang-portal/internal/database/migrations 
+- You never edit migration you just add new one 
