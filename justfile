@@ -49,26 +49,41 @@ agent:
         mkdir -p "$LOG_DIR"; \
         echo "No interactive TTY detected; starting dev servers in background."; \
         echo "Logs: $LOG_DIR/dev-backend.log, $LOG_DIR/dev-frontend.log"; \
-        nohup bash -lc "cd '{{ justfile_directory() }}/lang-portal' && just dev-backend" > "$LOG_DIR/dev-backend.log" 2>&1 & \
-          echo $$! > "$LOG_DIR/dev-backend.pid"; \
-        nohup bash -lc "cd '{{ justfile_directory() }}/lang-portal' && just dev-frontend" > "$LOG_DIR/dev-frontend.log" 2>&1 & \
-          echo $$! > "$LOG_DIR/dev-frontend.pid"; \
-        exit 0; \
-    fi
-    @if ! command -v tmux >/dev/null 2>&1; then \
-        echo "tmux not found. Install tmux or tell me to use another method."; \
-        exit 1; \
-    fi
-    @if [ -n "${TMUX:-}" ]; then \
-        tmux rename-window "sorami-agent"; \
-        tmux split-window -h "cd '{{ justfile_directory() }}/lang-portal' && just dev-backend"; \
-        tmux split-window -v "cd '{{ justfile_directory() }}/lang-portal' && just dev-frontend"; \
-        tmux select-layout tiled; \
+        start_bg() { \
+            name="$$1"; cmd="$$2"; \
+            pidfile="$$LOG_DIR/dev-$$name.pid"; logfile="$$LOG_DIR/dev-$$name.log"; \
+            if [ -f "$$pidfile" ] && kill -0 "$$(cat "$$pidfile")" >/dev/null 2>&1; then \
+                echo "$$name already running (pid $$(cat "$$pidfile"))"; \
+                return 0; \
+            fi; \
+            nohup bash -lc "$$cmd" > "$$logfile" 2>&1 & echo $$! > "$$pidfile"; \
+        }; \
+        start_bg backend "cd '{{ justfile_directory() }}/lang-portal' && just dev-backend"; \
+        start_bg frontend "cd '{{ justfile_directory() }}/lang-portal' && just dev-frontend"; \
     else \
-        tmux new-session -d -s sorami-agent -n sorami-agent "cd '{{ justfile_directory() }}/lang-portal' && just dev-backend"; \
-        tmux split-window -v "cd '{{ justfile_directory() }}/lang-portal' && just dev-frontend"; \
-        tmux select-layout tiled; \
-        tmux attach -t sorami-agent; \
+        if ! command -v tmux >/dev/null 2>&1; then \
+            echo "tmux not found. Install tmux or tell me to use another method."; \
+            exit 1; \
+        fi; \
+        if tmux has-session -t sorami-agent 2>/dev/null; then \
+            if [ -n "${TMUX:-}" ]; then \
+                tmux switch-client -t sorami-agent 2>/dev/null || true; \
+            else \
+                tmux attach -t sorami-agent; \
+            fi; \
+        else \
+            if [ -n "${TMUX:-}" ]; then \
+                tmux rename-window "sorami-agent"; \
+                tmux split-window -h "cd '{{ justfile_directory() }}/lang-portal' && just dev-backend"; \
+                tmux split-window -v "cd '{{ justfile_directory() }}/lang-portal' && just dev-frontend"; \
+                tmux select-layout tiled; \
+            else \
+                tmux new-session -d -s sorami-agent -n sorami-agent "cd '{{ justfile_directory() }}/lang-portal' && just dev-backend"; \
+                tmux split-window -v "cd '{{ justfile_directory() }}/lang-portal' && just dev-frontend"; \
+                tmux select-layout tiled; \
+                tmux attach -t sorami-agent; \
+            fi; \
+        fi; \
     fi
 
 # Find a free port starting from base (for use in scripts)
