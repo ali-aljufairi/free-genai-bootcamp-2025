@@ -46,10 +46,14 @@ export function DrawingStudy() {
     const [kanji, setKanji] = useState<Kanji | null>(null)
     const [feedback, setFeedback] = useState<string>('')
     const [isEraseMode, setIsEraseMode] = useState(false)
+    const [isDrawing, setIsDrawing] = useState(false)
     const [studyMode, setStudyMode] = useState<'word' | 'sentence' | 'kanji'>('kanji')
     const [isLoading, setIsLoading] = useState(false)
     const [showKanjiGuide, setShowKanjiGuide] = useState(true)
     const canvasRef = useRef<ReactSketchCanvasRef | null>(null)
+
+    const handlePointerDown = useCallback(() => setIsDrawing(true), [])
+    const handlePointerUp = useCallback(() => setIsDrawing(false), [])
 
     const fetchRandomWord = useCallback(async () => {
         try {
@@ -266,6 +270,7 @@ export function DrawingStudy() {
                                         strokeCount={kanji.stroke_count}
                                         showGuide={showKanjiGuide}
                                         onToggleGuide={setShowKanjiGuide}
+                                        isDrawing={isDrawing}
                                     />
                                 </div>
                             )}
@@ -281,16 +286,23 @@ export function DrawingStudy() {
                             </h3>
                             <p className="text-sm text-muted-foreground">Use your mouse or touch to draw</p>
                         </div>
-                        <div className="w-full h-[400px] border-2 border-dashed border-blue-300 dark:border-blue-700 rounded-lg overflow-hidden bg-gradient-to-br from-blue-50/50 to-indigo-50/50 dark:from-gray-900 dark:to-gray-950 relative shadow-inner">
+                        <div
+                            className="w-full h-[400px] border-2 border-dashed border-blue-300 dark:border-blue-700 rounded-lg overflow-hidden bg-gradient-to-br from-blue-50/50 to-indigo-50/50 dark:from-gray-900 dark:to-gray-950 relative shadow-inner touch-none"
+                            onPointerDown={handlePointerDown}
+                            onPointerUp={handlePointerUp}
+                            onPointerLeave={handlePointerUp}
+                            onPointerCancel={handlePointerUp}
+                        >
                             <div className="absolute inset-0 bg-[linear-gradient(to_right,#e5e7eb_1px,transparent_1px),linear-gradient(to_bottom,#e5e7eb_1px,transparent_1px)] bg-[size:20px_20px] opacity-20 dark:opacity-10 pointer-events-none" />
                             <ReactSketchCanvas
                                 ref={canvasRef}
                                 strokeWidth={4}
                                 strokeColor="#3b82f6"
                                 canvasColor="transparent"
-                                className="w-full h-full relative z-10"
+                                className="w-full h-full relative z-10 touch-none"
                                 style={{
                                     border: 'none',
+                                    touchAction: 'none',
                                 }}
                             />
                             {!canvasRef.current && (
