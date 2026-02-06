@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react"
 import { usePathname } from "next/navigation"
+import { useSubscription } from "@/components/subscription/subscription-gate"
 
 const TOUR_CONTINUE_KEY = 'sorami-tour-continue'
 
@@ -84,6 +85,7 @@ function waitForTourElements(pathname: string): Promise<boolean> {
 
 export function useTourContinuation() {
   const pathname = usePathname()
+  const { isLoaded: subscriptionLoaded, hasActiveSubscription } = useSubscription()
   const hasContinuedRef = useRef<string | null>(null)
   const observerRef = useRef<MutationObserver | null>(null)
 
@@ -93,6 +95,11 @@ export function useTourContinuation() {
     // Check if tour should continue on this page
     const shouldContinue = localStorage.getItem(TOUR_CONTINUE_KEY)
     console.log('[Tour] Hook running - pathname:', pathname, 'shouldContinue:', shouldContinue, 'hasContinued:', hasContinuedRef.current)
+
+    // Ensure subscription state is ready before deciding whether paywall steps should appear.
+    if (!subscriptionLoaded) {
+      return
+    }
     
     // Only proceed if:
     // 1. There's a continue flag set
@@ -125,7 +132,9 @@ export function useTourContinuation() {
           const { startTourFromPage } = await import('@/components/common/tour-guide')
           
           // Call without router/startTransition - it will use window.location if needed
-          await startTourFromPage(pathname)
+          await startTourFromPage(pathname, undefined, undefined, {
+            hasActiveSubscription,
+          })
           
           // Clear the flag only after tour successfully starts
           localStorage.removeItem(TOUR_CONTINUE_KEY)
@@ -152,7 +161,7 @@ export function useTourContinuation() {
         observerRef.current = null
       }
     }
-  }, [pathname])
+  }, [pathname, subscriptionLoaded, hasActiveSubscription])
 }
 
 export function setTourContinue(pathname: string): void {

@@ -6,6 +6,7 @@ import { useUser } from "@clerk/nextjs"
 import { Button } from "@/components/ui/button"
 import { studyOptions } from "@/components/study-session/constants"
 import { setTourContinue } from "@/hooks/use-tour-continuation"
+import { useSubscription } from "@/components/subscription/subscription-gate"
 
 // Custom CSS to be injected for driver.js styling to match our site design
 const customStyles = `
@@ -317,6 +318,10 @@ let globalDriverRef: any = null
 let globalStyleElRef: HTMLStyleElement | null = null
 let isInitializing = false
 
+interface TourStartOptions {
+  hasActiveSubscription?: boolean
+}
+
 // Helper to wait for element to appear
 function waitForElement(selector: string, timeout = 5000): Promise<Element | null> {
   return new Promise((resolve) => {
@@ -347,8 +352,9 @@ function waitForElement(selector: string, timeout = 5000): Promise<Element | nul
 }
 
 // Initialize tour on a specific page (exported for use by tour continuation hook)
-export async function startTourFromPage(pathname: string, router?: any, startTransition?: any) {
+export async function startTourFromPage(pathname: string, router?: any, startTransition?: any, options?: TourStartOptions) {
   if (typeof window === 'undefined') return
+  const hasActiveSubscription = Boolean(options?.hasActiveSubscription)
   
   // Reset initialization flag if driver was destroyed (allows tour to continue on new page)
   if (!globalDriverRef && isInitializing) {
@@ -509,56 +515,11 @@ export async function startTourFromPage(pathname: string, router?: any, startTra
         }
       }
 
-      // Final step to navigate to pricing
-      studySteps.push({
-        popover: {
-          title: "Ready to Unlock All Features?",
-          description: "Subscribe to access all these amazing learning tools and more!",
-          onNextClick: () => {
-            console.log('[Tour] Navigating to pricing page')
-            if (globalDriverRef) {
-              globalDriverRef.destroy()
-              globalDriverRef = null
-            }
-            // Reset initialization flag to allow tour to continue on new page
-            isInitializing = false
-            // Set flag to continue tour on pricing page BEFORE navigation
-            setTourContinue('/pricing')
-            console.log('[Tour] Set continue flag for /pricing')
-            
-            // Navigate immediately - localStorage is synchronous
-            if (router && startTransition) {
-              startTransition(() => {
-                router.push("/pricing")
-              })
-            } else {
-              window.location.href = "/pricing"
-            }
-            return false
-          }
-        }
-      })
-
-      steps = studySteps
-    } else if (pathname === '/pricing') {
-      // Pricing page steps
-      steps = [
-        {
-          element: "#pricing-hero",
+      if (hasActiveSubscription) {
+        studySteps.push({
           popover: {
-            title: "Choose Your Plan",
-            description: "Select the perfect plan for your learning journey. All plans include access to our comprehensive learning tools.",
-            side: "bottom",
-            align: "center",
-          }
-        },
-        {
-          element: "#pricing-table-section",
-          popover: {
-            title: "Subscribe to Unlock Everything",
-            description: "Choose Basic for essential features or Pro for unlimited AI companion sessions and priority support. Start your subscription to begin learning!",
-            side: "top",
-            align: "center",
+            title: "You're All Set",
+            description: "You already have an active plan. Explore any study feature and start learning right away!",
             onNextClick: () => {
               if (globalDriverRef) {
                 globalDriverRef.destroy()
@@ -569,8 +530,92 @@ export async function startTourFromPage(pathname: string, router?: any, startTra
               return false
             }
           }
-        }
-      ]
+        })
+      } else {
+        // Final step to navigate to pricing for non-subscribed users
+        studySteps.push({
+          popover: {
+            title: "Ready to Unlock All Features?",
+            description: "Subscribe to access all these amazing learning tools and more!",
+            onNextClick: () => {
+              console.log('[Tour] Navigating to pricing page')
+              if (globalDriverRef) {
+                globalDriverRef.destroy()
+                globalDriverRef = null
+              }
+              // Reset initialization flag to allow tour to continue on new page
+              isInitializing = false
+              // Set flag to continue tour on pricing page BEFORE navigation
+              setTourContinue('/pricing')
+              console.log('[Tour] Set continue flag for /pricing')
+              
+              // Navigate immediately - localStorage is synchronous
+              if (router && startTransition) {
+                startTransition(() => {
+                  router.push("/pricing")
+                })
+              } else {
+                window.location.href = "/pricing"
+              }
+              return false
+            }
+          }
+        })
+      }
+
+      steps = studySteps
+    } else if (pathname === '/pricing') {
+      // Pricing page steps
+      steps = hasActiveSubscription
+        ? [
+            {
+              element: "#pricing-hero",
+              popover: {
+                title: "Subscription Overview",
+                description: "Your active plan is detected. You can review options here whenever you want to upgrade or switch.",
+                side: "bottom",
+                align: "center",
+                onNextClick: () => {
+                  if (globalDriverRef) {
+                    globalDriverRef.destroy()
+                    globalDriverRef = null
+                  }
+                  markTourCompleted()
+                  clearTourProgress()
+                  return false
+                }
+              }
+            }
+          ]
+        : [
+            {
+              element: "#pricing-hero",
+              popover: {
+                title: "Choose Your Plan",
+                description: "Select the perfect plan for your learning journey. All plans include access to our comprehensive learning tools.",
+                side: "bottom",
+                align: "center",
+              }
+            },
+            {
+              element: "#pricing-table-section",
+              popover: {
+                title: "Subscribe to Unlock Everything",
+                description: "Choose Basic for essential features or Pro for unlimited AI companion sessions and priority support. Start your subscription to begin learning!",
+                side: "top",
+                align: "center",
+                onNextClick: () => {
+                  if (globalDriverRef) {
+                    globalDriverRef.destroy()
+                    globalDriverRef = null
+                  }
+                  markTourCompleted()
+                  clearTourProgress()
+                  return false
+                }
+              }
+            }
+          ]
     }
 
     // Wait for first element to be available (longer timeout for study page)
@@ -734,6 +779,7 @@ export async function startTourFromPage(pathname: string, router?: any, startTra
 export default function TourGuide() {
   const router = useRouter()
   const { isSignedIn } = useUser()
+  const { hasActiveSubscription } = useSubscription()
   const [isPending, startTransition] = useTransition()
   const [isLoading, setIsLoading] = useState(false)
   
@@ -758,10 +804,14 @@ export default function TourGuide() {
       })
       // Wait for navigation then start tour
       setTimeout(() => {
-        startTourFromPage('/', routerRef.current, startTransition)
+        startTourFromPage('/', routerRef.current, startTransition, {
+          hasActiveSubscription,
+        })
       }, 1000)
     } else {
-      await startTourFromPage('/', routerRef.current, startTransition)
+      await startTourFromPage('/', routerRef.current, startTransition, {
+        hasActiveSubscription,
+      })
     }
   }
 

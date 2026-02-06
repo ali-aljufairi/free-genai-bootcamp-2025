@@ -16,6 +16,37 @@ interface SubscriptionGateProps {
   fallback?: React.ReactNode
 }
 
+type NormalizedPlan = "basic" | "pro" | "free" | null
+
+function normalizeSubscriptionPlan(rawPlan: unknown): NormalizedPlan {
+  if (typeof rawPlan !== "string") {
+    return null
+  }
+
+  const normalized = rawPlan.toLowerCase()
+  if (normalized === "pro" || normalized === "basic" || normalized === "free") {
+    return normalized
+  }
+
+  return null
+}
+
+function resolveSubscriptionState(has: ReturnType<typeof useAuth>["has"], metadataPlan: NormalizedPlan) {
+  const hasBasicPlan = Boolean(has?.({ plan: "basic" }) || metadataPlan === "basic")
+  const hasProPlan = Boolean(has?.({ plan: "pro" }) || metadataPlan === "pro")
+  const hasFreePlan = Boolean(has?.({ plan: "free" }) || metadataPlan === "free")
+  const hasActiveSubscription = hasBasicPlan || hasProPlan
+  const plan: NormalizedPlan = hasProPlan ? "pro" : hasBasicPlan ? "basic" : hasFreePlan ? "free" : null
+
+  return {
+    hasActiveSubscription,
+    isPro: hasProPlan,
+    isBasic: hasBasicPlan,
+    isFree: hasFreePlan,
+    plan,
+  }
+}
+
 /**
  * SubscriptionGate - Protects content behind subscription requirement
  * 
@@ -33,14 +64,8 @@ export function SubscriptionGate({
   const router = useRouter()
 
   const isLoaded = authLoaded && userLoaded
-
-  // Check subscription using Clerk's has() method
-  // Only paid plans (basic, pro) are considered active for gating.
-  // The Clerk "free" plan is treated as non-paid and does not unlock features.
-  const hasBasicPlan = has?.({ plan: 'basic' }) ?? false
-  const hasProPlan = has?.({ plan: 'pro' }) ?? false
-  const hasFreePlan = has?.({ plan: 'free' }) ?? false
-  const hasActiveSubscription = hasBasicPlan || hasProPlan
+  const metadataPlan = normalizeSubscriptionPlan(user?.publicMetadata?.["subscription_plan"])
+  const { hasActiveSubscription } = resolveSubscriptionState(has, metadataPlan)
 
   // Show loading state
   if (!isLoaded && showLoading) {
@@ -123,23 +148,14 @@ export function SubscriptionGate({
  */
 export function useSubscription() {
   const { has, isLoaded: authLoaded } = useAuth()
-  const { isLoaded: userLoaded } = useUser()
+  const { user, isLoaded: userLoaded } = useUser()
 
   const isLoaded = authLoaded && userLoaded
-
-  // Use Clerk's has() method to check plans.
-  // Only basic/pro are treated as active paid subscriptions; free is informational only.
-  const hasBasicPlan = has?.({ plan: 'basic' }) ?? false
-  const hasProPlan = has?.({ plan: 'pro' }) ?? false
-  const hasFreePlan = has?.({ plan: 'free' }) ?? false
-  const hasActiveSubscription = hasBasicPlan || hasProPlan
+  const metadataPlan = normalizeSubscriptionPlan(user?.publicMetadata?.["subscription_plan"])
+  const subscriptionState = resolveSubscriptionState(has, metadataPlan)
 
   return {
     isLoaded,
-    hasActiveSubscription,
-    isPro: hasProPlan,
-    isBasic: hasBasicPlan,
-    isFree: hasFreePlan,
-    plan: hasProPlan ? 'pro' : hasBasicPlan ? 'basic' : hasFreePlan ? 'free' : null,
+    ...subscriptionState,
   }
 }
