@@ -1,8 +1,9 @@
 "use client"
 
+import Link from "next/link"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { BarChart3, Loader2 } from "lucide-react"
+import { BarChart3, Loader2, Sparkles } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -89,7 +90,45 @@ export default function AnalyticsLabPage() {
         </CardHeader>
 
         <CardContent className="space-y-6">
+          <section className="grid gap-3 md:grid-cols-3">
+            <div className="rounded-lg border border-border/70 bg-background/20 p-4">
+              <p className="text-xs text-muted-foreground">Current Streak</p>
+              <p className="mt-1 text-sm font-semibold">{insights.streak_health.current_streak_days} days</p>
+            </div>
+            <div className="rounded-lg border border-border/70 bg-background/20 p-4">
+              <p className="text-xs text-muted-foreground">Active Days (7d)</p>
+              <p className="mt-1 text-sm font-semibold">{insights.streak_health.active_days_last_7}</p>
+            </div>
+            <div className="rounded-lg border border-border/70 bg-background/20 p-4">
+              <p className="text-xs text-muted-foreground">Load Risk</p>
+              <p className="mt-1 text-sm font-semibold capitalize">{insights.burnout_risk.level}</p>
+            </div>
+          </section>
+
+          <Separator />
+
           <InsightWidgets insights={insights} />
+
+          <Separator />
+
+          <section className="rounded-lg border border-border/70 bg-background/20 p-4">
+            <p className="flex items-center gap-2 text-sm font-semibold">
+              <Sparkles className="h-4 w-4 text-emerald-400" />
+              Insight Actions
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Button size="sm" variant="outline" asChild>
+                <Link href="/dashboard/lab/mission">Open Mission</Link>
+              </Button>
+              <Button size="sm" variant="outline" asChild>
+                <Link href="/dashboard/lab/planner">Adjust Planner</Link>
+              </Button>
+              <Button size="sm" variant="outline" asChild>
+                <Link href="/study">Start Study Now</Link>
+              </Button>
+            </div>
+            <p className="mt-2 text-xs text-muted-foreground">{insights.burnout_risk.reason}</p>
+          </section>
 
           <Separator />
 
@@ -106,4 +145,3 @@ export default function AnalyticsLabPage() {
     </div>
   )
 }
-

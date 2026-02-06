@@ -76,6 +76,16 @@ export default function PlannerLabPage() {
     [rows],
   )
 
+  const totalActiveLoad = useMemo(
+    () => rows.filter((row) => row.is_active).reduce((sum, row) => sum + row.target_value, 0),
+    [rows],
+  )
+
+  const activeTitles = useMemo(
+    () => rows.filter((row) => row.is_active).map((row) => row.title),
+    [rows],
+  )
+
   const onChangeRow = (activityKey: string, patch: Partial<PlannerTaskRow>) => {
     setRows((currentRows) => currentRows.map((row) => {
       if (row.activity_key !== activityKey) {
@@ -100,6 +110,47 @@ export default function PlannerLabPage() {
         return { ...row, is_active: true, target_mode: "sessions", target_value: 1 }
       }
       return { ...row, is_active: false }
+    }))
+  }
+
+  const applyPreset = (preset: "light" | "balanced" | "intense") => {
+    setRows((currentRows) => currentRows.map((row) => {
+      if (row.activity_key === "kanji") {
+        return {
+          ...row,
+          is_active: true,
+          target_mode: "items",
+          target_value: preset === "light" ? 6 : preset === "balanced" ? 10 : 18,
+        }
+      }
+      if (row.activity_key === "vocabulary_review") {
+        return {
+          ...row,
+          is_active: true,
+          target_mode: "items",
+          target_value: preset === "light" ? 12 : preset === "balanced" ? 20 : 30,
+        }
+      }
+      if (row.activity_key === "speaking_conversation") {
+        return {
+          ...row,
+          is_active: true,
+          target_mode: "sessions",
+          target_value: preset === "intense" ? 2 : 1,
+        }
+      }
+      if (row.activity_key === "writing" || row.activity_key === "learning_resources") {
+        return {
+          ...row,
+          is_active: preset === "intense",
+          target_mode: "sessions",
+          target_value: 1,
+        }
+      }
+      return {
+        ...row,
+        is_active: false,
+      }
     }))
   }
 
@@ -176,17 +227,38 @@ export default function PlannerLabPage() {
         </CardHeader>
 
         <CardContent className="space-y-6">
+          <section className="grid gap-3 md:grid-cols-3">
+            <div className="rounded-lg border border-border/70 bg-background/20 p-4">
+              <p className="text-xs text-muted-foreground">Today Snapshot</p>
+              {today ? (
+                <p className="mt-1 text-sm font-semibold">
+                  {today.completed_tasks}/{today.total_tasks} tasks ({today.completion_percent}%)
+                </p>
+              ) : (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Mission snapshot unavailable
+                </p>
+              )}
+            </div>
+            <div className="rounded-lg border border-border/70 bg-background/20 p-4">
+              <p className="text-xs text-muted-foreground">Active Goals</p>
+              <p className="mt-1 text-sm font-semibold">{activeRowsCount}</p>
+            </div>
+            <div className="rounded-lg border border-border/70 bg-background/20 p-4">
+              <p className="text-xs text-muted-foreground">Total Planned Load</p>
+              <p className="mt-1 text-sm font-semibold">{totalActiveLoad}</p>
+            </div>
+          </section>
+
+          <Separator />
+
           <section className="rounded-lg border border-border/70 bg-background/20 p-4">
-            <p className="text-sm font-semibold">Today Snapshot</p>
-            {today ? (
-              <p className="mt-1 text-xs text-muted-foreground">
-                Completed {today.completed_tasks}/{today.total_tasks} tasks ({today.completion_percent}%).
-              </p>
-            ) : (
-              <p className="mt-1 text-xs text-muted-foreground">
-                Today&apos;s mission snapshot is temporarily unavailable.
-              </p>
-            )}
+            <p className="text-sm font-semibold">Quick Presets</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Button size="sm" variant="outline" onClick={() => applyPreset("light")}>Light Day</Button>
+              <Button size="sm" variant="outline" onClick={() => applyPreset("balanced")}>Balanced Day</Button>
+              <Button size="sm" variant="outline" onClick={() => applyPreset("intense")}>Intense Day</Button>
+            </div>
           </section>
 
           <Separator />
@@ -201,7 +273,25 @@ export default function PlannerLabPage() {
 
           <Separator />
 
-          <section className="rounded-lg border border-border/70 bg-background/20 p-4">
+          <section className="grid gap-3 md:grid-cols-2">
+            <div className="rounded-lg border border-border/70 bg-background/20 p-4">
+              <p className="text-sm font-semibold">Execution Order</p>
+              {activeTitles.length > 0 ? (
+                <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
+                  {activeTitles.slice(0, 5).map((title, index) => (
+                    <li key={title}>
+                      {index + 1}. <span className="font-medium text-foreground">{title}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Enable at least one goal to build your plan.
+                </p>
+              )}
+            </div>
+
+            <div className="rounded-lg border border-border/70 bg-background/20 p-4">
             <p className="flex items-center gap-2 text-sm font-semibold">
               <ListChecks className="h-4 w-4 text-blue-400" />
               Planner Notes
@@ -211,6 +301,7 @@ export default function PlannerLabPage() {
               <li>Use items for flashcard-heavy goals and sessions for conversation goals.</li>
               <li>Balanced Trio reset restores a simple default mission.</li>
             </ul>
+            </div>
           </section>
         </CardContent>
       </Card>

@@ -1,8 +1,9 @@
 "use client"
 
+import Link from "next/link"
 import { useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
-import { Compass, Loader2, Target } from "lucide-react"
+import { Compass, Flame, Loader2, Target } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -30,6 +31,13 @@ export default function MissionLabPage() {
       return []
     }
     return today.tasks.filter((task) => task.completed).map((task) => task.title)
+  }, [today])
+
+  const pendingCount = useMemo(() => {
+    if (!today) {
+      return 0
+    }
+    return today.tasks.filter((task) => !task.completed).length
   }, [today])
 
   const handleStartTask = (task: DailyMissionTask) => {
@@ -102,6 +110,33 @@ export default function MissionLabPage() {
         </CardHeader>
 
         <CardContent className="space-y-6">
+          <section className="grid gap-3 md:grid-cols-3">
+            <div className="rounded-lg border border-border/70 bg-background/20 p-4">
+              <p className="text-xs text-muted-foreground">Focus Now</p>
+              <p className="mt-1 text-sm font-semibold">{pendingCount} task(s) remaining</p>
+            </div>
+            <div className="rounded-lg border border-border/70 bg-background/20 p-4">
+              <p className="text-xs text-muted-foreground">Streak</p>
+              <p className="mt-1 flex items-center gap-1 text-sm font-semibold">
+                <Flame className="h-3.5 w-3.5 text-orange-400" />
+                {today.streak_days} day momentum
+              </p>
+            </div>
+            <div className="rounded-lg border border-border/70 bg-background/20 p-4">
+              <p className="text-xs text-muted-foreground">Fast Nav</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <Button size="sm" variant="outline" asChild>
+                  <Link href="/dashboard/lab/planner">Planner</Link>
+                </Button>
+                <Button size="sm" variant="outline" asChild>
+                  <Link href="/dashboard/lab/analytics">Insights</Link>
+                </Button>
+              </div>
+            </div>
+          </section>
+
+          <Separator />
+
           <NextBestAction action={today.next_recommended_action} onStartAction={handleStartAction} />
 
           <Separator />

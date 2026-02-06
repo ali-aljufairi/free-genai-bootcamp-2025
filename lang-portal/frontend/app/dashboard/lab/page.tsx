@@ -1,7 +1,15 @@
 "use client"
 
 import Link from "next/link"
-import { ArrowRight, FlaskConical, LayoutDashboard, LineChart, Settings2 } from "lucide-react"
+import {
+  ArrowRight,
+  BrainCircuit,
+  FlaskConical,
+  LayoutDashboard,
+  LineChart,
+  ListTodo,
+  Settings2,
+} from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -14,6 +22,49 @@ const variantLabels: Record<string, string> = {
   analytics: "Analytics-First",
 }
 
+const labRoutes = [
+  {
+    key: "mission",
+    title: "Mission-First",
+    href: "/dashboard/lab/mission",
+    description: "Clear mission tasks, fast start actions, and immediate next-step guidance.",
+    icon: LayoutDashboard,
+    isPersisted: true,
+  },
+  {
+    key: "planner",
+    title: "Planner Grid",
+    href: "/dashboard/lab/planner",
+    description: "Tune goal load by activity using sessions/items and preserve daily balance.",
+    icon: Settings2,
+    isPersisted: true,
+  },
+  {
+    key: "analytics",
+    title: "Analytics-First",
+    href: "/dashboard/lab/analytics",
+    description: "Start with trend signals, then convert insight into immediate actions.",
+    icon: LineChart,
+    isPersisted: true,
+  },
+  {
+    key: "action",
+    title: "Action Board",
+    href: "/dashboard/lab/action",
+    description: "A dense action console focused on quick execution and fallback moves.",
+    icon: ListTodo,
+    isPersisted: false,
+  },
+  {
+    key: "coach",
+    title: "Coach Panel",
+    href: "/dashboard/lab/coach",
+    description: "A motivational planning assistant with a daily diagnosis and playbook.",
+    icon: BrainCircuit,
+    isPersisted: false,
+  },
+]
+
 export default function DashboardLabSwitcherPage() {
   const { data: config } = useDailyMissionConfig()
   const { data: today } = useDailyMissionToday()
@@ -25,7 +76,7 @@ export default function DashboardLabSwitcherPage() {
       <div className="space-y-1">
         <h1 className="text-3xl font-bold tracking-tight">Dashboard Lab</h1>
         <p className="text-muted-foreground">
-          Compare three learner-first daily mission experiences before replacing the default dashboard.
+          Compare five learner-first daily dashboard experiences and choose what feels most motivating.
         </p>
       </div>
 
@@ -43,6 +94,7 @@ export default function DashboardLabSwitcherPage() {
           <div className="flex flex-wrap items-center gap-2 text-sm">
             <span className="text-muted-foreground">Current selected variant:</span>
             <Badge variant="outline">{activeVariantLabel}</Badge>
+            <Badge variant="secondary">3 persisted + 2 experimental routes</Badge>
             {today && (
               <Badge variant="secondary">
                 Today: {today.completed_tasks}/{today.total_tasks} tasks ({today.completion_percent}%)
@@ -52,54 +104,25 @@ export default function DashboardLabSwitcherPage() {
 
           <Separator />
 
-          <div className="space-y-3">
-            <div className="rounded-lg border border-border/70 bg-background/20 p-4">
-              <p className="flex items-center gap-2 text-sm font-semibold">
-                <LayoutDashboard className="h-4 w-4 text-blue-400" />
-                Mission-First
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Three clear tasks, quick start CTAs, and immediate "what to do next" guidance.
-              </p>
-              <Button className="mt-3" size="sm" asChild>
-                <Link href="/dashboard/lab/mission">
-                  Open Mission Variant
-                  <ArrowRight className="ml-2 h-3.5 w-3.5" />
-                </Link>
-              </Button>
-            </div>
-
-            <div className="rounded-lg border border-border/70 bg-background/20 p-4">
-              <p className="flex items-center gap-2 text-sm font-semibold">
-                <Settings2 className="h-4 w-4 text-indigo-400" />
-                Planner Grid
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Tune activity-specific goals by sessions/items and control total daily load.
-              </p>
-              <Button className="mt-3" size="sm" asChild>
-                <Link href="/dashboard/lab/planner">
-                  Open Planner Variant
-                  <ArrowRight className="ml-2 h-3.5 w-3.5" />
-                </Link>
-              </Button>
-            </div>
-
-            <div className="rounded-lg border border-border/70 bg-background/20 p-4">
-              <p className="flex items-center gap-2 text-sm font-semibold">
-                <LineChart className="h-4 w-4 text-emerald-400" />
-                Analytics-First
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Prioritizes completion trends, activity mix, and streak stability while keeping today&apos;s mission visible.
-              </p>
-              <Button className="mt-3" size="sm" asChild>
-                <Link href="/dashboard/lab/analytics">
-                  Open Analytics Variant
-                  <ArrowRight className="ml-2 h-3.5 w-3.5" />
-                </Link>
-              </Button>
-            </div>
+          <div className="grid gap-3 md:grid-cols-2">
+            {labRoutes.map((route) => (
+              <div key={route.key} className="rounded-lg border border-border/70 bg-background/20 p-4">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="flex items-center gap-2 text-sm font-semibold">
+                    <route.icon className="h-4 w-4 text-blue-400" />
+                    {route.title}
+                  </p>
+                  {!route.isPersisted && <Badge variant="outline">Experimental</Badge>}
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">{route.description}</p>
+                <Button className="mt-3" size="sm" asChild>
+                  <Link href={route.href}>
+                    Open {route.title}
+                    <ArrowRight className="ml-2 h-3.5 w-3.5" />
+                  </Link>
+                </Button>
+              </div>
+            ))}
           </div>
         </CardContent>
       </Card>

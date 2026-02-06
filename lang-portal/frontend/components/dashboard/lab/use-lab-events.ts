@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef } from "react"
 import { usePathname } from "next/navigation"
 import { useLogDailyMissionEvent } from "@/hooks/api/useDashboard"
-import { DailyMissionTask, DailyMissionToday, DailyMissionVariant } from "@/types/api"
+import { DailyMissionTask, DailyMissionToday } from "@/types/api"
 
 const LAST_VISIT_STORAGE_KEY = "daily_mission_lab_last_visit"
 const MISSION_COMPLETE_STORAGE_KEY = "daily_mission_lab_completed_date"
@@ -21,7 +21,7 @@ function dayDiff(fromDate: string, toDate: string): number {
   return Math.round((to.getTime() - from.getTime()) / 86400000)
 }
 
-export function useDailyMissionLabEvents(variant: DailyMissionVariant, today?: DailyMissionToday) {
+export function useDailyMissionLabEvents(variant: string, today?: DailyMissionToday) {
   const pathname = usePathname()
   const logEvent = useLogDailyMissionEvent()
   const hasOpenedRef = useRef(false)
@@ -105,4 +105,3 @@ export function useDailyMissionLabEvents(variant: DailyMissionVariant, today?: D
     logTaskStarted,
   }
 }
-
