@@ -13,12 +13,11 @@ interface MobileGrammarQuizProps {
     currentIndex: number
     totalQuestions: number
     selectedOption: number | null
-    isCorrect: boolean | null
     score: number
+    showExplanations: boolean
     timeRemaining?: number
     timerDuration?: number
     onOptionSelect: (index: number) => void
-    onExit: () => void
     onShowSettings?: () => void
     renderQuestion: (question: GrammarQuestion) => React.ReactNode
     renderOption: (option: string) => React.ReactNode
@@ -29,12 +28,11 @@ export function MobileGrammarQuiz({
     currentIndex,
     totalQuestions,
     selectedOption,
-    isCorrect,
     score,
+    showExplanations,
     timeRemaining,
     timerDuration,
     onOptionSelect,
-    onExit,
     onShowSettings,
     renderQuestion,
     renderOption
@@ -100,8 +98,8 @@ export function MobileGrammarQuiz({
                         >
                             {renderQuestion(question)}
 
-                            {/* Show explanation only if wrong answer */}
-                            {selectedOption !== null && !isCorrect && question.explanation && (
+                            {/* Show explanation after answer when enabled */}
+                            {selectedOption !== null && showExplanations && question.explanation && (
                                 <motion.div
                                     initial={{ opacity: 0, y: 10 }}
                                     animate={{ opacity: 1, y: 0 }}
@@ -126,7 +124,6 @@ export function MobileGrammarQuiz({
                     {question.answers.map((option, index) => {
                         const isCorrectAnswer = index === question.correct_index
                         const isSelectedWrong = selectedOption === index && !isCorrectAnswer
-                        const isUnselected = selectedOption !== null && selectedOption !== index && !isCorrectAnswer
 
                         return (
                             <motion.div
@@ -160,4 +157,3 @@ export function MobileGrammarQuiz({
         </div>
     )
 }
-

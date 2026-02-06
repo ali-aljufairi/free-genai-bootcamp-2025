@@ -17,12 +17,14 @@ export function GrammarQuizSettings() {
     questionType,
     useSRS,
     count,
+    showExplanations,
     requiredCorrectCount,
     timerDuration,
     setLevel,
     setQuestionType,
     setUseSRS,
     setCount,
+    setShowExplanations,
     setRequiredCorrectCount,
     setTimerDuration,
   } = useGrammarStore()
@@ -95,9 +97,20 @@ export function GrammarQuizSettings() {
               onCheckedChange={setUseSRS}
             />
           </div>
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label className="text-base">Show Explanations</Label>
+              <p className="text-sm text-muted-foreground">
+                Display grammar explanations after each answered question
+              </p>
+            </div>
+            <Switch
+              checked={showExplanations}
+              onCheckedChange={setShowExplanations}
+            />
+          </div>
         </div>
       </div>
     </div>
   )
 }
-
