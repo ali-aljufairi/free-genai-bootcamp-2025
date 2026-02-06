@@ -10,6 +10,8 @@ interface FlashcardQuestionCardProps {
     selectedOption: number | null
     isCorrect?: boolean | null
     explanation?: string | null
+    showExplanations?: boolean
+    showOnlyOnIncorrect?: boolean
     renderQuestion: (card: Flashcard) => React.ReactNode
     renderOption: (option: FlashcardContent) => React.ReactNode
     onOptionSelect: (index: number) => void
@@ -21,11 +23,19 @@ export function FlashcardQuestionCard({
     selectedOption,
     isCorrect,
     explanation,
+    showExplanations = true,
+    showOnlyOnIncorrect = true,
     renderQuestion,
     renderOption,
     onOptionSelect,
     isMobile = false
 }: FlashcardQuestionCardProps) {
+    const shouldShowExplanation =
+        selectedOption !== null &&
+        showExplanations &&
+        !!explanation &&
+        (!showOnlyOnIncorrect || isCorrect === false)
+
     if (isMobile) {
         return (
             <div className="flex-1 flex items-center justify-center px-4 py-4">
@@ -40,8 +50,8 @@ export function FlashcardQuestionCard({
                         >
                             {renderQuestion(card)}
 
-                            {/* Show explanation only if wrong answer */}
-                            {selectedOption !== null && isCorrect === false && explanation && (
+                            {/* Show explanation after answer when enabled */}
+                            {shouldShowExplanation && (
                                 <motion.div
                                     initial={{ opacity: 0, y: 10 }}
                                     animate={{ opacity: 1, y: 0 }}
@@ -77,8 +87,8 @@ export function FlashcardQuestionCard({
                     >
                         {renderQuestion(card)}
 
-                        {/* Show explanation only if wrong answer */}
-                        {selectedOption !== null && isCorrect === false && explanation && (
+                        {/* Show explanation after answer when enabled */}
+                        {shouldShowExplanation && (
                             <motion.div
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}

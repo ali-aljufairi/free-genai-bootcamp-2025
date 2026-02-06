@@ -21,7 +21,6 @@ import { MobileGrammarQuiz } from "./mobile/mobile-grammar-quiz"
 import { FlashcardSkeleton } from "./shared/flashcard-skeleton"
 import { ConfigSkeleton } from "./configs/config-skeleton"
 import { FlashcardQuestionCard } from "./shared/flashcard-question-card"
-import { FlashcardOptionList } from "./shared/flashcard-option-list"
 import { Button } from "@/components/ui/button"
 import { Settings, Clock } from "lucide-react"
 
@@ -53,9 +52,9 @@ export function GrammarQuiz() {
     const queryClient = useQueryClient()
     const globalJlptLevel = useUserSettingsStore((s) => s.currentJlptLevel)
     const {
-        level, questionType, useSRS, count, requiredCorrectCount, timerDuration,
+        level, questionType, useSRS, count, showExplanations, requiredCorrectCount, timerDuration,
         hasStarted, setHasStarted,
-        setLevel, setQuestionType, setUseSRS, setCount, setRequiredCorrectCount, setTimerDuration
+        setLevel, setQuestionType, setUseSRS, setCount, setShowExplanations, setRequiredCorrectCount, setTimerDuration
     } = store
 
     const effectiveLevel = level === 5 && globalJlptLevel ? globalJlptLevel : level
@@ -386,6 +385,7 @@ export function GrammarQuiz() {
                     questionType,
                     useSRS,
                     count,
+                    showExplanations,
                     requiredCorrectCount,
                     timerDuration
                 }}
@@ -393,6 +393,7 @@ export function GrammarQuiz() {
                 onQuestionTypeChange={setQuestionType}
                 onUseSRSChange={setUseSRS}
                 onCountChange={setCount}
+                onShowExplanationsChange={setShowExplanations}
                 onThresholdChange={setRequiredCorrectCount}
                 onTimerChange={setTimerDuration}
                 onStart={startSession}
@@ -462,15 +463,14 @@ export function GrammarQuiz() {
                 currentIndex={currentIndex}
                 totalQuestions={questions.length}
                 selectedOption={selectedOption}
-                isCorrect={isCorrect}
                 score={score}
                 timeRemaining={timeRemaining}
                 timerDuration={timerDuration}
                 onOptionSelect={handleOptionSelect}
-                onExit={() => setShowConfig(true)}
                 onShowSettings={() => setShowConfig(true)}
                 renderQuestion={renderGrammarQuestion}
                 renderOption={renderGrammarOption}
+                showExplanations={showExplanations}
             />
         )
     }
@@ -531,6 +531,8 @@ export function GrammarQuiz() {
                     selectedOption={selectedOption}
                     isCorrect={isCorrect}
                     explanation={currentQuestion?.explanation}
+                    showExplanations={showExplanations}
+                    showOnlyOnIncorrect={false}
                     renderQuestion={(card) => {
                         const q = questions.find(q => q.id === card.id) || currentQuestion
                         return renderGrammarQuestion(q)

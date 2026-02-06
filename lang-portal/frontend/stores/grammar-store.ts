@@ -8,6 +8,7 @@ export interface GrammarPreferences {
   questionType: GrammarQuestionType
   useSRS: boolean // If true, only show questions that need review
   count: number
+  showExplanations: boolean
   
   // SRS Control
   requiredCorrectCount: number
@@ -23,6 +24,7 @@ interface GrammarStore extends GrammarPreferences {
   setQuestionType: (type: GrammarQuestionType) => void
   setUseSRS: (useSRS: boolean) => void
   setCount: (count: number) => void
+  setShowExplanations: (showExplanations: boolean) => void
   setRequiredCorrectCount: (count: number) => void
   setTimerDuration: (duration: number) => void
   setHasStarted: (hasStarted: boolean) => void
@@ -36,6 +38,7 @@ const defaultPreferences: GrammarPreferences = {
   questionType: 'all',
   useSRS: false,
   count: 10,
+  showExplanations: true,
   requiredCorrectCount: 3,
   timerDuration: 0, // 0 = off, 10/15/20/30 = seconds
 }
@@ -50,6 +53,7 @@ export const useGrammarStore = create<GrammarStore>()(
       setQuestionType: (questionType) => set({ questionType }),
       setUseSRS: (useSRS) => set({ useSRS }),
       setCount: (count) => set({ count }),
+      setShowExplanations: (showExplanations) => set({ showExplanations }),
       setRequiredCorrectCount: (requiredCorrectCount) => set({ requiredCorrectCount }),
       setTimerDuration: (timerDuration) => set({ timerDuration }),
       setHasStarted: (hasStarted) => set({ hasStarted }),
