@@ -25,27 +25,6 @@ import { FlashcardOptionList } from "./shared/flashcard-option-list"
 import { Button } from "@/components/ui/button"
 import { Settings, Clock } from "lucide-react"
 
-const defaultGrammarPreferences = {
-    level: 5,
-    questionType: 'all' as const,
-    useSRS: false,
-    count: 10,
-    requiredCorrectCount: 3,
-    timerDuration: 0,
-}
-
-// Check if preferences differ from defaults (user has configured)
-function hasConfiguredGrammarPreferences(prefs: typeof defaultGrammarPreferences): boolean {
-    return (
-        prefs.level !== defaultGrammarPreferences.level ||
-        prefs.questionType !== defaultGrammarPreferences.questionType ||
-        prefs.useSRS !== defaultGrammarPreferences.useSRS ||
-        prefs.count !== defaultGrammarPreferences.count ||
-        prefs.requiredCorrectCount !== defaultGrammarPreferences.requiredCorrectCount ||
-        prefs.timerDuration !== defaultGrammarPreferences.timerDuration
-    )
-}
-
 export function GrammarQuiz() {
     const isMobile = useIsMobile()
 
@@ -75,24 +54,23 @@ export function GrammarQuiz() {
     const globalJlptLevel = useUserSettingsStore((s) => s.currentJlptLevel)
     const {
         level, questionType, useSRS, count, requiredCorrectCount, timerDuration,
+        hasStarted, setHasStarted,
         setLevel, setQuestionType, setUseSRS, setCount, setRequiredCorrectCount, setTimerDuration
     } = store
 
     const effectiveLevel = level === 5 && globalJlptLevel ? globalJlptLevel : level
 
-    // Auto-start if user has configured preferences, otherwise show config
+    // Show settings on first use; auto-start on subsequent visits
     useEffect(() => {
         if (!hasAutoStarted) {
-            const prefs = { level, questionType, useSRS, count, requiredCorrectCount, timerDuration }
-            if (hasConfiguredGrammarPreferences(prefs)) {
-                // User has configured preferences - auto-start
+            if (hasStarted) {
                 setHasAutoStarted(true)
                 startSession()
-            } else {
-                // First time or default preferences - show config
-                setShowConfig(true)
-                setHasAutoStarted(true)
+                return
             }
+
+            setShowConfig(true)
+            setHasAutoStarted(true)
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
@@ -148,6 +126,7 @@ export function GrammarQuiz() {
             setScore(0)
             setShowConfig(false)
             setShowResults(false)
+            setHasStarted(true)
         },
         onError: (error) => {
             alert("Failed to start quiz. Please try again.")
@@ -252,6 +231,7 @@ export function GrammarQuiz() {
             setScore(0)
             setShowConfig(false)
             setShowResults(false)
+            setHasStarted(true)
             return
         }
 
@@ -566,4 +546,3 @@ export function GrammarQuiz() {
         </div>
     )
 }
-

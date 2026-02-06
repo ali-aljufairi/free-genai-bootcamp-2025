@@ -17,6 +17,7 @@ export interface GrammarPreferences {
 }
 
 interface GrammarStore extends GrammarPreferences {
+  hasStarted: boolean
   // Actions
   setLevel: (level: number) => void
   setQuestionType: (type: GrammarQuestionType) => void
@@ -24,6 +25,7 @@ interface GrammarStore extends GrammarPreferences {
   setCount: (count: number) => void
   setRequiredCorrectCount: (count: number) => void
   setTimerDuration: (duration: number) => void
+  setHasStarted: (hasStarted: boolean) => void
   
   // Reset
   resetToDefaults: () => void
@@ -42,6 +44,7 @@ export const useGrammarStore = create<GrammarStore>()(
   persist(
     (set) => ({
       ...defaultPreferences,
+      hasStarted: false,
       
       setLevel: (level) => set({ level }),
       setQuestionType: (questionType) => set({ questionType }),
@@ -49,8 +52,9 @@ export const useGrammarStore = create<GrammarStore>()(
       setCount: (count) => set({ count }),
       setRequiredCorrectCount: (requiredCorrectCount) => set({ requiredCorrectCount }),
       setTimerDuration: (timerDuration) => set({ timerDuration }),
+      setHasStarted: (hasStarted) => set({ hasStarted }),
       
-      resetToDefaults: () => set(defaultPreferences),
+      resetToDefaults: () => set((state) => ({ ...defaultPreferences, hasStarted: state.hasStarted })),
     }),
     {
       name: 'grammar-preferences',
@@ -58,4 +62,3 @@ export const useGrammarStore = create<GrammarStore>()(
     }
   )
 )
-
