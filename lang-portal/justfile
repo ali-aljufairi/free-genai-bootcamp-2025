@@ -3,6 +3,7 @@
 
 set dotenv-load
 set shell := ["bash", "-uc"]
+frontend_port := env('FRONTEND_PORT', '3000')
 
 # Default: list recipes
 default:
@@ -18,10 +19,10 @@ dev-backend:
 
 # Start frontend with bun dev
 dev-frontend:
-    @echo "Starting frontend with bun..."
-    @lsof -ti:3000 | xargs kill -9 2>/dev/null || true
+    @echo "Starting frontend with bun on port {{frontend_port}}..."
+    @lsof -ti:{{frontend_port}} | xargs kill -9 2>/dev/null || true
     @command -v bun >/dev/null 2>&1 || (echo "bun not found. Install: https://bun.sh/" && exit 1)
-    cd frontend && bun run dev
+    cd frontend && PORT={{frontend_port}} bun run dev -- --port {{frontend_port}}
 
 # Start both backend and frontend (run in separate terminals or use tmux)
 dev:
