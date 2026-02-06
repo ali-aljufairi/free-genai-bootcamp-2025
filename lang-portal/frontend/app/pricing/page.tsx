@@ -12,6 +12,11 @@ import { useTourContinuation } from "@/hooks/use-tour-continuation"
 export default function PricingPage() {
     const [isVisible, setIsVisible] = useState(false)
     const { isLoaded, hasActiveSubscription, plan } = useSubscription()
+    const hasPaidPlan = isLoaded && hasActiveSubscription
+    const heroTitle = hasPaidPlan ? "Manage Your Plan" : "Choose Your Plan"
+    const heroDescription = hasPaidPlan
+        ? "Your subscription is active. Review available plans anytime if you want to switch or upgrade."
+        : "Unlock all AI-powered features and accelerate your Japanese learning journey"
     // Continue tour if needed
     useTourContinuation()
 
@@ -44,7 +49,7 @@ export default function PricingPage() {
                         transition={{ duration: 0.5, delay: 0.1 }}
                         className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight mb-4"
                     >
-                        Choose Your Plan
+                        {heroTitle}
                     </motion.h1>
 
                     <motion.p
@@ -53,11 +58,11 @@ export default function PricingPage() {
                         transition={{ duration: 0.5, delay: 0.2 }}
                         className="text-xl text-muted-foreground mb-6"
                     >
-                        Unlock all AI-powered features and accelerate your Japanese learning journey
+                        {heroDescription}
                     </motion.p>
 
                     {/* Active Subscription Badge */}
-                    {isLoaded && hasActiveSubscription && (
+                    {hasPaidPlan && (
                         <motion.div
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: isVisible ? 1 : 0, y: isVisible ? 0 : 20 }}
@@ -118,7 +123,7 @@ export default function PricingPage() {
                             }}
                         />
                         {/* Highlight active plan */}
-                        {isLoaded && hasActiveSubscription && (
+                        {hasPaidPlan && (
                             <div className="absolute top-4 right-4">
                                 <Badge className="bg-blue-300 hover:bg-blue-600">
                                     <Check className="h-3 w-3 mr-1" />
@@ -129,7 +134,7 @@ export default function PricingPage() {
                     </div>
                     <div className="text-center mt-6">
                         <p className="text-sm text-muted-foreground">
-                            By subscribing, you agree to our{" "}
+                            {hasPaidPlan ? "Plan changes are subject to our " : "By subscribing, you agree to our "}
                             <Link href="/terms" className="text-blue-600 dark:text-blue-400 hover:underline">
                                 Terms of Service
                             </Link>
@@ -146,4 +151,3 @@ export default function PricingPage() {
         </main>
     )
 }
-
