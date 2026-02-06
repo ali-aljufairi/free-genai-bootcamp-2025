@@ -8,6 +8,11 @@ import {
   RecentActivity,
   RecentActivitiesResponse,
   ActivityDatesResponse,
+  DailyMissionToday,
+  DailyMissionConfig,
+  UpdateDailyMissionConfigRequest,
+  CreateDailyMissionEventRequest,
+  DailyMissionInsights,
   WordsResponse,
   FlashcardConfig,
   FlashcardSession,
@@ -51,6 +56,16 @@ export function createApiService(client: ApiClient) {
     getActivityDates: () => client.get<ActivityDatesResponse>(endpoint('/dashboard/activity_dates')),
     getRecentActivities: (limit?: number) => 
       client.get<RecentActivitiesResponse>(endpoint(`/dashboard/recent_activities${limit ? `?limit=${limit}` : ''}`)),
+  };
+
+  const dailyMissionApi = {
+    getToday: () => client.get<DailyMissionToday>(endpoint('/daily-mission/today')),
+    getConfig: () => client.get<DailyMissionConfig>(endpoint('/daily-mission/config')),
+    updateConfig: (data: UpdateDailyMissionConfigRequest) =>
+      client.put<DailyMissionConfig>(endpoint('/daily-mission/config'), data),
+    createEvent: (data: CreateDailyMissionEventRequest) =>
+      client.post<{ id: number }>(endpoint('/daily-mission/events'), data),
+    getInsights: () => client.get<DailyMissionInsights>(endpoint('/daily-mission/insights')),
   };
 
   const studyActivityApi = {
@@ -283,6 +298,7 @@ export function createApiService(client: ApiClient) {
 
   return {
     dashboard: dashboardApi,
+    dailyMission: dailyMissionApi,
     studyActivity: studyActivityApi,
     word: wordApi,
     kanji: kanjiApi,
@@ -304,6 +320,7 @@ export { api };
 export default api;
 
 export const dashboardApi = api.dashboard;
+export const dailyMissionApi = api.dailyMission;
 export const studyActivityApi = api.studyActivity;
 export const wordApi = api.word;
 export const kanjiApi = api.kanji;

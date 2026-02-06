@@ -90,6 +90,56 @@ type UserProfile struct {
 	Subscription *Subscription `json:"subscription,omitempty"`
 }
 
+// DailyMissionConfig stores per-user dashboard lab preferences.
+type DailyMissionConfig struct {
+	UserID         int64     `json:"user_id" gorm:"primaryKey"`
+	ActiveVariant  string    `json:"active_variant" gorm:"default:'mission'"`
+	MotivationMode string    `json:"motivation_mode" gorm:"default:'consistency_small_wins'"`
+	CreatedAt      time.Time `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt      time.Time `json:"updated_at" gorm:"autoUpdateTime"`
+}
+
+// TableName specifies the table name for DailyMissionConfig.
+func (DailyMissionConfig) TableName() string {
+	return "daily_mission_configs"
+}
+
+// DailyMissionTask stores per-user daily mission targets.
+type DailyMissionTask struct {
+	ID           int64     `json:"id" gorm:"primaryKey;autoIncrement"`
+	UserID       int64     `json:"user_id" gorm:"index;not null"`
+	ActivityKey  string    `json:"activity_key" gorm:"not null"`
+	TargetMode   string    `json:"target_mode" gorm:"default:'sessions';not null"`
+	TargetValue  int       `json:"target_value" gorm:"default:1;not null"`
+	DisplayOrder int       `json:"display_order" gorm:"default:0;not null"`
+	IsActive     bool      `json:"is_active" gorm:"default:true;not null"`
+	CreatedAt    time.Time `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt    time.Time `json:"updated_at" gorm:"autoUpdateTime"`
+}
+
+// TableName specifies the table name for DailyMissionTask.
+func (DailyMissionTask) TableName() string {
+	return "daily_mission_tasks"
+}
+
+// DailyMissionEvent stores user dashboard mission telemetry and weak-signal completions.
+type DailyMissionEvent struct {
+	ID          int64     `json:"id" gorm:"primaryKey;autoIncrement"`
+	UserID      int64     `json:"user_id" gorm:"index;not null"`
+	ActivityKey string    `json:"activity_key" gorm:"not null"`
+	EventType   string    `json:"event_type" gorm:"not null"`
+	Value       int       `json:"value" gorm:"default:1;not null"`
+	SessionRef  *string   `json:"session_ref,omitempty"`
+	Metadata    JSONB     `json:"metadata" gorm:"type:jsonb"`
+	OccurredAt  time.Time `json:"occurred_at" gorm:"autoCreateTime"`
+	CreatedAt   time.Time `json:"created_at" gorm:"autoCreateTime"`
+}
+
+// TableName specifies the table name for DailyMissionEvent.
+func (DailyMissionEvent) TableName() string {
+	return "daily_mission_events"
+}
+
 // CreateUserRequest represents the request body for creating a user
 type CreateUserRequest struct {
 	ClerkID     string  `json:"clerk_id" validate:"required"`
@@ -114,6 +164,12 @@ type UpdateUserSettingsRequest struct {
 	CurrentJLPTLevel          *int       `json:"current_jlpt_level" validate:"omitempty,min=1,max=5"`
 	JLPTLevelAssessedAt       *time.Time `json:"jlpt_level_assessed_at"`
 	JLPTLevelAssessmentMethod *string    `json:"jlpt_level_assessment_method"`
+}
+
+// UpsertDailyMissionConfigRequest updates lab-level mission preferences.
+type UpsertDailyMissionConfigRequest struct {
+	ActiveVariant  *string `json:"active_variant"`
+	MotivationMode *string `json:"motivation_mode"`
 }
 
 // AssignRoleRequest represents the request body for assigning a role

@@ -12,6 +12,7 @@ import {
     CheckCircle2
 } from "lucide-react"
 import { useApiClient } from "@/hooks/useApiClient"
+import { dailyMissionApi } from "@/services/api"
 
 interface AgentStudyProps {
     sessionId: string;
@@ -65,6 +66,18 @@ export function AgentStudy({ sessionId, onComplete }: AgentStudyProps) {
             const emailMessage = wasEmailSent
                 ? `Your personalized learning plan has been sent to ${recipient || 'your email'}!`
                 : "Your personalized learning plan has been generated and sent to your email!"
+
+            void dailyMissionApi.createEvent({
+                activity_key: "learning_resources",
+                event_type: "activity_logged",
+                value: 1,
+                metadata: {
+                    source: "agent_study",
+                    session_id: sessionId,
+                },
+            }).catch((eventError) => {
+                console.warn("Failed to log learning resources mission event", eventError)
+            })
 
             toast({
                 title: "Learning Plan Generated",

@@ -1,10 +1,12 @@
 "use client"
 import { useActivityDates } from "@/hooks/api/useDashboard"
 import { useMemo } from "react"
+import Link from "next/link"
+import { Button } from "@/components/ui/button"
 
 export function StreakCalendar() {
   const isDark = true
-  const { data, isLoading, error } = useActivityDates()
+  const { data, isLoading, error, refetch, isRefetching } = useActivityDates()
 
   // Convert activity dates to a map for quick lookup
   const activityData = useMemo(() => {
@@ -50,46 +52,9 @@ export function StreakCalendar() {
   // Get day names for the header
   const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
 
-  // Generate dummy data for fallback
-  const generateDummyData = () => {
-    const dummyData: { [key: string]: boolean } = {}
-    for (let i = 0; i < 28; i++) {
-      const date = new Date()
-      date.setDate(date.getDate() - i)
-      const dateKey = date.toISOString().split('T')[0]
-      if (i < 7) {
-        dummyData[dateKey] = Math.random() > 0.3
-      } else {
-        dummyData[dateKey] = Math.random() > 0.6
-      }
-    }
-    return dummyData
-  }
-
-  // Use dummy data if there's an error
-  const displayData = error ? generateDummyData() : activityData
-  const displayDays = error
-    ? Array.from({ length: 28 }, (_, i) => {
-      const date = new Date()
-      date.setDate(date.getDate() - 27 + i)
-      const dateKey = date.toISOString().split('T')[0]
-      return {
-        date,
-        dateKey,
-        hasActivity: displayData[dateKey] || false,
-      }
-    })
-    : days
-
-  const displayWeeks = error
-    ? (() => {
-      const result = []
-      for (let i = 0; i < displayDays.length; i += 7) {
-        result.push(displayDays.slice(i, i + 7))
-      }
-      return result
-    })()
-    : weeks
+  const hasAnyActivity = useMemo(() => {
+    return days.some((day) => day.hasActivity)
+  }, [days])
 
   return (
     <div className="w-full px-1">
@@ -109,9 +74,29 @@ export function StreakCalendar() {
         <div className="h-[140px] flex items-center justify-center">
           <p className="text-sm text-muted-foreground">Loading calendar data...</p>
         </div>
+      ) : error ? (
+        <div className="h-[140px] flex flex-col items-center justify-center gap-2 text-center">
+          <p className="text-sm text-red-500">Couldn&apos;t load your streak calendar.</p>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => refetch()}
+            disabled={isRefetching}
+          >
+            {isRefetching ? "Retrying..." : "Try again"}
+          </Button>
+        </div>
+      ) : !hasAnyActivity ? (
+        <div className="h-[140px] flex flex-col items-center justify-center gap-2 text-center">
+          <p className="text-sm font-medium">No activity yet</p>
+          <p className="text-xs text-muted-foreground">Start a study session today to begin your streak.</p>
+          <Button size="sm" variant="outline" asChild>
+            <Link href="/study">Start studying</Link>
+          </Button>
+        </div>
       ) : (
         <div className="space-y-1">
-          {displayWeeks.map((week, weekIndex) => (
+          {weeks.map((week, weekIndex) => (
             <div key={weekIndex} className="grid grid-cols-7 gap-1">
               {week.map((day, dayIndex) => {
                 const isToday = new Date().toDateString() === day.date.toDateString()

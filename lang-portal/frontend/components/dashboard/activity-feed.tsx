@@ -1,8 +1,10 @@
 "use client"
 
+import Link from "next/link"
 import { CheckCircle2, Clock, Star, Brain, MessageSquare, Edit, Mic, Search, Puzzle } from "lucide-react"
 import { useRecentActivities } from "@/hooks/api/useDashboard"
 import { RecentActivity } from "@/types/api"
+import { Button } from "@/components/ui/button"
 
 // Map activity types to their respective icons
 const activityIcons: Record<string, JSX.Element> = {
@@ -27,50 +29,6 @@ const activityTitles: Record<string, string> = {
   "achievement": "Earned Achievement",
   "word_builder": "Word Builder",
 }
-
-// Default activities to show when loading or if there's an error
-const defaultActivities = [
-  {
-    id: 1,
-    type: "quiz",
-    title: "Completed Quiz",
-    description: "Basic Greetings",
-    time: "2 hours ago",
-    icon: <CheckCircle2 className="h-5 w-5 text-green-500" />,
-  },
-  {
-    id: 2,
-    type: "flashcards",
-    title: "Studied Flashcards",
-    description: "Food Vocabulary",
-    time: "4 hours ago",
-    icon: <Clock className="h-5 w-5 text-blue-500" />,
-  },
-  {
-    id: 3,
-    type: "achievement",
-    title: "Earned Achievement",
-    description: "5-Day Streak",
-    time: "Yesterday",
-    icon: <Star className="h-5 w-5 text-yellow-500" />,
-  },
-  {
-    id: 4,
-    type: "quiz",
-    title: "Completed Quiz",
-    description: "Numbers 1-100",
-    time: "Yesterday",
-    icon: <CheckCircle2 className="h-5 w-5 text-green-500" />,
-  },
-  {
-    id: 5,
-    type: "flashcards",
-    title: "Studied Flashcards",
-    description: "Common Verbs",
-    time: "2 days ago",
-    icon: <Clock className="h-5 w-5 text-blue-500" />,
-  },
-]
 
 // Helper function to format relative time
 function formatRelativeTime(dateString: string): string {
@@ -136,7 +94,7 @@ interface ActivityDisplayItem {
 }
 
 export function ActivityFeed() {
-  const { data, isLoading, error } = useRecentActivities(10);
+  const { data, isLoading, error, refetch, isRefetching } = useRecentActivities(10);
 
   // Transform API data to display format
   const activities: ActivityDisplayItem[] = data?.items?.map((activity: RecentActivity) => {
@@ -155,27 +113,26 @@ export function ActivityFeed() {
     <div className="space-y-4 py-2">
       {isLoading ? (
         <div className="text-center py-4 text-sm text-muted-foreground">Loading activities...</div>
-      ) : error || activities.length === 0 ? (
-        <>
-          {error && (
-            <div className="text-center py-2 text-sm text-red-500">
-              Failed to load activities. Using demo data.
-            </div>
-          )}
-          {defaultActivities.map((activity) => (
-            <div
-              key={activity.id}
-              className="flex items-start gap-3 p-3 rounded-lg transition-colors hover:bg-blue-50/50 dark:hover:bg-blue-900/10"
-            >
-              <div className="mt-0.5">{activity.icon}</div>
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-sm">{activity.title}</p>
-                <p className="text-sm text-muted-foreground">{activity.description}</p>
-                <p className="text-xs text-muted-foreground mt-1">{activity.time}</p>
-              </div>
-            </div>
-          ))}
-        </>
+      ) : error ? (
+        <div className="text-center py-6 space-y-3">
+          <p className="text-sm text-red-500">Couldn&apos;t load your recent activity.</p>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => refetch()}
+            disabled={isRefetching}
+          >
+            {isRefetching ? "Retrying..." : "Try again"}
+          </Button>
+        </div>
+      ) : activities.length === 0 ? (
+        <div className="text-center py-6 space-y-2">
+          <p className="text-sm font-medium">No activity yet</p>
+          <p className="text-xs text-muted-foreground">Start a study session to build your daily momentum.</p>
+          <Button size="sm" variant="outline" asChild>
+            <Link href="/study">Start studying</Link>
+          </Button>
+        </div>
       ) : (
         activities.map((activity) => (
           <div

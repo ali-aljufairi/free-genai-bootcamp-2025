@@ -127,7 +127,7 @@ func (h *DashboardHandler) GetQuickStats(c *fiber.Ctx) error {
 	var dates []StudyDate
 
 	// Use Raw SQL to combine dates from all activity sources for this user
-	// Include: enhanced_study_sessions (flashcards/grammar), learning_activities (word builder), chat_sessions (chat), and progress (SRS reviews)
+	// Include: enhanced_study_sessions, learning_activities, chat_sessions, progress, and daily_mission_events.
 	// Use TO_CHAR to ensure consistent YYYY-MM-DD format
 	h.DB.Raw(`
 		SELECT TO_CHAR(activity_date, 'YYYY-MM-DD') as activity_date FROM (
@@ -138,20 +138,22 @@ func (h *DashboardHandler) GetQuickStats(c *fiber.Ctx) error {
 			SELECT DATE(started_at) as activity_date FROM chat_sessions WHERE user_id = ?
 			UNION
 			SELECT DATE(last_seen) as activity_date FROM progress WHERE user_id = ? AND last_seen IS NOT NULL
+			UNION
+			SELECT DATE(occurred_at) as activity_date FROM daily_mission_events WHERE user_id = ? AND event_type IN ('activity_logged', 'task_completed', 'mission_completed')
 		) all_activity
 		GROUP BY activity_date
 		ORDER BY activity_date DESC
-	`, userID, userID, userID, userID).Scan(&dates)
+	`, userID, userID, userID, userID, userID).Scan(&dates)
 
 	streak := 0
 	if len(dates) > 0 {
 		// Get today's date from database to ensure timezone consistency with activity dates
 		var dbToday string
 		h.DB.Raw("SELECT TO_CHAR(CURRENT_DATE, 'YYYY-MM-DD')").Scan(&dbToday)
-		
+
 		// Normalize database date (remove time if present)
 		dbToday = normalizeDateString(dbToday)
-		
+
 		// Parse the database date
 		today, err := time.Parse("2006-01-02", dbToday)
 		if err != nil {
@@ -171,7 +173,7 @@ func (h *DashboardHandler) GetQuickStats(c *fiber.Ctx) error {
 		todayStr := today.Format("2006-01-02")
 		yesterday := today.AddDate(0, 0, -1)
 		yesterdayStr := yesterday.Format("2006-01-02")
-		
+
 		var startDate time.Time
 		if activityMap[todayStr] {
 			// Activity today, start counting from today
@@ -219,7 +221,7 @@ func (h *DashboardHandler) GetActivityDates(c *fiber.Ctx) error {
 	var dates []ActivityDate
 
 	// Use the same logic as streak calculation - combine dates from all activity sources
-	// Include: enhanced_study_sessions (flashcards/grammar), learning_activities (word builder), chat_sessions (chat), and progress (SRS reviews)
+	// Include: enhanced_study_sessions, learning_activities, chat_sessions, progress, and daily_mission_events.
 	h.DB.Raw(`
 		SELECT activity_date FROM (
 			SELECT DATE(started_at) as activity_date FROM enhanced_study_sessions WHERE user_id = ?
@@ -229,10 +231,12 @@ func (h *DashboardHandler) GetActivityDates(c *fiber.Ctx) error {
 			SELECT DATE(started_at) as activity_date FROM chat_sessions WHERE user_id = ?
 			UNION
 			SELECT DATE(last_seen) as activity_date FROM progress WHERE user_id = ? AND last_seen IS NOT NULL
+			UNION
+			SELECT DATE(occurred_at) as activity_date FROM daily_mission_events WHERE user_id = ? AND event_type IN ('activity_logged', 'task_completed', 'mission_completed')
 		) all_activity
 		GROUP BY activity_date
 		ORDER BY activity_date DESC
-	`, userID, userID, userID, userID).Scan(&dates)
+	`, userID, userID, userID, userID, userID).Scan(&dates)
 
 	// Convert to simple array of date strings
 	dateStrings := make([]string, len(dates))
@@ -387,17 +391,17 @@ func contains(s, substr string) bool {
 func normalizeDateString(dateStr string) string {
 	// Remove any whitespace
 	dateStr = strings.TrimSpace(dateStr)
-	
+
 	// If it contains 'T' (ISO format with time), take only the date part
 	if idx := strings.Index(dateStr, "T"); idx != -1 {
 		dateStr = dateStr[:idx]
 	}
-	
+
 	// If it contains a space (date with time), take only the date part
 	if idx := strings.Index(dateStr, " "); idx != -1 {
 		dateStr = dateStr[:idx]
 	}
-	
+
 	// If it contains '+' or '-' after the date (timezone), take only the date part
 	// This handles formats like "2025-01-02+00:00" or "2025-01-02-05:00"
 	for i := 0; i < len(dateStr); i++ {
@@ -409,7 +413,7 @@ func normalizeDateString(dateStr string) string {
 			}
 		}
 	}
-	
+
 	return dateStr
 }
 

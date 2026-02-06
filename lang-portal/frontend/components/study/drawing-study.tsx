@@ -5,11 +5,12 @@ import { ReactSketchCanvas, ReactSketchCanvasRef } from 'react-sketch-canvas'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Eraser, Pencil, RotateCcw, Send, Trash2, RefreshCw } from 'lucide-react'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Eraser, Pencil, RotateCcw, Send, RefreshCw } from 'lucide-react'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { KanjiStrokeGuide } from './kanji-stroke-guide'
 import { Eye, EyeOff } from 'lucide-react'
 import { useApiClient } from '@/hooks/useApiClient'
+import { dailyMissionApi } from '@/services/api'
 
 interface Word {
     id: number
@@ -99,12 +100,14 @@ export function DrawingStudy() {
                     target_word: word?.japanese
                 })
                 setFeedback(data.feedback)
+                void logWritingCompletion()
             } else if (studyMode === 'sentence') {
                 const data = await apiClient.post<{ feedback: string }>(`/api/writing/feedback-sentence`, {
                     image: imageData,
                     target_sentence: sentence?.sentence
                 })
                 setFeedback(data.feedback)
+                void logWritingCompletion()
             } else {
                 const data = await apiClient.post<{ feedback: string; accuracy: number; grade: string }>(`/api/writing/kanji/feedback`, {
                     image: imageData,
@@ -112,6 +115,7 @@ export function DrawingStudy() {
                     character: kanji?.character
                 })
                 setFeedback(`Accuracy: ${data.accuracy.toFixed(1)}% - Grade: ${data.grade}\n${data.feedback}`)
+                void logWritingCompletion()
             }
         } catch (error) {
             console.error('Error submitting drawing:', error)
@@ -375,3 +379,18 @@ export function DrawingStudy() {
         </div>
     )
 }
+    const logWritingCompletion = async () => {
+        try {
+            await dailyMissionApi.createEvent({
+                activity_key: 'writing',
+                event_type: 'activity_logged',
+                value: 1,
+                metadata: {
+                    source: 'drawing_study',
+                    mode: studyMode,
+                },
+            })
+        } catch (eventError) {
+            console.warn('Failed to log writing mission event', eventError)
+        }
+    }

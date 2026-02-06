@@ -77,6 +77,112 @@ export interface ActivityDatesResponse {
   dates: string[];
 }
 
+export type DailyMissionVariant = 'mission' | 'planner' | 'analytics';
+export type DailyMissionTargetMode = 'sessions' | 'items';
+
+export interface DailyMissionTask {
+  id: number;
+  activity_key: string;
+  title: string;
+  description: string;
+  target_mode: DailyMissionTargetMode;
+  target_value: number;
+  current_value: number;
+  remaining_value: number;
+  completed: boolean;
+  start_type: string;
+  cta_path: string;
+}
+
+export interface DailyMissionNextAction {
+  activity_key: string;
+  title: string;
+  start_type: string;
+  cta_path: string;
+}
+
+export interface DailyMissionToday {
+  date: string;
+  timezone: string;
+  active_variant: DailyMissionVariant;
+  motivation_mode: string;
+  total_tasks: number;
+  completed_tasks: number;
+  completion_percent: number;
+  streak_days: number;
+  tasks: DailyMissionTask[];
+  next_recommended_action?: DailyMissionNextAction | null;
+}
+
+export interface DailyMissionActivityOption {
+  activity_key: string;
+  title: string;
+  description: string;
+  default_target_mode: DailyMissionTargetMode;
+  default_target_value: number;
+  start_type: string;
+  cta_path: string;
+}
+
+export interface DailyMissionConfig {
+  active_variant: DailyMissionVariant;
+  motivation_mode: string;
+  tasks: DailyMissionTask[];
+  available_activities: DailyMissionActivityOption[];
+}
+
+export interface UpdateDailyMissionTask {
+  activity_key: string;
+  target_mode: DailyMissionTargetMode;
+  target_value: number;
+  display_order: number;
+  is_active?: boolean;
+}
+
+export interface UpdateDailyMissionConfigRequest {
+  active_variant?: DailyMissionVariant;
+  motivation_mode?: string;
+  tasks?: UpdateDailyMissionTask[];
+}
+
+export interface CreateDailyMissionEventRequest {
+  activity_key: string;
+  event_type: 'variant_opened' | 'task_started' | 'task_completed' | 'mission_completed' | 'return_next_day' | 'activity_logged';
+  value?: number;
+  session_ref?: string;
+  metadata?: Record<string, unknown>;
+  occurred_at?: string;
+}
+
+export interface DailyMissionTrendPoint {
+  date: string;
+  completion_percent: number;
+  completed_tasks: number;
+  total_tasks: number;
+}
+
+export interface DailyMissionActivityMixPoint {
+  activity_key: string;
+  title: string;
+  value: number;
+}
+
+export interface DailyMissionInsights {
+  timezone: string;
+  range_days: number;
+  completion_trend: DailyMissionTrendPoint[];
+  activity_mix: DailyMissionActivityMixPoint[];
+  streak_health: {
+    current_streak_days: number;
+    active_days_last_7: number;
+    status: string;
+  };
+  burnout_risk: {
+    level: 'low' | 'medium' | 'high';
+    reason: string;
+  };
+}
+
 // Study Activity Types
 export interface StudyActivity {
   id: string;

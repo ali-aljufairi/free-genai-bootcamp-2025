@@ -4,12 +4,13 @@ import (
 	roothandlers "lang-portal/internal/handlers"
 	"lang-portal/internal/handlers/chat"
 	"lang-portal/internal/handlers/companion"
+	"lang-portal/internal/handlers/daily_mission"
 	"lang-portal/internal/handlers/dashboard"
 	"lang-portal/internal/handlers/flashcard"
 	"lang-portal/internal/handlers/grammar"
 	"lang-portal/internal/handlers/group"
-	"lang-portal/internal/handlers/reading"
 	"lang-portal/internal/handlers/kanji"
+	"lang-portal/internal/handlers/reading"
 	"lang-portal/internal/handlers/session"
 	"lang-portal/internal/handlers/speech"
 	"lang-portal/internal/handlers/subscription"
@@ -78,6 +79,14 @@ func (s *FiberServer) RegisterFiberRoutes() {
 	s.App.Get("/api/langportal/dashboard/quick-stats", dashboardHandler.GetQuickStats)
 	s.App.Get("/api/langportal/dashboard/activity_dates", dashboardHandler.GetActivityDates)
 	s.App.Get("/api/langportal/dashboard/recent_activities", dashboardHandler.GetRecentActivities)
+
+	// Daily mission lab routes
+	dailyMissionHandler := daily_mission.NewDailyMissionHandler(s.postgresDB)
+	s.App.Get("/api/langportal/daily-mission/today", dailyMissionHandler.GetToday)
+	s.App.Get("/api/langportal/daily-mission/config", dailyMissionHandler.GetConfig)
+	s.App.Put("/api/langportal/daily-mission/config", dailyMissionHandler.UpdateConfig)
+	s.App.Post("/api/langportal/daily-mission/events", dailyMissionHandler.CreateEvent)
+	s.App.Get("/api/langportal/daily-mission/insights", dailyMissionHandler.GetInsights)
 
 	// Study session routes
 	studySessionHandler := session.NewStudySessionHandler(s.postgresDB)

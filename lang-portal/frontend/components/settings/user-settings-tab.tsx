@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useRef } from "react"
 import { useUserProfile } from "@/hooks/api/useGroup"
+import { useDailyMissionConfig, useUpdateDailyMissionConfig } from "@/hooks/api/useDashboard"
 import { useQueryClient } from "@tanstack/react-query"
-import { Settings, Globe, Clock, Target, GraduationCap, CheckCircle2 } from "lucide-react"
+import { Settings, Globe, Clock, Target, GraduationCap, CheckCircle2, LayoutDashboard } from "lucide-react"
 import { Separator } from "@/components/ui/separator"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -12,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner"
 import { userApi } from "@/services/api"
 import { useUserSettingsStore } from "@/stores/user-settings-store"
+import Link from "next/link"
 
 const JLPT_LEVELS = [
     { value: 5, label: "N5 (Beginner)" },
@@ -42,10 +44,13 @@ const TIMEZONES = [
 
 export function UserSettingsTab() {
     const { data: userProfile, isLoading: profileLoading } = useUserProfile()
+    const { data: dailyMissionConfig } = useDailyMissionConfig()
+    const updateDailyMissionConfigMutation = useUpdateDailyMissionConfig()
     const queryClient = useQueryClient()
     const [hasInitialized, setHasInitialized] = useState(false)
     const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle")
     const initializationRef = useRef(false)
+    const missionInitializationRef = useRef(false)
     const lastSavedSettingsRef = useRef<{
         hide_english?: boolean
         ui_language?: string
@@ -60,6 +65,7 @@ export function UserSettingsTab() {
     const [timezone, setTimezone] = useState("UTC")
     const [dailyReviewTarget, setDailyReviewTarget] = useState(20)
     const [currentJLPTLevel, setCurrentJLPTLevel] = useState(5)
+    const [dailyMissionVariant, setDailyMissionVariant] = useState<"mission" | "planner" | "analytics">("mission")
 
     const setJlptInStore = useUserSettingsStore((s) => s.setFromSettings)
 
@@ -86,6 +92,27 @@ export function UserSettingsTab() {
         }
         // Only initialize once - don't overwrite user changes when profile refetches
     }, [userProfile?.id, userProfile?.settings])
+
+    useEffect(() => {
+        if (dailyMissionConfig?.active_variant && !missionInitializationRef.current) {
+            setDailyMissionVariant(dailyMissionConfig.active_variant)
+            missionInitializationRef.current = true
+        }
+    }, [dailyMissionConfig?.active_variant])
+
+    const handleMissionVariantChange = async (variant: "mission" | "planner" | "analytics") => {
+        const previousVariant = dailyMissionVariant
+        setDailyMissionVariant(variant)
+        try {
+            await updateDailyMissionConfigMutation.mutateAsync({ active_variant: variant })
+            toast.success("Daily mission experience updated")
+        } catch (error) {
+            setDailyMissionVariant(previousVariant)
+            toast.error("Failed to update daily mission experience", {
+                description: error instanceof Error ? error.message : "Unknown error"
+            })
+        }
+    }
 
     // Auto-save all settings immediately on change
     useEffect(() => {
@@ -229,6 +256,45 @@ export function UserSettingsTab() {
 
             <Separator className="my-6" />
 
+            {/* Daily Mission Lab Section */}
+            <div className="space-y-4">
+                <div className="flex items-center gap-3 pb-2 border-b border-border/50">
+                    <LayoutDashboard className="w-6 h-6 text-primary" />
+                    <div>
+                        <h3 className="text-lg font-medium">Daily Mission Experience</h3>
+                        <p className="text-sm text-muted-foreground">Choose how your daily dashboard motivates you</p>
+                    </div>
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="daily-mission-variant">Dashboard Variant</Label>
+                    <Select
+                        value={dailyMissionVariant}
+                        onValueChange={(value) => handleMissionVariantChange(value as "mission" | "planner" | "analytics")}
+                        disabled={updateDailyMissionConfigMutation.isPending}
+                    >
+                        <SelectTrigger id="daily-mission-variant" className="w-full">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="mission">Mission-First</SelectItem>
+                            <SelectItem value="planner">Planner Grid</SelectItem>
+                            <SelectItem value="analytics">Analytics-First</SelectItem>
+                        </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                        You can compare all three versions in the dashboard lab and pick what feels most motivating.
+                    </p>
+                    <Link
+                        href="/dashboard/lab"
+                        className="inline-flex text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                    >
+                        Open dashboard lab
+                    </Link>
+                </div>
+            </div>
+
+            <Separator className="my-6" />
+
             {/* Localization Section */}
             <div className="space-y-4">
                 <div className="flex items-center gap-3 pb-2 border-b border-border/50">
@@ -314,4 +380,3 @@ export function UserSettingsTab() {
         </div>
     )
 }
-
