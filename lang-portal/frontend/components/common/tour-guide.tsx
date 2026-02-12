@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { studyOptions } from "@/components/study-session/constants"
 import { setTourContinue } from "@/hooks/use-tour-continuation"
 import { useSubscription } from "@/components/subscription/subscription-gate"
+import { safeLocalStorageGetItem, safeLocalStorageRemoveItem, safeLocalStorageSetItem } from "@/lib/safe-storage"
 
 // Custom CSS to be injected for driver.js styling to match our site design
 const customStyles = `
@@ -289,28 +290,28 @@ const TOUR_PROGRESS_KEY = 'sorami-tour-progress'
 
 export function getTourProgress(): number | null {
   if (typeof window === 'undefined') return null
-  const progress = localStorage.getItem(TOUR_PROGRESS_KEY)
+  const progress = safeLocalStorageGetItem(TOUR_PROGRESS_KEY)
   return progress ? parseInt(progress, 10) : null
 }
 
 export function setTourProgress(step: number): void {
   if (typeof window === 'undefined') return
-  localStorage.setItem(TOUR_PROGRESS_KEY, step.toString())
+  safeLocalStorageSetItem(TOUR_PROGRESS_KEY, step.toString())
 }
 
 export function clearTourProgress(): void {
   if (typeof window === 'undefined') return
-  localStorage.removeItem(TOUR_PROGRESS_KEY)
+  safeLocalStorageRemoveItem(TOUR_PROGRESS_KEY)
 }
 
 export function isTourCompleted(): boolean {
   if (typeof window === 'undefined') return false
-  return localStorage.getItem(TOUR_STORAGE_KEY) === 'true'
+  return safeLocalStorageGetItem(TOUR_STORAGE_KEY) === 'true'
 }
 
 export function markTourCompleted(): void {
   if (typeof window === 'undefined') return
-  localStorage.setItem(TOUR_STORAGE_KEY, 'true')
+  safeLocalStorageSetItem(TOUR_STORAGE_KEY, 'true')
 }
 
 // Shared tour state
