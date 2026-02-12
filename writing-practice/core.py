@@ -177,7 +177,7 @@ def score_kanji_attempt(
             "grade": "C",
             "feedback": (
                 "Could not confidently recognize a kanji character. "
-                "Try darker, larger strokes with clearer spacing."
+                "Try larger strokes with clearer spacing."
             ),
             "stroke_order_correct": False,
             "detection_mode": "no_cjk_detected",
