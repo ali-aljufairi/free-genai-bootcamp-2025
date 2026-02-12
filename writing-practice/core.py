@@ -51,9 +51,11 @@ def is_cjk_ideograph(char: str) -> bool:
         (0x20000, 0x2A6DF), # CJK Unified Ideographs Extension B
         (0x2A700, 0x2B73F), # CJK Unified Ideographs Extension C
         (0x2B740, 0x2B81F), # CJK Unified Ideographs Extension D
-        (0x2B820, 0x2CEAF), # CJK Unified Ideographs Extension E/F
-        (0x2CEB0, 0x2EBEF), # CJK Unified Ideographs Extension G/I
-        (0x30000, 0x3134F), # CJK Unified Ideographs Extension G/H
+        (0x2B820, 0x2CEAF), # CJK Unified Ideographs Extension E
+        (0x2CEB0, 0x2EBEF), # CJK Unified Ideographs Extension F
+        (0x2EBF0, 0x2EE5F), # CJK Unified Ideographs Extension I
+        (0x30000, 0x3134F), # CJK Unified Ideographs Extension G
+        (0x31350, 0x323AF), # CJK Unified Ideographs Extension H
     )
     return any(start <= code <= end for start, end in cjk_ranges)
 
