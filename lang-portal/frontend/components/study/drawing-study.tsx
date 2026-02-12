@@ -304,7 +304,7 @@ export function DrawingStudy() {
                             <ReactSketchCanvas
                                 ref={canvasRef}
                                 strokeWidth={6}
-                                strokeColor="#4DA3FF"
+                                strokeColor="#2563EB"
                                 canvasColor="transparent"
                                 className="w-full h-full relative z-10 touch-none"
                                 style={{
