@@ -26,6 +26,10 @@ GROQ_API_KEY=your_groq_api_key
 
 # Google Cloud Vision API (for OCR)
 GOOGLE_API_KEY=your_google_api_key
+
+# Kanji OCR rollout toggles
+KANJI_OCR_V2_ENABLED=true
+KANJI_OCR_DEBUG=false
 ```
 
 ## Starting the Service

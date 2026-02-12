@@ -5,9 +5,10 @@ from dotenv import load_dotenv
 import requests
 from google.cloud import vision
 import io
-from PIL import Image
+from PIL import Image, ImageOps
 import numpy as np
 import json
+from typing import Any
 from messages import (
     SENTENCE_SYSTEM_MESSAGE,
     SENTENCE_USER_TEMPLATE,
@@ -28,6 +29,235 @@ fh = logging.FileHandler("app.log")
 fh.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(message)s"))
 logger.addHandler(fh)
 
+INK_PIXEL_THRESHOLD = 245
+EMPTY_CANVAS_INK_RATIO_THRESHOLD = 0.003
+LANCZOS = getattr(Image, "Resampling", Image).LANCZOS
+
+
+def parse_bool_env(value: str | None, default: bool = False) -> bool:
+    """Parse boolean environment variables consistently."""
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def is_cjk_ideograph(char: str) -> bool:
+    """Return True when a character is in Kanji/CJK ideograph ranges."""
+    code = ord(char)
+    cjk_ranges = (
+        (0x3400, 0x4DBF),   # CJK Unified Ideographs Extension A
+        (0x4E00, 0x9FFF),   # CJK Unified Ideographs
+        (0xF900, 0xFAFF),   # CJK Compatibility Ideographs
+        (0x20000, 0x2A6DF), # CJK Unified Ideographs Extension B
+        (0x2A700, 0x2B73F), # CJK Unified Ideographs Extension C
+        (0x2B740, 0x2B81F), # CJK Unified Ideographs Extension D
+        (0x2B820, 0x2CEAF), # CJK Unified Ideographs Extension E/F
+        (0x2CEB0, 0x2EBEF), # CJK Unified Ideographs Extension G/I
+        (0x30000, 0x3134F), # CJK Unified Ideographs Extension G/H
+    )
+    return any(start <= code <= end for start, end in cjk_ranges)
+
+
+def extract_cjk_text(text: str) -> str:
+    """Extract only CJK ideographs from OCR output."""
+    return "".join(char for char in text if is_cjk_ideograph(char))
+
+
+def flatten_to_white_background(image: Image.Image) -> Image.Image:
+    """Normalize images to RGB with a white background (handles transparency)."""
+    if image.mode in ("RGBA", "LA") or (
+        image.mode == "P" and "transparency" in image.info
+    ):
+        base = Image.new("RGBA", image.size, (255, 255, 255, 255))
+        base.alpha_composite(image.convert("RGBA"))
+        return base.convert("RGB")
+    if image.mode == "RGB":
+        return image.copy()
+    return image.convert("RGB")
+
+
+def preprocess_kanji_for_ocr(image: Image.Image) -> Image.Image:
+    """Build a high-contrast OCR-friendly image variant for handwritten kanji."""
+    normalized = flatten_to_white_background(image)
+    grayscale = ImageOps.grayscale(normalized)
+    contrasted = ImageOps.autocontrast(grayscale)
+    thresholded = contrasted.point(lambda px: 255 if px > 190 else 0, mode="L")
+    return thresholded.resize(
+        (thresholded.width * 2, thresholded.height * 2),
+        resample=LANCZOS,
+    )
+
+
+def calculate_ink_ratio(image: Image.Image) -> float:
+    """Estimate how much of the canvas contains ink."""
+    grayscale = ImageOps.grayscale(flatten_to_white_background(image))
+    array = np.asarray(grayscale, dtype=np.uint8)
+    if array.size == 0:
+        return 0.0
+    ink_pixels = np.count_nonzero(array < INK_PIXEL_THRESHOLD)
+    return ink_pixels / float(array.size)
+
+
+def rank_ocr_candidate(cjk_text: str, target_character: str) -> tuple[int, int]:
+    """Rank OCR candidates: exact > contains > single-char > longest span."""
+    if not cjk_text:
+        return (0, 0)
+    if target_character and cjk_text == target_character:
+        return (4, len(cjk_text))
+    if target_character and target_character in cjk_text:
+        return (3, len(cjk_text))
+    if len(cjk_text) == 1:
+        return (2, 1)
+    return (1, len(cjk_text))
+
+
+def select_best_kanji_candidate(
+    candidates: list[dict[str, str]],
+    target_character: str,
+) -> dict[str, Any]:
+    """Select the best OCR candidate from multiple OCR passes."""
+    best_candidate: dict[str, Any] = {
+        "variant": "none",
+        "raw_text": "",
+        "cjk_text": "",
+        "rank": (0, 0),
+        "ocr_confidence": 0.0,
+    }
+
+    for candidate in candidates:
+        cjk_text = extract_cjk_text(candidate.get("raw_text", ""))
+        rank = rank_ocr_candidate(cjk_text, target_character)
+        if rank > best_candidate["rank"]:
+            best_candidate = {
+                "variant": candidate.get("variant", "unknown"),
+                "raw_text": candidate.get("raw_text", ""),
+                "cjk_text": cjk_text,
+                "rank": rank,
+                "ocr_confidence": 0.0,
+            }
+
+    rank_level = best_candidate["rank"][0]
+    if rank_level == 4:
+        best_candidate["ocr_confidence"] = 0.99
+    elif rank_level == 3:
+        best_candidate["ocr_confidence"] = 0.9
+    elif rank_level == 2:
+        best_candidate["ocr_confidence"] = 0.7
+    elif rank_level == 1:
+        best_candidate["ocr_confidence"] = 0.55
+    elif best_candidate["raw_text"]:
+        best_candidate["ocr_confidence"] = 0.1
+    else:
+        best_candidate["ocr_confidence"] = 0.0
+
+    return best_candidate
+
+
+def score_kanji_attempt(
+    target_character: str,
+    transcription_clean: str,
+    ink_ratio: float,
+) -> dict[str, Any]:
+    """Deterministically score a kanji attempt before optional AI feedback."""
+    if ink_ratio < EMPTY_CANVAS_INK_RATIO_THRESHOLD:
+        return {
+            "accuracy": 0.0,
+            "grade": "C",
+            "feedback": "Canvas appears empty. Please draw the kanji and submit again.",
+            "stroke_order_correct": None,
+            "detection_mode": "empty_canvas",
+            "should_use_ai_feedback": False,
+        }
+
+    if not transcription_clean:
+        return {
+            "accuracy": 15.0,
+            "grade": "C",
+            "feedback": (
+                "Could not confidently recognize a kanji character. "
+                "Try darker, larger strokes with clearer spacing."
+            ),
+            "stroke_order_correct": False,
+            "detection_mode": "no_cjk_detected",
+            "should_use_ai_feedback": False,
+        }
+
+    if transcription_clean == target_character:
+        return {
+            "accuracy": 100.0,
+            "grade": "S",
+            "feedback": (
+                f"Perfect! You correctly wrote {target_character}. "
+                "Excellent stroke accuracy!"
+            ),
+            "stroke_order_correct": True,
+            "detection_mode": "exact_match",
+            "should_use_ai_feedback": False,
+        }
+
+    if target_character in transcription_clean:
+        return {
+            "accuracy": 88.0,
+            "grade": "A",
+            "feedback": (
+                f"Very good! You wrote {target_character} correctly. "
+                "The character is clear and recognizable."
+            ),
+            "stroke_order_correct": True,
+            "detection_mode": "contains_target",
+            "should_use_ai_feedback": False,
+        }
+
+    from Levenshtein import distance
+
+    dist = distance(transcription_clean, target_character)
+    max_len = max(len(transcription_clean), len(target_character))
+    similarity = 1 - (dist / max_len) if max_len > 0 else 0
+    char_similarity = (
+        0.75
+        if target_character and transcription_clean and transcription_clean[0] == target_character[0]
+        else 0.2
+    )
+    accuracy = max(25.0, min(92.0, (similarity * 65 + char_similarity * 35) * 100))
+
+    if accuracy >= 80:
+        return {
+            "accuracy": accuracy,
+            "grade": "A",
+            "feedback": (
+                f"Good attempt! Your drawing is close to {target_character}. "
+                "Keep practicing to improve accuracy."
+            ),
+            "stroke_order_correct": True,
+            "detection_mode": "high_similarity",
+            "should_use_ai_feedback": True,
+        }
+
+    if accuracy >= 60:
+        return {
+            "accuracy": accuracy,
+            "grade": "B",
+            "feedback": (
+                f"Decent attempt. You're getting closer to {target_character}. "
+                "Focus on stroke order and proportions."
+            ),
+            "stroke_order_correct": None,
+            "detection_mode": "medium_similarity",
+            "should_use_ai_feedback": True,
+        }
+
+    return {
+        "accuracy": accuracy,
+        "grade": "C",
+        "feedback": (
+            f"Keep practicing! Your drawing doesn't quite match {target_character}. "
+            "Try following the stroke guide more carefully."
+        ),
+        "stroke_order_correct": False,
+        "detection_mode": "low_similarity",
+        "should_use_ai_feedback": False,
+    }
+
 
 class JapaneseApp:
     def __init__(self):
@@ -41,12 +271,20 @@ class JapaneseApp:
         self.llm_model = os.environ.get("LLM_MODEL", "llama-3.1-8b-instant")
         self.llm_temperature = float(os.environ.get("LLM_TEMPERATURE", "0.3"))
         self.llm_max_tokens = int(os.environ.get("LLM_MAX_TOKENS", "100"))
+        self.kanji_ocr_v2_enabled = parse_bool_env(
+            os.environ.get("KANJI_OCR_V2_ENABLED"),
+            default=True,
+        )
+        self.kanji_ocr_debug = parse_bool_env(
+            os.environ.get("KANJI_OCR_DEBUG"),
+            default=False,
+        )
         self.current_word = None
         self.current_sentence = None
 
         # Initialize Google Cloud Vision client with API key
         try:
-            api_key = os.environ.get("GOOGLE_API_KEY")
+            api_key = os.environ.get("GOOGLE_API_KEY", "").strip()
             if not api_key:
                 raise ValueError("GOOGLE_API_KEY environment variable is not set")
 
@@ -62,7 +300,11 @@ class JapaneseApp:
                 "Failed to initialize Google Cloud Vision client. Please check your API key."
             )
 
-    def ocr_image(self, image: Image.Image) -> str:
+    def ocr_image(
+        self,
+        image: Image.Image,
+        language_hints: list[str] | None = None,
+    ) -> str:
         """Use Google Cloud Vision API to perform OCR on a PIL image."""
         try:
             # Convert PIL Image to bytes
@@ -74,7 +316,12 @@ class JapaneseApp:
             vision_image = vision.Image(content=content)
 
             # Perform text detection
-            response = self.vision_client.text_detection(image=vision_image)
+            request_kwargs: dict[str, Any] = {"image": vision_image}
+            if language_hints:
+                request_kwargs["image_context"] = vision.ImageContext(
+                    language_hints=language_hints
+                )
+            response = self.vision_client.text_detection(**request_kwargs)
 
             if response.error.message:
                 logger.error(f"Vision API error: {response.error.message}")
@@ -405,7 +652,7 @@ Make sure all fields are filled with appropriate values. If there are no kanji c
             )
 
     def grade_word_submission(self, image):
-        """Process word submission and grade it using MangaOCR"""
+        """Process a word submission and grade it using OCR and rubric feedback."""
         try:
             logger.info(f"Processing image type: {type(image)}")
             logger.info(
@@ -461,7 +708,7 @@ Make sure all fields are filled with appropriate values. If there are no kanji c
             )
 
     def grade_sentence_submission(self, image):
-        """Process sentence submission and grade it using MangaOCR and Groq"""
+        """Process a sentence submission and grade it using OCR and Groq."""
         try:
             logger.info("Performing OCR with Google Vision API")
             transcription = self.ocr_image(image)
@@ -563,7 +810,7 @@ Make sure all fields are filled with appropriate values. If there are no kanji c
             raise ValueError(f"Invalid canvas image data: {e}")
 
     def grade_word_submission_with_target(self, image, target_word=None):
-        """Process word submission and grade it using MangaOCR with a specific target word"""
+        """Process a word submission with an explicit target word."""
         try:
             logger.info(f"Processing image type: {type(image)}")
             logger.info(
@@ -632,7 +879,7 @@ Make sure all fields are filled with appropriate values. If there are no kanji c
             )
 
     def grade_sentence_submission_with_target(self, image, target_sentence=None):
-        """Process sentence submission and grade it using MangaOCR and Groq with a specific target sentence"""
+        """Process a sentence submission with an explicit target sentence."""
         try:
             logger.info("Performing OCR with Google Vision API")
             transcription = self.ocr_image(image)
@@ -714,9 +961,9 @@ Make sure all fields are filled with appropriate values. If there are no kanji c
 
     def process_kanji_image(
         self, image: Image.Image, kanji_id: int, target_character: str
-    ) -> tuple[float, str, str, bool | None]:
+    ) -> tuple[float, str, str, bool | None, str, float | None, str]:
         """
-        Process a kanji drawing submission and return accuracy, grade, feedback, and stroke order correctness.
+        Process a kanji drawing submission and return score plus OCR diagnostics.
         
         Args:
             image: PIL Image of the user's drawing
@@ -724,103 +971,115 @@ Make sure all fields are filled with appropriate values. If there are no kanji c
             target_character: The target kanji character
             
         Returns:
-            Tuple of (accuracy: float 0-100, grade: str, feedback: str, stroke_order_correct: bool | None)
+            Tuple of:
+              - accuracy (0-100)
+              - grade (S/A/B/C)
+              - feedback
+              - stroke_order_correct (bool | None)
+              - recognized_text (cleaned OCR text)
+              - ocr_confidence (0.0-1.0)
+              - detection_mode (scoring branch identifier)
         """
         try:
-            logger.info(f"Processing kanji drawing for character: {target_character}")
-            
-            # Perform OCR to recognize what was drawn
-            transcription = self.ocr_image(image)
-            logger.debug(f"OCR result: {transcription}")
-            
-            # Clean transcription - remove whitespace and extract kanji characters
-            transcription_clean = "".join([c for c in transcription if "\u4e00" <= c <= "\u9fff"])
-            
-            # Calculate accuracy based on character match
-            accuracy = 0.0
-            grade = "C"
-            stroke_order_correct = None
-            
-            if not transcription_clean:
-                # No kanji detected
-                accuracy = 0.0
-                grade = "C"
-                feedback = "Could not detect any kanji characters in your drawing. Please try writing more clearly."
-            elif transcription_clean == target_character:
-                # Exact match
-                accuracy = 100.0
-                grade = "S"
-                feedback = f"Perfect! You correctly wrote {target_character}. Excellent stroke accuracy!"
-                stroke_order_correct = True
-            elif target_character in transcription_clean:
-                # Target found within transcription
-                accuracy = 85.0
-                grade = "A"
-                feedback = f"Very good! You wrote {target_character} correctly. The character is clear and recognizable."
-                stroke_order_correct = True
-            else:
-                # Use similarity calculation
-                from Levenshtein import distance
-                
-                # Calculate similarity for character recognition
-                dist = distance(transcription_clean, target_character)
-                max_len = max(len(transcription_clean), len(target_character))
-                similarity = 1 - (dist / max_len) if max_len > 0 else 0
-                
-                # Also check if any character in transcription is similar
-                char_similarity = 0.0
-                if len(transcription_clean) > 0 and len(target_character) > 0:
-                    # Compare first character
-                    if transcription_clean[0] == target_character[0]:
-                        char_similarity = 0.8
-                    else:
-                        # Use visual similarity (simplified - in production, use more sophisticated comparison)
-                        char_similarity = 0.3
-                
-                # Combine OCR accuracy with visual assessment
-                accuracy = (similarity * 60 + char_similarity * 40) * 100
-                
-                if accuracy >= 80:
-                    grade = "A"
-                    feedback = f"Good attempt! Your drawing is close to {target_character}. Keep practicing to improve accuracy."
-                    stroke_order_correct = True
-                elif accuracy >= 60:
-                    grade = "B"
-                    feedback = f"Decent attempt. You're getting closer to {target_character}. Focus on stroke order and proportions."
-                    stroke_order_correct = None  # Uncertain
-                else:
-                    grade = "C"
-                    feedback = f"Keep practicing! Your drawing doesn't quite match {target_character}. Try following the stroke guide more carefully."
-                    stroke_order_correct = False
-            
-            # Use AI for more detailed feedback if accuracy is below 90%
-            if accuracy < 90:
+            target_character = target_character.strip()
+            normalized_image = flatten_to_white_background(image)
+            ink_ratio = calculate_ink_ratio(normalized_image)
+
+            ocr_variants: list[tuple[str, Image.Image]] = [("original", normalized_image)]
+            if self.kanji_ocr_v2_enabled:
+                grayscale = ImageOps.grayscale(normalized_image)
+                ocr_variants.extend(
+                    [
+                        ("autocontrast", ImageOps.autocontrast(grayscale)),
+                        ("preprocessed", preprocess_kanji_for_ocr(normalized_image)),
+                    ]
+                )
+
+            ocr_candidates: list[dict[str, str]] = []
+            for variant_name, variant_image in ocr_variants:
+                raw_text = self.ocr_image(variant_image, language_hints=["ja"])
+                ocr_candidates.append({"variant": variant_name, "raw_text": raw_text})
+
+            best_candidate = select_best_kanji_candidate(ocr_candidates, target_character)
+            transcription_clean = best_candidate["cjk_text"]
+            ocr_confidence = float(best_candidate["ocr_confidence"])
+            scoring = score_kanji_attempt(target_character, transcription_clean, ink_ratio)
+
+            accuracy = float(scoring["accuracy"])
+            grade = str(scoring["grade"])
+            feedback = str(scoring["feedback"])
+            stroke_order_correct = scoring["stroke_order_correct"]
+            detection_mode = str(scoring["detection_mode"])
+
+            # AI feedback is only helpful for medium-confidence attempts.
+            if scoring["should_use_ai_feedback"]:
                 try:
                     ai_feedback_response = self.client.chat.completions.create(
                         model=self.llm_model,
                         messages=[
                             {
                                 "role": "system",
-                                "content": "You are a Japanese language teacher providing feedback on kanji writing practice. Be encouraging and specific.",
+                                "content": (
+                                    "You are a Japanese language teacher providing feedback "
+                                    "on kanji writing practice. Be concise, encouraging, and specific."
+                                ),
                             },
                             {
                                 "role": "user",
-                                "content": f"Target kanji: {target_character}\nRecognized: {transcription_clean}\nAccuracy: {accuracy:.1f}%\nProvide brief, encouraging feedback on how to improve the drawing.",
+                                "content": (
+                                    f"Target kanji: {target_character}\n"
+                                    f"Recognized: {transcription_clean}\n"
+                                    f"Accuracy: {accuracy:.1f}%\n"
+                                    "Give two short improvement tips."
+                                ),
                             },
                         ],
                         temperature=self.llm_temperature,
-                        max_tokens=100,
+                        max_tokens=90,
                     )
                     ai_feedback = ai_feedback_response.choices[0].message.content.strip()
                     if ai_feedback:
                         feedback = f"{feedback}\n\n{ai_feedback}"
                 except Exception as e:
                     logger.warning(f"Failed to get AI feedback: {e}")
-                    # Continue with basic feedback
-            
-            logger.info(f"Kanji verification complete: {target_character}, accuracy={accuracy:.1f}%, grade={grade}")
-            
-            return accuracy, grade, feedback, stroke_order_correct
+
+            log_payload: dict[str, Any] = {
+                "kanji_id": kanji_id,
+                "target_character": target_character,
+                "image_mode": normalized_image.mode,
+                "image_size": list(normalized_image.size),
+                "ink_ratio": round(ink_ratio, 6),
+                "selected_variant": best_candidate["variant"],
+                "recognized_text": transcription_clean,
+                "ocr_confidence": round(ocr_confidence, 3),
+                "accuracy": round(accuracy, 2),
+                "grade": grade,
+                "detection_mode": detection_mode,
+                "candidate_count": len(ocr_candidates),
+            }
+            if self.kanji_ocr_debug:
+                log_payload["candidates"] = [
+                    {
+                        "variant": c["variant"],
+                        "raw_text": c["raw_text"],
+                        "cjk_text": extract_cjk_text(c["raw_text"]),
+                    }
+                    for c in ocr_candidates
+                ]
+            logger.info(
+                "Kanji verification complete: %s",
+                json.dumps(log_payload, ensure_ascii=False),
+            )
+
+            return (
+                accuracy,
+                grade,
+                feedback,
+                stroke_order_correct,
+                transcription_clean,
+                ocr_confidence,
+                detection_mode,
+            )
             
         except Exception as e:
             logger.error(f"Error processing kanji image: {str(e)}", exc_info=True)
@@ -829,4 +1088,7 @@ Make sure all fields are filled with appropriate values. If there are no kanji c
                 "C",
                 f"Error processing kanji drawing: {str(e)}. Please try again.",
                 None,
+                "",
+                None,
+                "error",
             )

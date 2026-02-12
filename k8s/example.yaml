@@ -199,6 +199,11 @@ spec:
           imagePullPolicy: Always
           ports:
             - containerPort: 8001
+          env:
+            - name: KANJI_OCR_V2_ENABLED
+              value: "true"
+            - name: KANJI_OCR_DEBUG
+              value: "false"
           envFrom:
             - secretRef:
                 name: secrets
@@ -316,4 +321,3 @@ spec:
     - hosts:
         - # Replace with your domain
       secretName: # The secret where the TLS certificate is stored
-
