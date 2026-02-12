@@ -218,7 +218,10 @@ def score_kanji_attempt(
         if target_character and transcription_clean and transcription_clean[0] == target_character[0]
         else 0.2
     )
-    accuracy = max(25.0, min(92.0, (similarity * 65 + char_similarity * 35) * 100))
+    accuracy = max(
+        25.0,
+        min(92.0, (similarity * 0.65 + char_similarity * 0.35) * 100),
+    )
 
     if accuracy >= 80:
         return {
