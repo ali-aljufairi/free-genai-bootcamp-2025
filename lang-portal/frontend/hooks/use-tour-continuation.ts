@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react"
 import { usePathname } from "next/navigation"
 import { useSubscription } from "@/components/subscription/subscription-gate"
+import { safeLocalStorageGetItem, safeLocalStorageRemoveItem, safeLocalStorageSetItem } from "@/lib/safe-storage"
 
 const TOUR_CONTINUE_KEY = 'sorami-tour-continue'
 
@@ -93,7 +94,7 @@ export function useTourContinuation() {
     if (typeof window === 'undefined') return
 
     // Check if tour should continue on this page
-    const shouldContinue = localStorage.getItem(TOUR_CONTINUE_KEY)
+    const shouldContinue = safeLocalStorageGetItem(TOUR_CONTINUE_KEY)
     console.log('[Tour] Hook running - pathname:', pathname, 'shouldContinue:', shouldContinue, 'hasContinued:', hasContinuedRef.current)
 
     // Ensure subscription state is ready before deciding whether paywall steps should appear.
@@ -137,12 +138,12 @@ export function useTourContinuation() {
           })
           
           // Clear the flag only after tour successfully starts
-          localStorage.removeItem(TOUR_CONTINUE_KEY)
+          safeLocalStorageRemoveItem(TOUR_CONTINUE_KEY)
           console.log('[Tour] Tour started successfully on:', pathname)
         } catch (error) {
           console.error('[Tour] Failed to continue tour:', error)
           // Clear flag on error too to prevent infinite retries
-          localStorage.removeItem(TOUR_CONTINUE_KEY)
+          safeLocalStorageRemoveItem(TOUR_CONTINUE_KEY)
         }
       }
       
@@ -151,7 +152,7 @@ export function useTourContinuation() {
     } else if (shouldContinue && shouldContinue !== pathname) {
       // Flag exists but pathname doesn't match - might be stale, clear it
       console.log('[Tour] Clearing stale continue flag:', shouldContinue, 'current path:', pathname)
-      localStorage.removeItem(TOUR_CONTINUE_KEY)
+      safeLocalStorageRemoveItem(TOUR_CONTINUE_KEY)
     }
 
     // Cleanup function
@@ -166,5 +167,5 @@ export function useTourContinuation() {
 
 export function setTourContinue(pathname: string): void {
   if (typeof window === 'undefined') return
-  localStorage.setItem(TOUR_CONTINUE_KEY, pathname)
+  safeLocalStorageSetItem(TOUR_CONTINUE_KEY, pathname)
 }
