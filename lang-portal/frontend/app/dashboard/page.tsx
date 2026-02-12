@@ -11,14 +11,12 @@ import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton"
 
 import { BookOpen, Clock, TrendingUp } from "lucide-react"
 import { useAuth } from "@clerk/nextjs"
-import { useLastStudySession, useStudyProgress, useQuickStats } from "@/hooks/api/useDashboard"
+import { useStudyProgress, useQuickStats } from "@/hooks/api/useDashboard"
 import { useUserProfile } from "@/hooks/api/useGroup"
-import { useMemo } from "react"
 
 export default function Dashboard() {
   const { isLoaded, isSignedIn } = useAuth();
-  const { data: lastSession } = useLastStudySession();
-  const { data: studyProgress, isLoading: progressLoading } = useStudyProgress();
+  const { data: studyProgress } = useStudyProgress();
   const { data: quickStats } = useQuickStats();
   const { data: userProfile } = useUserProfile();
 
@@ -33,31 +31,23 @@ export default function Dashboard() {
   }
 
   // Calculate progress value from study progress
-  const progressValue = useMemo(() => {
-    if (studyProgress && studyProgress.total_available_words && studyProgress.total_available_words > 0) {
-      const progress = Math.round(
-        ((studyProgress.total_words_studied || 0) / studyProgress.total_available_words) * 100
-      );
-      return Math.min(progress, 100);
-    }
-    return 0;
-  }, [studyProgress]);
+  const progressValue =
+    studyProgress?.total_available_words && studyProgress.total_available_words > 0
+      ? Math.min(
+          Math.round(((studyProgress.total_words_studied || 0) / studyProgress.total_available_words) * 100),
+          100
+        )
+      : 0;
 
   // Get streak days from quick stats
-  const streakDays = useMemo(() => {
-    return quickStats?.study_streak_days || 0;
-  }, [quickStats?.study_streak_days]);
+  const streakDays = quickStats?.study_streak_days || 0;
 
   // Get username from user profile
-  const username = useMemo(() => {
-    if (userProfile?.user?.display_name) {
-      return userProfile.user.display_name;
-    }
-    if (userProfile?.user?.email) {
-      return userProfile.user.email.split("@")[0];
-    }
-    return "Learner";
-  }, [userProfile]);
+  const username = userProfile?.user?.display_name
+    ? userProfile.user.display_name
+    : userProfile?.user?.email
+      ? userProfile.user.email.split("@")[0]
+      : "Learner";
 
   return (
     <div className="space-y-6">
