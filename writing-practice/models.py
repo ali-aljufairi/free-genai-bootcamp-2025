@@ -71,3 +71,6 @@ class KanjiFeedback(BaseModel):
     grade: str  # S, A, B, C
     feedback: str
     stroke_order_correct: Optional[bool] = None
+    recognized_text: Optional[str] = None
+    ocr_confidence: Optional[float] = None
+    detection_mode: Optional[str] = None

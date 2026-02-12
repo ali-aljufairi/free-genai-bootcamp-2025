@@ -90,6 +90,14 @@ export function DrawingStudy() {
             if (!canvasRef.current) return
 
             const canvas = canvasRef.current
+            const paths = await canvas.exportPaths()
+            const hasAnyStroke = Array.isArray(paths) && paths.some((path) => path.paths.length > 0)
+            if (!hasAnyStroke) {
+                const label = studyMode === 'kanji' ? 'kanji' : studyMode === 'sentence' ? 'sentence' : 'word'
+                setFeedback(`Canvas is empty. Please draw the ${label} before submitting.`)
+                return
+            }
+
             const base64Image = await canvas.exportImage('png')
             const imageData = base64Image.split(',')[1]
 
@@ -294,7 +302,7 @@ export function DrawingStudy() {
                             onPointerCancel={handlePointerUp}
                         >
                             <div className="absolute inset-0 bg-[linear-gradient(to_right,#e5e7eb_1px,transparent_1px),linear-gradient(to_bottom,#e5e7eb_1px,transparent_1px)] bg-[size:20px_20px] opacity-20 dark:opacity-10 pointer-events-none" />
-                            <ReactSketchCanvas
+                           <ReactSketchCanvas
                                 ref={canvasRef}
                                 strokeWidth={4}
                                 strokeColor="#3b82f6"

@@ -2,7 +2,8 @@ from fastapi import FastAPI, HTTPException, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import base64
-from PIL import Image
+import binascii
+from PIL import Image, UnidentifiedImageError
 import io
 import logging
 import requests
@@ -344,6 +345,12 @@ async def get_kanji_feedback(
 ):
     """Get feedback on a kanji drawing submission"""
     try:
+        target_character = submission.character.strip()
+        if not target_character:
+            raise HTTPException(
+                status_code=400, detail="Kanji character is required for verification."
+            )
+
         # Extract token for Go backend calls
         token = None
         if authorization and authorization.lower().startswith("bearer "):
@@ -358,15 +365,38 @@ async def get_kanji_feedback(
             raise HTTPException(status_code=401, detail="Unable to identify user")
 
         # Decode base64 image
-        image_data = base64.b64decode(submission.image)
-        image = Image.open(io.BytesIO(image_data))
+        try:
+            image_data = base64.b64decode(submission.image, validate=True)
+        except binascii.Error as e:
+            raise HTTPException(
+                status_code=400, detail=f"Invalid base64 image payload: {str(e)}"
+            )
+        try:
+            image = Image.open(io.BytesIO(image_data))
+        except UnidentifiedImageError:
+            raise HTTPException(
+                status_code=400, detail="Decoded payload is not a valid image."
+            )
 
         # Process kanji drawing verification
-        accuracy, grade, feedback, stroke_order_correct = (
-            japanese_app.process_kanji_image(
-                image, submission.kanji_id, submission.character
-            )
+        result = japanese_app.process_kanji_image(
+            image, submission.kanji_id, target_character
         )
+        if len(result) == 7:
+            (
+                accuracy,
+                grade,
+                feedback,
+                stroke_order_correct,
+                recognized_text,
+                ocr_confidence,
+                detection_mode,
+            ) = result
+        else:
+            accuracy, grade, feedback, stroke_order_correct = result
+            recognized_text = None
+            ocr_confidence = None
+            detection_mode = None
 
         # Save practice attempt to database via Go backend
         # Convert image to SVG string for storage (simplified - in production, might want actual SVG trace)
@@ -377,11 +407,14 @@ async def get_kanji_feedback(
 
         return KanjiFeedback(
             kanji_id=submission.kanji_id,
-            character=submission.character,
+            character=target_character,
             accuracy=accuracy,
             grade=grade,
             feedback=feedback,
             stroke_order_correct=stroke_order_correct,
+            recognized_text=recognized_text,
+            ocr_confidence=ocr_confidence,
+            detection_mode=detection_mode,
         )
     except HTTPException:
         raise
