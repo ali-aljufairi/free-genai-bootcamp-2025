@@ -302,11 +302,11 @@ export function DrawingStudy() {
                             onPointerCancel={handlePointerUp}
                         >
                             <div className="absolute inset-0 bg-[linear-gradient(to_right,#e5e7eb_1px,transparent_1px),linear-gradient(to_bottom,#e5e7eb_1px,transparent_1px)] bg-[size:20px_20px] opacity-20 dark:opacity-10 pointer-events-none" />
-                           <ReactSketchCanvas
+                            <ReactSketchCanvas
                                 ref={canvasRef}
-                                strokeWidth={4}
-                                strokeColor="#3b82f6"
-                                canvasColor="transparent"
+                                strokeWidth={6}
+                                strokeColor="#000000"
+                                canvasColor="#ffffff"
                                 className="w-full h-full relative z-10 touch-none"
                                 style={{
                                     border: 'none',
