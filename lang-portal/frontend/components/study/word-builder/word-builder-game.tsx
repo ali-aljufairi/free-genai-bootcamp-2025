@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { motion, AnimatePresence } from "framer-motion"
 import { toast } from "sonner"
 import { createSwapy } from "swapy"
 import type { Swapy, SwapEvent, SwapStartEvent, SwapEndEvent, BeforeSwapEvent } from "@/types/swapy"
@@ -37,6 +36,7 @@ export function WordBuilderGame({
     const containerRef = useRef<HTMLDivElement>(null)
     const swapyInstance = useRef<Swapy | null>(null)
     const prevSlotsHadKanji = useRef(false)
+    const hasSubmittedResultsRef = useRef(false)
     const [showResults, setShowResults] = useState(false)
     const [startTime, setStartTime] = useState<number | null>(null)
     const [timeSpent, setTimeSpent] = useState(0)
@@ -58,7 +58,6 @@ export function WordBuilderGame({
         placeKanjiInSlot,
         removeKanjiFromSlot,
         swapSlots,
-        clearSlots,
         startTimer,
         updateTimer,
         stopTimer,
@@ -71,6 +70,20 @@ export function WordBuilderGame({
     const normalizedKanji = Array.isArray(kanji) ? kanji : []
     const normalizedValidWords = Array.isArray(validWords) ? validWords : []
     const effectiveKanjiPool = kanjiPool && kanjiPool.length > 0 ? kanjiPool : normalizedKanji
+    const getValidSessionId = () => {
+        const storeSessionId = useWordBuilderStore.getState().sessionId
+        if (Number.isInteger(sessionId) && sessionId > 0) {
+            return sessionId
+        }
+        if (typeof storeSessionId === "number" && Number.isInteger(storeSessionId) && storeSessionId > 0) {
+            return storeSessionId
+        }
+        return null
+    }
+
+    useEffect(() => {
+        hasSubmittedResultsRef.current = false
+    }, [sessionId])
 
     useEffect(() => {
         if (normalizedKanji.length === 0) {
@@ -368,11 +381,10 @@ export function WordBuilderGame({
     const handleRefreshKanji = async () => {
         const storeState = useWordBuilderStore.getState()
         const usedKanjiIds = Array.from(storeState.usedKanjiIds)
-        const storeSessionId = storeState.sessionId
         const jlptLevel = storeState.preferences.jlpt_level
 
-        // Use sessionId from props (should match store, but props is source of truth)
-        const sessionIdToUse = sessionId || storeSessionId
+        // Refresh supports missing session id, but prefer a valid id when available.
+        const sessionIdToUse = getValidSessionId()
 
         try {
             const response = await refreshKanjiMutation.mutateAsync({
@@ -399,6 +411,10 @@ export function WordBuilderGame({
     }
 
     const handleGameEnd = async () => {
+        if (hasSubmittedResultsRef.current) {
+            return
+        }
+        hasSubmittedResultsRef.current = true
         stopTimer()
 
         if (startTime) {
@@ -406,12 +422,19 @@ export function WordBuilderGame({
             setTimeSpent(elapsed)
         }
 
+        const sessionIdToSubmit = getValidSessionId()
         // Submit results
         const formedWordStrings = formedWords.map(w => w.kanji)
 
+        if (!sessionIdToSubmit) {
+            console.warn("[WordBuilder] Missing valid session_id at submit time, skipping API submit")
+            setShowResults(true)
+            return
+        }
+
         try {
             await submitMutation.mutateAsync({
-                session_id: sessionId,
+                session_id: sessionIdToSubmit,
                 formed_words: formedWordStrings,
                 total_attempts: totalAttempts,
                 time_spent: timeSpent || Math.floor((Date.now() - (startTime || Date.now())) / 1000),
@@ -509,4 +532,3 @@ export function WordBuilderGame({
         </div>
     )
 }
-
