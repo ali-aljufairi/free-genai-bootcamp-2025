@@ -39,11 +39,28 @@ jobs:
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_RELEASE: ${{ github.sha }}
+          SENTRY_ORG: sorami
         run: |
           if [ -z "$SENTRY_AUTH_TOKEN" ]; then
             echo "ERROR: SENTRY_AUTH_TOKEN secret is required for production sourcemap upload."
             exit 1
           fi
+
+          SENTRY_AUTH_TOKEN="$(printf '%s' "$SENTRY_AUTH_TOKEN" | tr -d '\r\n')"
+          if [ -z "$SENTRY_AUTH_TOKEN" ]; then
+            echo "ERROR: SENTRY_AUTH_TOKEN is empty after normalization."
+            exit 1
+          fi
+
+          SENTRY_STATUS_CODE="$(curl -sS -o /tmp/sentry-org.json -w "%{http_code}" \
+            -H "Authorization: Bearer $SENTRY_AUTH_TOKEN" \
+            "https://sentry.io/api/0/organizations/$SENTRY_ORG/")"
+          if [ "$SENTRY_STATUS_CODE" -ne 200 ]; then
+            echo "ERROR: SENTRY_AUTH_TOKEN is invalid or missing access to org '$SENTRY_ORG' (HTTP $SENTRY_STATUS_CODE)."
+            cat /tmp/sentry-org.json || true
+            exit 1
+          fi
+
           echo "Using Sentry release: $SENTRY_RELEASE"
 
       - name: Log in to the Container registry

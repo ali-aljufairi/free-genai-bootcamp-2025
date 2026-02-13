@@ -57,7 +57,11 @@ COPY . .
 RUN --mount=type=secret,id=SENTRY_AUTH_TOKEN,required=false \
     set -eu; \
     if [ -f /run/secrets/SENTRY_AUTH_TOKEN ]; then \
-      export SENTRY_AUTH_TOKEN="$(cat /run/secrets/SENTRY_AUTH_TOKEN)"; \
+      export SENTRY_AUTH_TOKEN="$(tr -d '\r\n' < /run/secrets/SENTRY_AUTH_TOKEN)"; \
+      if [ -z "$SENTRY_AUTH_TOKEN" ]; then \
+        echo "ERROR: SENTRY_AUTH_TOKEN is empty after normalization."; \
+        exit 1; \
+      fi; \
     fi; \
     pnpm run build
 
