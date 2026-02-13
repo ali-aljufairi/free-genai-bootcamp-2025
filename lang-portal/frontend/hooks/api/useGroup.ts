@@ -43,12 +43,17 @@ export function useGroups() {
   const api = useAuthedApi();
   const isAuthReady = isLoaded && isSignedIn;
 
-  return useQuery<Group[]>({
+  const query = useQuery<Group[]>({
     queryKey: ['groups'],
     queryFn: () => api.group.getGroups(),
     staleTime: 5 * 60 * 1000, // 5 minutes
     enabled: isAuthReady,
   });
+
+  return {
+    ...query,
+    isLoading: !isLoaded || (isAuthReady && query.isLoading),
+  };
 }
 
 /**
