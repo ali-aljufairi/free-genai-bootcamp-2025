@@ -1,9 +1,18 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { api } from "@/services/api";
+import { useAuth } from "@clerk/nextjs";
+import { useMemo } from "react";
+import { createApiService } from "@/services/api";
+import { useApiClient } from "@/hooks/useApiClient";
 
 const ITEMS_PER_PAGE = 20;
+
+function useKanjiApi() {
+  const apiClient = useApiClient();
+  const api = useMemo(() => createApiService(apiClient), [apiClient]);
+  return api.kanji;
+}
 
 export interface KanjiSearchParams {
   q?: string;
@@ -21,12 +30,16 @@ export interface KanjiSearchParams {
 }
 
 export function useKanji(params: KanjiSearchParams = {}) {
+  const { isLoaded, isSignedIn } = useAuth();
+  const kanjiApi = useKanjiApi();
+  const isAuthReady = isLoaded && isSignedIn;
   const page = params.page || 1;
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["kanji", params],
     queryFn: () =>
-      api.kanji.search({ ...params, page, pageSize: ITEMS_PER_PAGE }),
+      kanjiApi.search({ ...params, page, pageSize: ITEMS_PER_PAGE }),
+    enabled: isAuthReady,
   });
 
   return {
@@ -37,11 +50,10 @@ export function useKanji(params: KanjiSearchParams = {}) {
       pageSize: ITEMS_PER_PAGE,
       totalPages: 0,
     },
-    isLoading,
+    isLoading: !isLoaded || (isAuthReady && isLoading),
     error,
   };
 }
 
 export default { useKanji };
-
 

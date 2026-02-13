@@ -2,11 +2,12 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@clerk/nextjs";
-import { groupApi, userApi } from "@/services/api";
+import { createApiService } from "@/services/api";
 import { useEffect, useMemo } from "react";
 import { toast } from "sonner";
 import { Group } from "@/types/api";
 import { useUserSettingsStore } from "@/stores/user-settings-store";
+import { useApiClient } from "@/hooks/useApiClient";
 
 export interface UserProfile {
   user: {
@@ -29,14 +30,24 @@ export interface UserProfile {
   [key: string]: any;
 }
 
+function useAuthedApi() {
+  const apiClient = useApiClient();
+  return useMemo(() => createApiService(apiClient), [apiClient]);
+}
+
 /**
  * Hook to fetch all groups
  */
 export function useGroups() {
+  const { isLoaded, isSignedIn } = useAuth();
+  const api = useAuthedApi();
+  const isAuthReady = isLoaded && isSignedIn;
+
   return useQuery<Group[]>({
     queryKey: ['groups'],
-    queryFn: () => groupApi.getGroups(),
+    queryFn: () => api.group.getGroups(),
     staleTime: 5 * 60 * 1000, // 5 minutes
+    enabled: isAuthReady,
   });
 }
 
@@ -45,10 +56,11 @@ export function useGroups() {
  * Returns both React Query mutation object and a convenience async function
  */
 export function useCreateGroup() {
+  const api = useAuthedApi();
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
-    mutationFn: (payload: { name: string; description?: string }) => groupApi.createGroup(payload),
+    mutationFn: (payload: { name: string; description?: string }) => api.group.createGroup(payload),
     onSuccess: (data, variables) => {
       toast.success("Group created", { description: variables.name });
       // Invalidate and refetch groups
@@ -76,11 +88,12 @@ export function useCreateGroup() {
  * Returns both React Query mutation object and a convenience async function
  */
 export function useUpdateGroup() {
+  const api = useAuthedApi();
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
     mutationFn: ({ groupId, ...data }: { groupId: number; name: string; description?: string }) => 
-      groupApi.updateGroup(groupId, data),
+      api.group.updateGroup(groupId, data),
     onSuccess: () => {
       toast.success("Group updated");
       // Invalidate and refetch groups
@@ -108,10 +121,11 @@ export function useUpdateGroup() {
  */
 export function useUserProfile() {
   const { isLoaded, isSignedIn } = useAuth();
+  const api = useAuthedApi();
   
   const { data, isLoading, error, refetch } = useQuery<UserProfile>({
     queryKey: ['user', 'profile'],
-    queryFn: () => userApi.getMe(),
+    queryFn: () => api.user.getMe(),
     staleTime: 5 * 60 * 1000, // 5 minutes
     enabled: isLoaded && isSignedIn,
   });
@@ -142,10 +156,11 @@ export function useUserProfile() {
  * Hook to set favorite group
  */
 export function useSetFavoriteGroup() {
+  const api = useAuthedApi();
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (groupId: number | null) => userApi.setFavoriteGroup(groupId),
+    mutationFn: (groupId: number | null) => api.user.setFavoriteGroup(groupId),
     onSuccess: () => {
       toast.success("Favorite group updated");
       // Invalidate and refetch user profile and groups
@@ -162,11 +177,12 @@ export function useSetFavoriteGroup() {
  * Hook to remove a word from a group
  */
 export function useRemoveWordFromGroup() {
+  const api = useAuthedApi();
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: ({ groupId, wordId }: { groupId: number; wordId: number }) => 
-      groupApi.removeWord(groupId, wordId),
+      api.group.removeWord(groupId, wordId),
     onSuccess: () => {
       toast.success("Word removed from group");
       // Invalidate groups and words queries
