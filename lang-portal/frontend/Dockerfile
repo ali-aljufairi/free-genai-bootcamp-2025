@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1.7
+
 # ================================
 # Stage 1: Build the application
 # ================================
@@ -22,6 +24,7 @@ ARG NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
 ARG NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
 ARG NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/study
 ARG NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/study
+ARG SENTRY_RELEASE
 
 # Set as environment variables for Next.js build
 ENV NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=$NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
@@ -34,6 +37,7 @@ ENV NEXT_PUBLIC_CLERK_SIGN_IN_URL=$NEXT_PUBLIC_CLERK_SIGN_IN_URL
 ENV NEXT_PUBLIC_CLERK_SIGN_UP_URL=$NEXT_PUBLIC_CLERK_SIGN_UP_URL
 ENV NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=$NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL
 ENV NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=$NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL
+ENV SENTRY_RELEASE=$SENTRY_RELEASE
 
 # Install pnpm globally
 RUN npm install -g pnpm
@@ -50,7 +54,12 @@ RUN pnpm install
 COPY . .
 
 # Build the application
-RUN pnpm run build
+RUN --mount=type=secret,id=SENTRY_AUTH_TOKEN,required=false \
+    set -eu; \
+    if [ -f /run/secrets/SENTRY_AUTH_TOKEN ]; then \
+      export SENTRY_AUTH_TOKEN="$(cat /run/secrets/SENTRY_AUTH_TOKEN)"; \
+    fi; \
+    pnpm run build
 
 # ================================
 # Stage 2: Production runner
@@ -77,6 +86,19 @@ RUN mkdir -p .next/standalone/.next && \
     mkdir -p .next/standalone && \
     cp -r .next/static .next/standalone/.next/ && \
     cp -r public .next/standalone/
+
+# Remove and assert client sourcemaps are not present in publicly served assets
+RUN set -eu; \
+    for dir in .next/static .next/standalone/.next/static; do \
+      if [ -d "$dir" ]; then \
+        find "$dir" -type f -name "*.map" -delete; \
+        if find "$dir" -type f -name "*.map" | grep -q .; then \
+          echo "ERROR: sourcemap files still present in $dir"; \
+          find "$dir" -type f -name "*.map"; \
+          exit 1; \
+        fi; \
+      fi; \
+    done
 
 # Remove .env files to prevent them from overriding Kubernetes environment variables
 # wattpm loads .env files which can override process.env values from Kubernetes

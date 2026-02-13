@@ -67,18 +67,34 @@ function mergeConfig(nextConfig, userConfig) {
 
 const finalConfig = mergeConfig(nextConfig, userConfig);
 
+const isCiBuild = process.env.CI === 'true';
+const hasSentryAuthToken = Boolean(process.env.SENTRY_AUTH_TOKEN);
+const shouldUploadSourcemaps = isCiBuild && hasSentryAuthToken;
+
 // Sentry configuration options
 const sentryWebpackPluginOptions = {
   // For all available options, see:
   // https://github.com/getsentry/sentry-webpack-plugin#options
   
-  silent: true,
+  silent: !isCiBuild,
   org: 'sorami',
   project: 'lang-portal-frontend',
-  dryRun: true,
+  dryRun: !shouldUploadSourcemaps,
   authToken: process.env.SENTRY_AUTH_TOKEN,
   widenClientFileUpload: true,
-  hideSourceMaps: true,
+  sourcemaps: {
+    deleteSourcemapsAfterUpload: true,
+  },
+  errorHandler(error) {
+    throw error;
+  },
+  ...(process.env.SENTRY_RELEASE
+    ? {
+        release: {
+          name: process.env.SENTRY_RELEASE,
+        },
+      }
+    : {}),
 };
 
 // Skip Sentry wrapper in development to avoid webpack configuration conflicts with Turbopack
