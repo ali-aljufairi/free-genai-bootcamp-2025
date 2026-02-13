@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@clerk/nextjs";
 import { api } from "@/services/api";
 
 export interface GrammarPoint {
@@ -39,28 +40,35 @@ export interface GrammarPointDetail extends GrammarPoint {
 }
 
 export function useGrammarList() {
+  const { isLoaded, isSignedIn } = useAuth();
+  const isAuthReady = isLoaded && isSignedIn;
+
   const { data, isLoading, error } = useQuery({
     queryKey: ["grammar", "list"],
     queryFn: () => api.grammar.list(),
+    enabled: isAuthReady,
   });
 
   return {
     data: data || [],
-    isLoading,
+    isLoading: !isLoaded || isLoading,
     error,
   };
 }
 
 export function useGrammarDetail(id: number) {
+  const { isLoaded, isSignedIn } = useAuth();
+  const isAuthReady = isLoaded && isSignedIn;
+
   const { data, isLoading, error } = useQuery({
     queryKey: ["grammar", "detail", id],
     queryFn: () => api.grammar.getDetail(id),
-    enabled: !!id,
+    enabled: isAuthReady && !!id,
   });
 
   return {
     data,
-    isLoading,
+    isLoading: !isLoaded || isLoading,
     error,
   };
 }
@@ -81,4 +89,3 @@ export function useMarkGrammarAsLearned() {
 }
 
 export default { useGrammarList, useGrammarDetail, useMarkGrammarAsLearned };
-
