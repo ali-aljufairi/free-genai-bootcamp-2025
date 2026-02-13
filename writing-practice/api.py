@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import base64
 import binascii
+import random
 from PIL import Image, UnidentifiedImageError
 import io
 import logging
@@ -57,6 +58,75 @@ class FeedbackResponse(BaseModel):
     feedback: str  # Detailed feedback
 
 
+FALLBACK_SENTENCE_POOL = [
+    {
+        "sentence": "日本語を練習します。",
+        "english": "I practice Japanese.",
+        "romaji": "nihongo o renshuu shimasu.",
+        "word": "日本語",
+    },
+    {
+        "sentence": "毎日少しずつ勉強します。",
+        "english": "I study a little every day.",
+        "romaji": "mainichi sukoshi zutsu benkyou shimasu.",
+        "word": "勉強",
+    },
+    {
+        "sentence": "今日はいい天気です。",
+        "english": "The weather is nice today.",
+        "romaji": "kyou wa ii tenki desu.",
+        "word": "天気",
+    },
+]
+
+
+def _extract_bearer_token(authorization: str | None) -> str | None:
+    if authorization and authorization.lower().startswith("bearer "):
+        return authorization.split(" ", 1)[1].strip()
+    return None
+
+
+def _build_random_sentence_response(token: str | None) -> RandomSentenceResponse:
+    japanese, english, romaji, _ = japanese_app.get_random_word(token)
+
+    word_data = japanese_app.current_word
+    sentence = japanese_app.generate_sentence(word_data)
+
+    sentence_data = (
+        japanese_app.current_sentence_data
+        if hasattr(japanese_app, "current_sentence_data")
+        else None
+    )
+
+    if sentence_data:
+        return RandomSentenceResponse(
+            sentence=sentence_data.sentence,
+            english=sentence_data.english,
+            romaji=sentence_data.romaji,
+            word=japanese,
+        )
+
+    return RandomSentenceResponse(
+        sentence=sentence,
+        english=f"Sentence with {english}",
+        romaji=romaji,
+        word=japanese,
+    )
+
+
+def _build_fallback_random_sentence_response(
+    context: str,
+    error: Exception,
+) -> RandomSentenceResponse:
+    fallback = random.choice(FALLBACK_SENTENCE_POOL)
+    logger.warning(
+        "%s. Serving fallback sentence instead. Error: %s",
+        context,
+        str(error),
+    )
+    return RandomSentenceResponse(**fallback)
+
+
 @api.get("/")
 async def root():
     return {"message": "Japanese Writing Practice API"}
@@ -69,54 +139,23 @@ async def get_random_sentence(
 ):
     """Generate a random sentence using a random Japanese word"""
     try:
-        # Extract token for Go backend calls
-        token = None
-        if authorization and authorization.lower().startswith("bearer "):
-            token = authorization.split(" ", 1)[1]
-
-        # First get a random word - this will raise exceptions on failure
-        japanese, english, romaji, _ = japanese_app.get_random_word(token)
-
-        # Generate a sentence using this word
-        word_data = (
-            japanese_app.current_word
-        )  # The word is stored in japanese_app.current_word
-        sentence = japanese_app.generate_sentence(word_data)
-
-        # Format response data
-        sentence_data = (
-            japanese_app.current_sentence_data
-            if hasattr(japanese_app, "current_sentence_data")
-            else None
-        )
-
-        if sentence_data:
-            return RandomSentenceResponse(
-                sentence=sentence_data.sentence,
-                english=sentence_data.english,
-                romaji=sentence_data.romaji,
-                word=japanese,
-            )
-        else:
-            return RandomSentenceResponse(
-                sentence=sentence,
-                english=f"Sentence with {english}",
-                romaji=romaji,
-                word=japanese,
-            )
+        token = _extract_bearer_token(authorization)
+        return _build_random_sentence_response(token)
     except requests.exceptions.Timeout as e:
-        error_msg = "Request to word service timed out. Please try again."
-        logger.error(f"Error generating random sentence: {error_msg} - {str(e)}")
-        raise HTTPException(status_code=504, detail=error_msg)
+        return _build_fallback_random_sentence_response(
+            "Request to word service timed out while generating random sentence",
+            e,
+        )
     except requests.exceptions.ConnectionError as e:
-        error_msg = "Unable to connect to word service. Please check if the service is available."
-        logger.error(f"Error generating random sentence: {error_msg} - {str(e)}")
-        raise HTTPException(status_code=503, detail=error_msg)
+        return _build_fallback_random_sentence_response(
+            "Unable to connect to word service while generating random sentence",
+            e,
+        )
     except ValueError as e:
-        # This covers API errors and invalid data
-        error_msg = f"Failed to get a random word: {str(e)}"
-        logger.error(f"Error generating random sentence: {error_msg}")
-        raise HTTPException(status_code=500, detail=error_msg)
+        return _build_fallback_random_sentence_response(
+            "Random word API returned invalid data while generating random sentence",
+            e,
+        )
     except Exception as e:
         error_msg = f"Error generating random sentence: {str(e)}"
         logger.error(error_msg, exc_info=True)
@@ -130,54 +169,23 @@ async def get_random_word_sentence(
 ):
     """Get a random word and generate a sentence using that word"""
     try:
-        # Extract token for Go backend calls
-        token = None
-        if authorization and authorization.lower().startswith("bearer "):
-            token = authorization.split(" ", 1)[1]
-
-        # First get a random word - this will raise exceptions on failure
-        japanese, english, romaji, _ = japanese_app.get_random_word(token)
-
-        # Generate a sentence using this word
-        word_data = (
-            japanese_app.current_word
-        )  # The word is stored in japanese_app.current_word
-        sentence = japanese_app.generate_sentence(word_data)
-
-        # Format response data
-        sentence_data = (
-            japanese_app.current_sentence_data
-            if hasattr(japanese_app, "current_sentence_data")
-            else None
-        )
-
-        if sentence_data:
-            return RandomSentenceResponse(
-                sentence=sentence_data.sentence,
-                english=sentence_data.english,
-                romaji=sentence_data.romaji,
-                word=japanese,
-            )
-        else:
-            return RandomSentenceResponse(
-                sentence=sentence,
-                english=f"Sentence with {english}",
-                romaji=romaji,
-                word=japanese,
-            )
+        token = _extract_bearer_token(authorization)
+        return _build_random_sentence_response(token)
     except requests.exceptions.Timeout as e:
-        error_msg = "Request to word service timed out. Please try again."
-        logger.error(f"Error generating word and sentence: {error_msg} - {str(e)}")
-        raise HTTPException(status_code=504, detail=error_msg)
+        return _build_fallback_random_sentence_response(
+            "Request to word service timed out while generating random word sentence",
+            e,
+        )
     except requests.exceptions.ConnectionError as e:
-        error_msg = "Unable to connect to word service. Please check if the service is available."
-        logger.error(f"Error generating word and sentence: {error_msg} - {str(e)}")
-        raise HTTPException(status_code=503, detail=error_msg)
+        return _build_fallback_random_sentence_response(
+            "Unable to connect to word service while generating random word sentence",
+            e,
+        )
     except ValueError as e:
-        # This covers API errors and invalid data
-        error_msg = f"Failed to get a random word: {str(e)}"
-        logger.error(f"Error generating word and sentence: {error_msg}")
-        raise HTTPException(status_code=500, detail=error_msg)
+        return _build_fallback_random_sentence_response(
+            "Random word API returned invalid data while generating random word sentence",
+            e,
+        )
     except Exception as e:
         error_msg = f"Error generating word and sentence: {str(e)}"
         logger.error(error_msg, exc_info=True)
