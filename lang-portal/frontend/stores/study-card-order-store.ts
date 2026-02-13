@@ -1,6 +1,11 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { createJSONStorage, persist, type StateStorage } from 'zustand/middleware'
 import { studyOptions } from '@/components/study-session/constants'
+import {
+  safeLocalStorageGetItem,
+  safeLocalStorageRemoveItem,
+  safeLocalStorageSetItem,
+} from '@/lib/safe-storage'
 
 /**
  * Store for managing the order of study cards in the hub
@@ -22,6 +27,16 @@ export interface StudyCardOrderStore {
  */
 const getDefaultOrder = (): string[] => {
   return studyOptions.map(option => option.type)
+}
+
+const safePersistStorage: StateStorage = {
+  getItem: (name: string) => safeLocalStorageGetItem(name),
+  setItem: (name: string, value: string) => {
+    safeLocalStorageSetItem(name, value)
+  },
+  removeItem: (name: string) => {
+    safeLocalStorageRemoveItem(name)
+  },
 }
 
 /**
@@ -65,6 +80,7 @@ export const useStudyCardOrderStore = create<StudyCardOrderStore>()(
     {
       name: 'study-card-order', // localStorage key
       version: 1, // Version for future migrations
+      storage: createJSONStorage(() => safePersistStorage),
       // Add partialize to ensure only cardOrder is persisted
       partialize: (state) => ({ cardOrder: state.cardOrder }),
     }

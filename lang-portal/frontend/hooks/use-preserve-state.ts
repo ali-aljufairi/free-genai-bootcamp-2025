@@ -1,4 +1,10 @@
 import { useEffect, useRef } from 'react'
+import {
+  safeSessionStorageGetItem,
+  safeSessionStorageKeys,
+  safeSessionStorageRemoveItem,
+  safeSessionStorageSetItem,
+} from '@/lib/safe-storage'
 
 /**
  * Custom hook to preserve scroll position and component state
@@ -9,7 +15,7 @@ export const usePreserveScrollPosition = (key: string) => {
 
   useEffect(() => {
     // Restore scroll position on mount
-    const savedPosition = sessionStorage.getItem(`scroll-${key}`)
+    const savedPosition = safeSessionStorageGetItem(`scroll-${key}`)
     if (savedPosition && containerRef.current) {
       const position = JSON.parse(savedPosition)
       containerRef.current.scrollTo(position.x, position.y)
@@ -22,7 +28,7 @@ export const usePreserveScrollPosition = (key: string) => {
           x: containerRef.current.scrollLeft,
           y: containerRef.current.scrollTop,
         }
-        sessionStorage.setItem(`scroll-${key}`, JSON.stringify(position))
+        safeSessionStorageSetItem(`scroll-${key}`, JSON.stringify(position))
       }
     }
   }, [key])
@@ -39,7 +45,7 @@ export const usePreserveState = <T>(key: string, initialState: T) => {
 
   useEffect(() => {
     // Restore state on mount
-    const savedState = sessionStorage.getItem(`state-${key}`)
+    const savedState = safeSessionStorageGetItem(`state-${key}`)
     if (savedState) {
       try {
         stateRef.current = JSON.parse(savedState)
@@ -50,13 +56,13 @@ export const usePreserveState = <T>(key: string, initialState: T) => {
 
     // Save state on unmount
     return () => {
-      sessionStorage.setItem(`state-${key}`, JSON.stringify(stateRef.current))
+      safeSessionStorageSetItem(`state-${key}`, JSON.stringify(stateRef.current))
     }
   }, [key])
 
   const setState = (newState: T) => {
     stateRef.current = newState
-    sessionStorage.setItem(`state-${key}`, JSON.stringify(newState))
+    safeSessionStorageSetItem(`state-${key}`, JSON.stringify(newState))
   }
 
   return [stateRef.current, setState] as const
@@ -71,7 +77,7 @@ export const usePreserveFormData = (key: string) => {
 
   useEffect(() => {
     // Restore form data on mount
-    const savedData = sessionStorage.getItem(`form-${key}`)
+    const savedData = safeSessionStorageGetItem(`form-${key}`)
     if (savedData && formRef.current) {
       try {
         const formData = JSON.parse(savedData)
@@ -100,7 +106,7 @@ export const usePreserveFormData = (key: string) => {
           data[name] = value
         }
         
-        sessionStorage.setItem(`form-${key}`, JSON.stringify(data))
+        safeSessionStorageSetItem(`form-${key}`, JSON.stringify(data))
       }
     }
   }, [key])
@@ -136,9 +142,9 @@ export const usePreserveVisibility = (key: string, defaultVisible: boolean = tru
  * Useful for resetting state when needed
  */
 export const clearPreservedState = (key: string) => {
-  sessionStorage.removeItem(`scroll-${key}`)
-  sessionStorage.removeItem(`state-${key}`)
-  sessionStorage.removeItem(`form-${key}`)
+  safeSessionStorageRemoveItem(`scroll-${key}`)
+  safeSessionStorageRemoveItem(`state-${key}`)
+  safeSessionStorageRemoveItem(`form-${key}`)
 }
 
 /**
@@ -146,10 +152,10 @@ export const clearPreservedState = (key: string) => {
  * Use with caution as it clears all preserved state
  */
 export const clearAllPreservedState = () => {
-  const keys = Object.keys(sessionStorage)
+  const keys = safeSessionStorageKeys()
   keys.forEach(key => {
     if (key.startsWith('scroll-') || key.startsWith('state-') || key.startsWith('form-')) {
-      sessionStorage.removeItem(key)
+      safeSessionStorageRemoveItem(key)
     }
   })
 }
