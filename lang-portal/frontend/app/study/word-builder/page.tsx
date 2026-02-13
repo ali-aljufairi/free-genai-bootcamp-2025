@@ -7,6 +7,7 @@ import { useStartWordBuilder } from "@/hooks/api/use-word-builder"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { useWordBuilderStore } from "@/stores/word-builder-store"
 import { useUserSettingsStore } from "@/stores/user-settings-store"
+import type { WordBuilderSession } from "@/types/api"
 import { toast } from "sonner"
 import { SubscriptionGate } from "@/components/subscription/subscription-gate"
 import { useRouter } from "next/navigation"
@@ -36,9 +37,9 @@ function hasConfiguredPreferences(prefs: typeof defaultPreferences): boolean {
 export default function WordBuilderPage() {
     const router = useRouter()
     const [showConfig, setShowConfig] = useState(true)
-    const [sessionData, setSessionData] = useState<any>(null)
+    const [sessionData, setSessionData] = useState<WordBuilderSession | null>(null)
     const isMobile = useIsMobile()
-    const { preferences, setPreferences } = useWordBuilderStore()
+    const { preferences } = useWordBuilderStore()
     const globalJlptLevel = useUserSettingsStore((s) => s.currentJlptLevel)
     const startMutation = useStartWordBuilder()
     const hasAutoStartedRef = useRef(false)
@@ -57,6 +58,10 @@ export default function WordBuilderPage() {
                 jlpt_level: effectiveJlptLevel,
                 time_limit: preferences.time_limit,
             })
+
+            if (!Number.isInteger(session.session_id) || session.session_id <= 0) {
+                throw new Error("Invalid session returned by server")
+            }
 
             if (!session.valid_words || session.valid_words.length === 0) {
                 toast.warning("No valid words found for selected kanji. Please try again.")
@@ -166,4 +171,3 @@ export default function WordBuilderPage() {
         </SubscriptionGate>
     )
 }
-
