@@ -1,23 +1,30 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { groupApi, userApi } from "@/services/api";
+import { createApiService } from "@/services/api";
 import { toast } from "sonner";
 import { useGroups, useUserProfile, useCreateGroup } from "./useGroup";
 import { useCallback, useMemo } from "react";
+import { useApiClient } from "@/hooks/useApiClient";
+
+function useAuthedApi() {
+  const apiClient = useApiClient();
+  return useMemo(() => createApiService(apiClient), [apiClient]);
+}
 
 /**
  * Hook to add a word or kanji to a group
  */
 export function useAddToGroup() {
+  const api = useAuthedApi();
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async ({ groupId, itemId, type }: { groupId: number; itemId: number; type: 'word' | 'kanji' }) => {
       if (type === 'word') {
-        return groupApi.addWord(groupId, itemId);
+        return api.group.addWord(groupId, itemId);
       } else {
-        return groupApi.addKanji(groupId, itemId);
+        return api.group.addKanji(groupId, itemId);
       }
     },
     onSuccess: () => {
@@ -38,6 +45,7 @@ export function useAddToGroup() {
  * Automatically creates a favorite group if it doesn't exist
  */
 export function useAddToFavorites() {
+  const api = useAuthedApi();
   const { data: groups } = useGroups();
   const { favoriteGroupId, refetch: refetchProfile } = useUserProfile();
   const { createGroup } = useCreateGroup();
@@ -73,7 +81,7 @@ export function useAddToFavorites() {
           // Set it as the user's favorite group if not already set
           if (favoriteGroupId !== favoritesId) {
             try {
-              await userApi.setFavoriteGroup(favoritesId);
+              await api.user.setFavoriteGroup(favoritesId);
               await refetchProfile();
             } catch {
               // Continue anyway - we'll use the existing group
@@ -96,7 +104,7 @@ export function useAddToFavorites() {
 
             // Set it as the user's favorite group
             try {
-              await userApi.setFavoriteGroup(favoritesId);
+              await api.user.setFavoriteGroup(favoritesId);
               await refetchProfile();
             } catch {
               // Continue anyway - the group was created
@@ -116,7 +124,7 @@ export function useAddToFavorites() {
               if (foundGroup) {
                 favoritesId = parseInt(foundGroup.id, 10);
                 try {
-                  await userApi.setFavoriteGroup(favoritesId);
+                  await api.user.setFavoriteGroup(favoritesId);
                   await refetchProfile();
                 } catch {
                   // Continue anyway - we found the group
@@ -154,7 +162,7 @@ export function useAddToFavorites() {
         description: error?.message || "Unknown error"
       });
     }
-  }, [favoriteGroupId, groupsMemo, createGroup, refetchProfile, addToGroup, queryClient]);
+  }, [favoriteGroupId, groupsMemo, createGroup, refetchProfile, addToGroup, queryClient, api]);
 
   return {
     addToFavorites,

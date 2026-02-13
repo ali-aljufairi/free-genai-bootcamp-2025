@@ -74,7 +74,7 @@ export function createApiService(client: ApiClient) {
       level?: number;
       has_kanji?: boolean;
       correct_count?: number;
-      group_id?: number;
+      group_id?: number | string;
       limit?: number;
       offset?: number;
     }) => {
@@ -104,7 +104,7 @@ export function createApiService(client: ApiClient) {
       onyomi?: boolean;
       kunyomi?: boolean;
       components?: string;
-      group_id?: number;
+      group_id?: number | string;
       page?: number;
       pageSize?: number;
     }) => {
