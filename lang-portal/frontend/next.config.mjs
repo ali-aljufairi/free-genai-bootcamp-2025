@@ -82,7 +82,6 @@ const sentryWebpackPluginOptions = {
   dryRun: !shouldUploadSourcemaps,
   authToken: process.env.SENTRY_AUTH_TOKEN,
   widenClientFileUpload: true,
-  hideSourceMaps: true,
   sourcemaps: {
     deleteSourcemapsAfterUpload: true,
   },
