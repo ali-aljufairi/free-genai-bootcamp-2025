@@ -127,12 +127,13 @@ export function useUpdateGroup() {
 export function useUserProfile() {
   const { isLoaded, isSignedIn } = useAuth();
   const api = useAuthedApi();
+  const isAuthReady = isLoaded && isSignedIn;
   
   const { data, isLoading, error, refetch } = useQuery<UserProfile>({
     queryKey: ['user', 'profile'],
     queryFn: () => api.user.getMe(),
     staleTime: 5 * 60 * 1000, // 5 minutes
-    enabled: isLoaded && isSignedIn,
+    enabled: isAuthReady,
   });
 
   const setFromProfile = useUserSettingsStore((s) => s.setFromProfile);
@@ -150,7 +151,7 @@ export function useUserProfile() {
 
   return { 
     data, 
-    isLoading, 
+    isLoading: !isLoaded || (isAuthReady && isLoading), 
     error, 
     refetch,
     favoriteGroupId
