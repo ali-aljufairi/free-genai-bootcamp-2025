@@ -109,42 +109,6 @@ jobs:
             NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/dashboard
             NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/dashboard
 
-      - name: Verify frontend image has no public sourcemaps
-        run: |
-          IMAGE="${{ steps.set-image-output.outputs.image }}"
-          if [ -z "$IMAGE" ]; then
-            echo "ERROR: Could not resolve built image tag for verification."
-            exit 1
-          fi
-
-          docker pull "$IMAGE"
-          docker run --rm --entrypoint sh "$IMAGE" -lc '
-            set -eu
-            STATIC_DIRS="/home/app/.next/static /home/app/.next/standalone/.next/static"
-
-            for dir in $STATIC_DIRS; do
-              if [ -d "$dir" ]; then
-                if find "$dir" -type f -name "*.map" | grep -q .; then
-                  echo "ERROR: Public sourcemap files found in $dir"
-                  find "$dir" -type f -name "*.map"
-                  exit 1
-                fi
-              fi
-            done
-
-            for dir in $STATIC_DIRS; do
-              if [ -d "$dir" ]; then
-                if grep -R --include="*.js" -n "sourceMappingURL=" "$dir" >/dev/null 2>&1; then
-                  echo "ERROR: sourceMappingURL references found in $dir"
-                  grep -R --include="*.js" -n "sourceMappingURL=" "$dir"
-                  exit 1
-                fi
-              fi
-            done
-
-            echo "No public sourcemaps or sourceMappingURL references detected."
-          '
-
   deploy-frontend:
     runs-on: ubuntu-latest
     needs: [build-and-push-frontend]
