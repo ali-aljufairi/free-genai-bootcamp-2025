@@ -14,7 +14,6 @@ interface MobileGrammarQuizProps {
     totalQuestions: number
     selectedOption: number | null
     score: number
-    showExplanations: boolean
     timeRemaining?: number
     timerDuration?: number
     onOptionSelect: (index: number) => void
@@ -29,7 +28,6 @@ export function MobileGrammarQuiz({
     totalQuestions,
     selectedOption,
     score,
-    showExplanations,
     timeRemaining,
     timerDuration,
     onOptionSelect,
@@ -97,22 +95,6 @@ export function MobileGrammarQuiz({
                             className="text-center space-y-4 min-h-[120px] flex flex-col items-center justify-center"
                         >
                             {renderQuestion(question)}
-
-                            {/* Show explanation after answer when enabled */}
-                            {selectedOption !== null && showExplanations && question.explanation && (
-                                <motion.div
-                                    initial={{ opacity: 0, y: 10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ duration: 0.3, delay: 0.2 }}
-                                    className="mt-4 p-3 bg-muted/50 rounded-lg border border-muted"
-                                >
-                                    <p className="text-sm text-muted-foreground font-medium mb-1">Explanation:</p>
-                                    <div
-                                        className="text-sm text-left"
-                                        dangerouslySetInnerHTML={{ __html: question.explanation }}
-                                    />
-                                </motion.div>
-                            )}
                         </motion.div>
                     </CardContent>
                 </Card>

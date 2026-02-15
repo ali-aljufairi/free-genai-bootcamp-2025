@@ -2,3 +2,8 @@
 lang-portal/data/cleaned_json/kanji_svg_strokes.json
 lang-portal/data/cleaned_json/db/DATABASE_RESTORATION_SUMMARY.md
 .DS_Store
+
+# Local sandbox/test artifacts
+*pidfile
+*logfile
+*.log

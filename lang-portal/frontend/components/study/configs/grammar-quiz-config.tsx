@@ -17,7 +17,6 @@ interface GrammarPreferences {
     questionType: GrammarQuestionType
     useSRS: boolean
     count: number
-    showExplanations: boolean
     requiredCorrectCount: number
     timerDuration: number
 }
@@ -28,7 +27,6 @@ interface GrammarQuizConfigProps {
     onQuestionTypeChange: (type: GrammarQuestionType) => void
     onUseSRSChange: (useSRS: boolean) => void
     onCountChange: (count: number) => void
-    onShowExplanationsChange: (showExplanations: boolean) => void
     onThresholdChange: (count: number) => void
     onTimerChange: (duration: number) => void
     onStart: () => void
@@ -42,7 +40,6 @@ export function GrammarQuizConfig({
     onQuestionTypeChange,
     onUseSRSChange,
     onCountChange,
-    onShowExplanationsChange,
     onThresholdChange,
     onTimerChange,
     onStart,
@@ -86,18 +83,6 @@ export function GrammarQuizConfig({
                                 </div>
                                 <p className="text-xs text-muted-foreground">
                                     Only show questions that need review
-                                </p>
-                            </div>
-                            <div className="space-y-2">
-                                <div className="flex items-center justify-between">
-                                    <Label className="text-sm font-medium">Show Explanations</Label>
-                                    <Switch
-                                        checked={preferences.showExplanations}
-                                        onCheckedChange={onShowExplanationsChange}
-                                    />
-                                </div>
-                                <p className="text-xs text-muted-foreground">
-                                    Display feedback after each answered question
                                 </p>
                             </div>
                             <SRSThresholdSelector
@@ -171,18 +156,6 @@ export function GrammarQuizConfig({
                                 </div>
                                 <p className="text-xs text-muted-foreground">
                                     Only show questions that need review
-                                </p>
-                            </div>
-                            <div className="space-y-2">
-                                <div className="flex items-center justify-between">
-                                    <Label className="text-sm font-medium">Show Explanations</Label>
-                                    <Switch
-                                        checked={preferences.showExplanations}
-                                        onCheckedChange={onShowExplanationsChange}
-                                    />
-                                </div>
-                                <p className="text-xs text-muted-foreground">
-                                    Display feedback after each answered question
                                 </p>
                             </div>
                             <SRSThresholdSelector
