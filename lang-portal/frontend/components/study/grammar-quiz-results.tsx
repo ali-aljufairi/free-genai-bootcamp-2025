@@ -85,7 +85,7 @@ export function GrammarQuizResults({
                         <div className="space-y-3">
                             {reviewItems.map((item) => (
                                 <article
-                                    key={item.questionId}
+                                    key={item.questionNumber}
                                     className={`rounded-lg border p-3 space-y-3 ${item.isCorrect
                                         ? "border-green-500/30 bg-green-500/5"
                                         : "border-red-500/30 bg-red-500/5"
