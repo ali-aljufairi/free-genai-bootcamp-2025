@@ -16,7 +16,7 @@ import { useGrammarStore } from "@/stores/grammar-store"
 import { useIsMobile } from "@/components/ui/use-mobile"
 import { useUserSettingsStore } from "@/stores/user-settings-store"
 import { GrammarQuizConfig as GrammarQuizConfigComponent } from "./configs/grammar-quiz-config"
-import { FlashcardResults } from "./shared/flashcard-results"
+import { GrammarQuizResults, type GrammarQuizReviewItem } from "./grammar-quiz-results"
 import { MobileGrammarQuiz } from "./mobile/mobile-grammar-quiz"
 import { FlashcardSkeleton } from "./shared/flashcard-skeleton"
 import { ConfigSkeleton } from "./configs/config-skeleton"
@@ -36,6 +36,7 @@ export function GrammarQuiz() {
     const [showConfig, setShowConfig] = useState(false)
     const [showResults, setShowResults] = useState(false)
     const [results, setResults] = useState<GrammarResult | null>(null)
+    const [reviewItems, setReviewItems] = useState<GrammarQuizReviewItem[]>([])
     const [answers, setAnswers] = useState<GrammarAnswer[]>([])
     const [score, setScore] = useState(0)
     const [hasAutoStarted, setHasAutoStarted] = useState(false)
@@ -52,9 +53,9 @@ export function GrammarQuiz() {
     const queryClient = useQueryClient()
     const globalJlptLevel = useUserSettingsStore((s) => s.currentJlptLevel)
     const {
-        level, questionType, useSRS, count, showExplanations, requiredCorrectCount, timerDuration,
+        level, questionType, useSRS, count, requiredCorrectCount, timerDuration,
         hasStarted, setHasStarted,
-        setLevel, setQuestionType, setUseSRS, setCount, setShowExplanations, setRequiredCorrectCount, setTimerDuration
+        setLevel, setQuestionType, setUseSRS, setCount, setRequiredCorrectCount, setTimerDuration
     } = store
 
     const effectiveLevel = level === 5 && globalJlptLevel ? globalJlptLevel : level
@@ -123,6 +124,7 @@ export function GrammarQuiz() {
             setIsCorrect(null)
             setAnswers([])
             setScore(0)
+            setReviewItems([])
             setShowConfig(false)
             setShowResults(false)
             setHasStarted(true)
@@ -164,6 +166,35 @@ export function GrammarQuiz() {
                 }
             })
         }
+    }
+
+    const buildReviewItems = (finalAnswers: GrammarAnswer[]): GrammarQuizReviewItem[] => {
+        const validQuestions = questions && Array.isArray(questions) ? questions : []
+        const answerMap = new Map(finalAnswers.map(answer => [answer.question_id, answer.answer]))
+
+        return validQuestions.map((question, index) => {
+            const options = question.answers && Array.isArray(question.answers) ? question.answers : []
+            const selectedAnswerIndex = answerMap.get(question.id) ?? -1
+            const selectedAnswerText = selectedAnswerIndex >= 0 && selectedAnswerIndex < options.length
+                ? options[selectedAnswerIndex]
+                : "No answer selected"
+            const correctAnswerText = question.correct_index >= 0 && question.correct_index < options.length
+                ? options[question.correct_index]
+                : "Correct answer unavailable"
+
+            return {
+                questionId: question.id,
+                questionNumber: index + 1,
+                questionText: question.question_text.trim(),
+                passage: question.passage,
+                selectedAnswerIndex,
+                selectedAnswerText,
+                correctAnswerIndex: question.correct_index,
+                correctAnswerText,
+                explanation: question.explanation,
+                isCorrect: selectedAnswerIndex === question.correct_index,
+            }
+        })
     }
 
     const submitSessionMutation = useMutation({
@@ -228,6 +259,7 @@ export function GrammarQuiz() {
             setIsCorrect(null)
             setAnswers([])
             setScore(0)
+            setReviewItems([])
             setShowConfig(false)
             setShowResults(false)
             setHasStarted(true)
@@ -276,7 +308,9 @@ export function GrammarQuiz() {
         if (!session) return
 
         // Calculate and show results instantly
+        const localReviewItems = buildReviewItems(finalAnswers)
         const localResults = calculateLocalResults(finalAnswers)
+        setReviewItems(localReviewItems)
         setResults(localResults)
         setShowResults(true)
 
@@ -298,6 +332,7 @@ export function GrammarQuiz() {
         setIsCorrect(null)
         setAnswers([])
         setScore(0)
+        setReviewItems([])
         setShowConfig(true)
         setShowResults(false)
         setResults(null)
@@ -344,24 +379,9 @@ export function GrammarQuiz() {
     // Render orchestration
     if (showResults && results) {
         return (
-            <FlashcardResults
-                results={{
-                    session_id: results.session_id,
-                    score: results.score,
-                    total: results.total,
-                    percentage: results.percentage,
-                    correct_count: results.correct_count,
-                    wrong_count: results.wrong_count,
-                    duration: results.duration,
-                    results: results.results.map(r => ({
-                        card_id: r.question_id,
-                        item_id: r.item_id,
-                        item_type: r.item_type,
-                        user_answer: r.user_answer,
-                        correct_index: r.correct_index,
-                        is_correct: r.is_correct
-                    }))
-                }}
+            <GrammarQuizResults
+                results={results}
+                reviewItems={reviewItems}
                 onStudyAgain={startSession}
                 onNewConfiguration={resetSession}
                 isLoading={startSessionMutation.isPending || isSubmitting}
@@ -385,7 +405,6 @@ export function GrammarQuiz() {
                     questionType,
                     useSRS,
                     count,
-                    showExplanations,
                     requiredCorrectCount,
                     timerDuration
                 }}
@@ -393,7 +412,6 @@ export function GrammarQuiz() {
                 onQuestionTypeChange={setQuestionType}
                 onUseSRSChange={setUseSRS}
                 onCountChange={setCount}
-                onShowExplanationsChange={setShowExplanations}
                 onThresholdChange={setRequiredCorrectCount}
                 onTimerChange={setTimerDuration}
                 onStart={startSession}
@@ -470,7 +488,6 @@ export function GrammarQuiz() {
                 onShowSettings={() => setShowConfig(true)}
                 renderQuestion={renderGrammarQuestion}
                 renderOption={renderGrammarOption}
-                showExplanations={showExplanations}
             />
         )
     }
@@ -530,9 +547,6 @@ export function GrammarQuiz() {
                     card={flashcardFormats[currentIndex]}
                     selectedOption={selectedOption}
                     isCorrect={isCorrect}
-                    explanation={currentQuestion?.explanation}
-                    showExplanations={showExplanations}
-                    showOnlyOnIncorrect={false}
                     renderQuestion={(card) => {
                         const q = questions.find(q => q.id === card.id) || currentQuestion
                         return renderGrammarQuestion(q)
