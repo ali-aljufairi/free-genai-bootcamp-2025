@@ -23,7 +23,7 @@ export function useStudySessionRestartGuard<TConfig>({
 }: UseStudySessionRestartGuardOptions<TConfig>) {
   const activeSignatureRef = useRef<string | null>(null)
   const activeConfigRef = useRef<TConfig | null>(null)
-  const [showRestartDialog, setShowRestartDialog] = useState(false)
+  const [showRestartDialog, setShowRestartDialogState] = useState(false)
   const [dontShowRestartDialogAgain, setDontShowRestartDialogAgain] = useState(false)
 
   const showRestartWarning = useStudyAlertStore((s) => s.showRestartWarning)
@@ -43,6 +43,13 @@ export function useStudySessionRestartGuard<TConfig>({
   const clearActiveSession = () => {
     activeSignatureRef.current = null
     activeConfigRef.current = null
+  }
+
+  const setShowRestartDialog = (open: boolean) => {
+    setShowRestartDialogState(open)
+    if (!open) {
+      setDontShowRestartDialogAgain(false)
+    }
   }
 
   const handleConfigStart = ({ hasActiveSession, hasProgress }: HandleConfigStartArgs) => {
