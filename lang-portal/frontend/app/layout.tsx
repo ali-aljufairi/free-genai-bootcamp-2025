@@ -7,6 +7,10 @@ import { ClerkProvider } from "@clerk/nextjs";
 import ClientLayout from "./ClientLayout";
 import { clerkAppearance } from "@/lib/clerk-appearance";
 
+const CLERK_JS_URL =
+  process.env.NEXT_PUBLIC_CLERK_JS_URL ||
+  "https://clerk.sorami.aljufairi.org/npm/@clerk/clerk-js@5.124.0/dist/clerk.browser.js";
+
 const inter = Inter({
   subsets: ["latin"],
   preload: true,
@@ -107,6 +111,7 @@ export default async function RootLayout({
       signInFallbackRedirectUrl="/study"
       signUpFallbackRedirectUrl="/study"
       publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
+      clerkJSUrl={CLERK_JS_URL}
     >
       <html
         lang="en"
