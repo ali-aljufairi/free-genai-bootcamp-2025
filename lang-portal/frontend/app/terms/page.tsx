@@ -4,7 +4,7 @@ import { buildPageMetadata } from "@/lib/seo/metadata"
 const LAST_UPDATED_DATE = "February 19, 2026"
 
 export const metadata = buildPageMetadata({
-  title: "Terms",
+  title: "Terms of Service",
   description: "Review the terms and conditions for using Sorami.",
   path: "/terms",
   index: true,

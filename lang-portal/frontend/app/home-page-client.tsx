@@ -1,10 +1,8 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import Image from "next/image"
 import dynamic from "next/dynamic"
 import { motion } from "framer-motion"
-import { ArrowRight, BookOpen, Brain, CheckCircle, GraduationCap, Sparkles, Users, AlertTriangle, Mic, MessageSquare, Bot, Image as ImageIcon, Zap, BarChart3 } from "lucide-react"
+import { ArrowRight, BookOpen, Brain, CheckCircle, GraduationCap, Sparkles, Mic, MessageSquare, Bot, Image as ImageIcon, Zap, BarChart3 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { useRouter } from "next/navigation"
@@ -16,13 +14,8 @@ const TourGuide = dynamic(() => import("@/components/common/tour-guide"), {
 })
 
 export default function HomePageClient() {
-  const [isVisible, setIsVisible] = useState(false)
   const router = useRouter()
   const { isSignedIn } = useUser()
-
-  useEffect(() => {
-    setIsVisible(true)
-  }, [])
 
   const handleGetStarted = () => {
     if (isSignedIn) {
@@ -69,7 +62,7 @@ export default function HomePageClient() {
           <div className="flex flex-col items-center text-center max-w-3xl mx-auto">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: isVisible ? 1 : 0, y: isVisible ? 0 : 20 }}
+              animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
               className="mb-4"
             >
@@ -81,7 +74,7 @@ export default function HomePageClient() {
 
             <motion.h1
               initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: isVisible ? 1 : 0, y: isVisible ? 0 : 20 }}
+              animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.1 }}
               className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight mb-4"
             >
@@ -91,7 +84,7 @@ export default function HomePageClient() {
 
             <motion.p
               initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: isVisible ? 1 : 0, y: isVisible ? 0 : 20 }}
+              animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.2 }}
               className="text-xl md:text-2xl text-muted-foreground mb-8 max-w-2xl"
             >
@@ -100,7 +93,7 @@ export default function HomePageClient() {
             </motion.p>
             <motion.div
               initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: isVisible ? 1 : 0, y: isVisible ? 0 : 20 }}
+              animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.25 }}
               className="flex flex-wrap justify-center gap-3 text-sm text-muted-foreground mb-8"
             >
@@ -120,7 +113,7 @@ export default function HomePageClient() {
 
             <motion.div
               initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: isVisible ? 1 : 0, y: isVisible ? 0 : 20 }}
+              animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.3 }}
               className="flex flex-col sm:flex-row gap-4 items-center justify-center sm:justify-start"
             >
@@ -148,16 +141,6 @@ export default function HomePageClient() {
             </motion.div>
           </div>
 
-          {/* Feature Preview */}
-          <motion.div
-            initial={{ opacity: 0, y: 40 }}
-            animate={{ opacity: isVisible ? 1 : 0, y: isVisible ? 0 : 40 }}
-            transition={{ duration: 0.7, delay: 0.5 }}
-            className="mt-16 relative"
-          >
-            <div className="glass-card overflow-hidden rounded-xl border border-blue-100/80 dark:border-blue-900/70 shadow-xl">
-            </div>
-          </motion.div>
         </div>
       </section>
 
@@ -166,7 +149,7 @@ export default function HomePageClient() {
         <div className="text-center mb-12">
           <motion.h2
             initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: isVisible ? 1 : 0, y: isVisible ? 0 : 20 }}
+            animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.1 }}
             className="text-3xl font-bold mb-4"
           >
@@ -174,7 +157,7 @@ export default function HomePageClient() {
           </motion.h2>
           <motion.p
             initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: isVisible ? 1 : 0, y: isVisible ? 0 : 20 }}
+            animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.2 }}
             className="text-xl text-muted-foreground max-w-2xl mx-auto"
           >
@@ -187,7 +170,7 @@ export default function HomePageClient() {
             <motion.div
               key={feature.title}
               initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: isVisible ? 1 : 0, y: isVisible ? 0 : 20 }}
+              animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.2 + index * 0.1 }}
             >
               <Card className="glass-card h-full border-blue-100/80 dark:border-blue-900/70 overflow-hidden hover:shadow-xl transition-shadow">
@@ -219,7 +202,7 @@ export default function HomePageClient() {
         <div className="text-center mb-12">
           <motion.h2
             initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: isVisible ? 1 : 0, y: isVisible ? 0 : 20 }}
+            animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.1 }}
             className="text-3xl font-bold mb-4"
           >
@@ -227,7 +210,7 @@ export default function HomePageClient() {
           </motion.h2>
           <motion.p
             initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: isVisible ? 1 : 0, y: isVisible ? 0 : 20 }}
+            animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.2 }}
             className="text-xl text-muted-foreground max-w-2xl mx-auto"
           >
@@ -240,7 +223,7 @@ export default function HomePageClient() {
             <motion.div
               key={prop.title}
               initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: isVisible ? 1 : 0, y: isVisible ? 0 : 20 }}
+              animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.2 + index * 0.1 }}
             >
               <Card className="glass-card h-full border-blue-100/80 dark:border-blue-900/70 overflow-hidden">
@@ -261,7 +244,7 @@ export default function HomePageClient() {
       <section id="cta-section" className="container mx-auto px-4 py-16">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: isVisible ? 1 : 0, y: isVisible ? 0 : 20 }}
+          animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.4 }}
           className="relative glass-card overflow-hidden rounded-2xl p-8 md:p-16 border border-blue-100/80 dark:border-blue-900/70"
         >

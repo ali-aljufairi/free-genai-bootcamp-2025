@@ -19,11 +19,26 @@ const structuredData = {
   url: SEO_BASE_URL,
   applicationCategory: "EducationalApplication",
   operatingSystem: "Web",
-  offers: {
-    "@type": "Offer",
-    price: "0",
-    priceCurrency: "USD",
-  },
+  offers: [
+    {
+      "@type": "Offer",
+      name: "Free",
+      price: "0",
+      priceCurrency: "USD",
+    },
+    {
+      "@type": "Offer",
+      name: "Basic",
+      price: "10",
+      priceCurrency: "USD",
+    },
+    {
+      "@type": "Offer",
+      name: "Pro",
+      price: "25",
+      priceCurrency: "USD",
+    },
+  ],
   featureList: [
     "AI Live Speaking Practice",
     "AI Chat Tutor",

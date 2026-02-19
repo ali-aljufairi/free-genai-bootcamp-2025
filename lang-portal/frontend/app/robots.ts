@@ -19,14 +19,12 @@ export default function robots(): MetadataRoute.Robots {
           "/grammar",
           "/srs-review",
           "/study/",
-          "/study/*",
         ],
       },
     ],
     sitemap: `${SEO_BASE_URL}/sitemap.xml`,
   }
 }
-
 
 
 

@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 
-export const SEO_BASE_URL = "https://sorami.aljufairi.org";
+const rawSeoBaseUrl =
+  process.env.NEXT_PUBLIC_SEO_BASE_URL ?? "https://sorami.aljufairi.org";
+
+export const SEO_BASE_URL = rawSeoBaseUrl.replace(/\/+$/, "");
 
 export interface PageMetadataInput {
   title: string;
@@ -12,15 +15,17 @@ export interface PageMetadataInput {
 }
 
 function normalizePath(path: string): string {
-  if (path === "/") {
+  const trimmedPath = path.trim();
+
+  if (!trimmedPath || trimmedPath === "/") {
     return "/";
   }
 
-  if (!path.startsWith("/")) {
-    return `/${path}`;
-  }
+  const withoutLeadingSlash = trimmedPath.replace(/^\/+/, "");
+  const withLeadingSlash = `/${withoutLeadingSlash}`;
 
-  return path;
+  const normalized = withLeadingSlash.replace(/\/+$/, "");
+  return normalized || "/";
 }
 
 export function getMetadataBase(): URL {
@@ -81,7 +86,7 @@ export function buildPageMetadata(input: PageMetadataInput): Metadata {
           }),
       images: [
         {
-          url: "/logo.svg",
+          url: "/og-image.png",
           width: 1200,
           height: 630,
           alt: `${input.title} - Sorami`,
@@ -92,7 +97,7 @@ export function buildPageMetadata(input: PageMetadataInput): Metadata {
       card: "summary_large_image",
       title: input.title,
       description: input.description,
-      images: ["/logo.svg"],
+      images: ["/og-image.png"],
       creator: "@sorami",
     },
   };

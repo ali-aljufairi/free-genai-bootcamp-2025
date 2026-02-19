@@ -1,4 +1,5 @@
 import { buildPageMetadata } from "@/lib/seo/metadata"
+import type { ReactNode } from "react"
 
 export const metadata = buildPageMetadata({
     title: "Pricing",
@@ -10,7 +11,7 @@ export const metadata = buildPageMetadata({
 export default function PricingLayout({
     children,
 }: {
-    children: React.ReactNode
+    children: ReactNode
 }) {
     return children
 }

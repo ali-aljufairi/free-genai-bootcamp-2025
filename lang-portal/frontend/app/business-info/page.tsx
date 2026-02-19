@@ -5,10 +5,10 @@ import { buildPageMetadata } from "@/lib/seo/metadata"
 const LAST_UPDATED_DATE = "February 19, 2026"
 
 export const metadata = buildPageMetadata({
-  title: "Business Info",
+  title: "Business Information",
   description: "Business disclosures for Sorami under the Specified Commercial Transactions Act.",
   path: "/business-info",
-  index: true,
+  index: false,
 })
 
 export default function BusinessInfoPage() {
@@ -208,7 +208,6 @@ export default function BusinessInfoPage() {
     </main>
   )
 }
-
 
 
 
