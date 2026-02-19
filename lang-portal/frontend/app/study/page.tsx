@@ -1,15 +1,8 @@
 "use client"
 
-import type { Metadata } from "next"
 import { StudySessionHub } from "@/components/study-session/study-session-hub"
 import { usePreserveScrollPosition } from "@/hooks/use-preserve-state"
 import { useTourContinuation } from "@/hooks/use-tour-continuation"
-
-// Note: Metadata export needs to be moved to layout.tsx for client components
-// export const metadata: Metadata = {
-//   title: "Study | Sorami (空見)",
-//   description: "Start a study session",
-// }
 
 export default function StudyPage() {
   // Preserve scroll position when navigating away and back
@@ -28,4 +21,3 @@ export default function StudyPage() {
     </div>
   )
 }
-

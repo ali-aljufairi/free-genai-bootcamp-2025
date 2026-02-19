@@ -10,6 +10,7 @@ const isPublicRoute = createRouteMatcher([
   '/pricing',
   '/terms',
   '/privacy',
+  '/business-info',
   '/contact',
   '/about',
   '/faq',

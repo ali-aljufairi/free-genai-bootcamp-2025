@@ -1,10 +1,14 @@
-import type { Metadata } from "next"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { buildPageMetadata } from "@/lib/seo/metadata"
 
-export const metadata: Metadata = {
-  title: "Terms of Service",
-  description: "Terms of Service for Sorami - Japanese Language Learning Platform",
-}
+const LAST_UPDATED_DATE = "February 19, 2026"
+
+export const metadata = buildPageMetadata({
+  title: "Terms",
+  description: "Review the terms and conditions for using Sorami.",
+  path: "/terms",
+  index: true,
+})
 
 export default function TermsPage() {
   return (
@@ -12,7 +16,7 @@ export default function TermsPage() {
       <Card className="glass-card border-blue-100/80 dark:border-blue-900/70">
         <CardHeader>
           <CardTitle className="text-3xl">Terms of Service</CardTitle>
-          <p className="text-sm text-muted-foreground">Last updated: {new Date().toLocaleDateString()}</p>
+          <p className="text-sm text-muted-foreground">Last updated: {LAST_UPDATED_DATE}</p>
         </CardHeader>
         <CardContent className="prose dark:prose-invert max-w-none">
           <section className="space-y-6">
@@ -165,4 +169,3 @@ export default function TermsPage() {
     </main>
   )
 }
-

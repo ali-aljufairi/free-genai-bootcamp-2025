@@ -1,19 +1,11 @@
-import type { Metadata } from "next"
+import { buildPageMetadata } from "@/lib/seo/metadata"
 
-export const metadata: Metadata = {
+export const metadata = buildPageMetadata({
     title: "Pricing",
-    description: "Sorami pricing plans - Choose the perfect plan for your Japanese language learning journey. Free tier available with limited features, or upgrade to Pro for unlimited access to all AI-powered learning tools.",
-    openGraph: {
-        title: "Pricing | Sorami",
-        description: "Sorami pricing plans - Choose the perfect plan for your Japanese language learning journey.",
-        type: "website",
-    },
-    twitter: {
-        card: "summary",
-        title: "Pricing | Sorami",
-        description: "Sorami pricing plans - Choose the perfect plan for your Japanese language learning journey.",
-    },
-}
+    description: "Compare Sorami plans and choose the one that fits your learning goals.",
+    path: "/pricing",
+    index: true,
+})
 
 export default function PricingLayout({
     children,
@@ -22,4 +14,3 @@ export default function PricingLayout({
 }) {
     return children
 }
-

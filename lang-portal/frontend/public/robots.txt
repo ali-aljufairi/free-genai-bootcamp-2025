@@ -1,9 +1,0 @@
-User-agent: *
-Allow: /
-Disallow: /api/
-Disallow: /sign-in/
-Disallow: /sign-up/
-Disallow: /settings/
-
-Sitemap: https://sorami.aljufairi.org/sitemap.xml
-

@@ -1,11 +1,15 @@
-import type { Metadata } from "next"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import Link from "next/link"
+import { buildPageMetadata } from "@/lib/seo/metadata"
 
-export const metadata: Metadata = {
-  title: "Business Information | Specified Commercial Transactions Act",
-  description: "Business information and disclosures in accordance with the Specified Commercial Transactions Act (特定商取引法)",
-}
+const LAST_UPDATED_DATE = "February 19, 2026"
+
+export const metadata = buildPageMetadata({
+  title: "Business Info",
+  description: "Business disclosures for Sorami under the Specified Commercial Transactions Act.",
+  path: "/business-info",
+  index: true,
+})
 
 export default function BusinessInfoPage() {
   return (
@@ -16,7 +20,7 @@ export default function BusinessInfoPage() {
           <p className="text-sm text-muted-foreground">
             特定商取引法に基づく表記 (Specified Commercial Transactions Act)
           </p>
-          <p className="text-sm text-muted-foreground mt-2">Last updated: {new Date().toLocaleDateString()}</p>
+          <p className="text-sm text-muted-foreground mt-2">Last updated: {LAST_UPDATED_DATE}</p>
         </CardHeader>
         <CardContent className="prose dark:prose-invert max-w-none">
           <section className="space-y-6">
@@ -204,7 +208,6 @@ export default function BusinessInfoPage() {
     </main>
   )
 }
-
 
 
 

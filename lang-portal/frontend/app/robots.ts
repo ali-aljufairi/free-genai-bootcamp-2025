@@ -1,20 +1,31 @@
-import { MetadataRoute } from 'next'
+import { MetadataRoute } from "next"
+import { SEO_BASE_URL } from "@/lib/seo/metadata"
 
 export default function robots(): MetadataRoute.Robots {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://sorami.aljufairi.org'
-  
   return {
     rules: [
       {
-        userAgent: '*',
-        allow: '/',
-        disallow: ['/api/', '/sign-in/', '/sign-up/', '/settings/'],
+        userAgent: "*",
+        allow: ["/", "/study"],
+        disallow: [
+          "/api",
+          "/sign-in",
+          "/sign-up",
+          "/sso-callback",
+          "/settings",
+          "/dashboard",
+          "/groups",
+          "/vocabulary",
+          "/grammar",
+          "/srs-review",
+          "/study/",
+          "/study/*",
+        ],
       },
     ],
-    sitemap: `${baseUrl}/sitemap.xml`,
+    sitemap: `${SEO_BASE_URL}/sitemap.xml`,
   }
 }
-
 
 
 

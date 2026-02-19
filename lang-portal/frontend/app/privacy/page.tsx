@@ -1,10 +1,14 @@
-import type { Metadata } from "next"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { buildPageMetadata } from "@/lib/seo/metadata"
 
-export const metadata: Metadata = {
-    title: "Privacy Policy",
-    description: "Privacy Policy for Sorami - Japanese Language Learning Platform",
-}
+const LAST_UPDATED_DATE = "February 19, 2026"
+
+export const metadata = buildPageMetadata({
+    title: "Privacy",
+    description: "Read how Sorami collects, uses, and protects your personal information.",
+    path: "/privacy",
+    index: true,
+})
 
 export default function PrivacyPage() {
     return (
@@ -12,7 +16,7 @@ export default function PrivacyPage() {
             <Card className="glass-card border-blue-100/80 dark:border-blue-900/70">
                 <CardHeader>
                     <CardTitle className="text-3xl">Privacy Policy</CardTitle>
-                    <p className="text-sm text-muted-foreground">Last updated: {new Date().toLocaleDateString()}</p>
+                    <p className="text-sm text-muted-foreground">Last updated: {LAST_UPDATED_DATE}</p>
                 </CardHeader>
                 <CardContent className="prose dark:prose-invert max-w-none">
                     <section className="space-y-6">
@@ -143,4 +147,3 @@ export default function PrivacyPage() {
         </main>
     )
 }
-
