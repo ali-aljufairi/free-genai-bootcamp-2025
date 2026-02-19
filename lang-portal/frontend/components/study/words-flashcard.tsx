@@ -17,6 +17,7 @@ import type {
 import { useWordFlashcardStore } from "@/stores/word-flashcard-store"
 import { useIsMobile } from "@/components/ui/use-mobile"
 import { useUserSettingsStore } from "@/stores/user-settings-store"
+import { useStudySessionRestartGuard } from "@/hooks/use-study-session-restart-guard"
 import { WordFlashcardConfig } from "./configs/word-flashcard-config"
 import { FlashcardSession as FlashcardSessionComponent } from "./shared/flashcard-session"
 import { FlashcardResults } from "./shared/flashcard-results"
@@ -24,6 +25,7 @@ import { MobileWordsFlashcard } from "./mobile/mobile-words-flashcard"
 import { FlashcardSkeleton } from "./shared/flashcard-skeleton"
 import { ConfigSkeleton } from "./configs/config-skeleton"
 import { AudioPlayer } from "@/components/vocabulary/audio-player"
+import { SessionRestartDialog } from "./shared/session-restart-dialog"
 
 export function WordsFlashcard() {
     const isMobile = useIsMobile()
@@ -62,6 +64,55 @@ export function WordsFlashcard() {
     } = store
 
     const effectiveLevel = level === 5 && globalJlptLevel ? globalJlptLevel : level
+
+    const buildRestartSignature = () => {
+        return JSON.stringify({
+            level: effectiveLevel,
+            selectedCourse,
+            selectedUnit,
+            count,
+            selectedPartsOfSpeech: [...selectedPartsOfSpeech].sort(),
+            askForKana,
+            askForKanji,
+            askForRomaji,
+            askForEnglish,
+            requiredCorrectCount,
+        })
+    }
+
+    const getConfigSignature = (config: FlashcardConfig) => {
+        const wordOptions = config.word_options
+
+        return JSON.stringify({
+            level: config.filters.jlpt_levels?.[0] ?? effectiveLevel,
+            selectedCourse: config.course_id ?? null,
+            selectedUnit: config.unit_id ?? null,
+            count: config.card_count,
+            selectedPartsOfSpeech: [...(config.filters.parts_of_speech || [])].sort(),
+            askForKana: Boolean(wordOptions?.ask_for_kana),
+            askForKanji: Boolean(wordOptions?.ask_for_kanji),
+            askForRomaji: Boolean(wordOptions?.ask_for_romaji),
+            askForEnglish: Boolean(wordOptions?.ask_for_english),
+            requiredCorrectCount: config.required_correct_count ?? requiredCorrectCount,
+        })
+    }
+
+    const restoreConfig = (config: FlashcardConfig) => {
+        if (!config.word_options) return
+
+        setLevel(config.filters.jlpt_levels?.[0] ?? level)
+        setCourse(config.course_id ?? null)
+        setUnit(config.unit_id ?? null)
+        setCount(config.card_count)
+        setPartsOfSpeech((config.filters.parts_of_speech || []) as typeof selectedPartsOfSpeech)
+        setAskOptions({
+            askForKana: Boolean(config.word_options.ask_for_kana),
+            askForKanji: Boolean(config.word_options.ask_for_kanji),
+            askForRomaji: Boolean(config.word_options.ask_for_romaji),
+            askForEnglish: Boolean(config.word_options.ask_for_english),
+        })
+        setRequiredCorrectCount(config.required_correct_count ?? requiredCorrectCount)
+    }
 
     // Auto-start session if preferences exist and haven't auto-started yet
     useEffect(() => {
@@ -146,7 +197,7 @@ export function WordsFlashcard() {
     // Mutations
     const startSessionMutation = useMutation({
         mutationFn: (config: FlashcardConfig) => flashcardsV2Api.start(config),
-        onSuccess: (data) => {
+        onSuccess: (data, config) => {
             setSession(data)
             setCards(data.cards)
             setCurrentIndex(0)
@@ -156,6 +207,7 @@ export function WordsFlashcard() {
             setScore(0)
             setShowConfig(false)
             setShowResults(false)
+            restartGuard.rememberActiveSession(config)
         },
         onError: (error) => {
             console.error("Failed to start words session:", error)
@@ -331,10 +383,28 @@ export function WordsFlashcard() {
             setScore(0)
             setShowConfig(false)
             setShowResults(false)
+            restartGuard.rememberActiveSession(config)
             return
         }
 
         startSessionMutation.mutate(config)
+    }
+
+    const restartGuard = useStudySessionRestartGuard<FlashcardConfig>({
+        getCurrentSignature: buildRestartSignature,
+        getConfigSignature,
+        restoreConfig,
+        onContinueCurrentSession: () => setShowConfig(false),
+        onStartNewSession: () => {
+            void startSession()
+        },
+    })
+
+    const handleConfigStart = () => {
+        restartGuard.handleConfigStart({
+            hasActiveSession: Boolean(session) && !showResults,
+            hasProgress: answers.length > 0 || currentIndex > 0,
+        })
     }
 
     const handleOptionSelect = (optionIndex: number) => {
@@ -396,6 +466,7 @@ export function WordsFlashcard() {
         setShowConfig(true)
         setShowResults(false)
         setResults(null)
+        restartGuard.clearActiveSession()
     }
 
     // Custom rendering for word content
@@ -486,39 +557,55 @@ export function WordsFlashcard() {
     // Only show config if explicitly requested or if we have no valid preferences
     if (showConfig || (!session && !hasAutoStarted && !startSessionMutation.isPending)) {
         return (
-            <WordFlashcardConfig
-                preferences={{
-                    level,
-                    selectedCourse,
-                    selectedUnit,
-                    count,
-                    selectedPartsOfSpeech,
-                    showKana,
-                    showKanji,
-                    showRomaji,
-                    showEnglish,
-                    askForKana,
-                    askForKanji,
-                    askForRomaji,
-                    askForEnglish,
-                    requiredCorrectCount,
-                    timerDuration
-                }}
-                courses={availableCourses}
-                units={Array.isArray(units) ? units : []}
-                onLevelChange={setLevel}
-                onCourseChange={setCourse}
-                onUnitChange={setUnit}
-                onCountChange={setCount}
-                onPartsOfSpeechChange={setPartsOfSpeech}
-                onShowOptionsChange={setShowOptions}
-                onAskOptionsChange={setAskOptions}
-                onThresholdChange={setRequiredCorrectCount}
-                onTimerChange={setTimerDuration}
-                onStart={startSession}
-                isLoading={startSessionMutation.isPending}
-                isMobile={Boolean(isMobile)}
-            />
+            <>
+                <WordFlashcardConfig
+                    preferences={{
+                        level,
+                        selectedCourse,
+                        selectedUnit,
+                        count,
+                        selectedPartsOfSpeech,
+                        showKana,
+                        showKanji,
+                        showRomaji,
+                        showEnglish,
+                        askForKana,
+                        askForKanji,
+                        askForRomaji,
+                        askForEnglish,
+                        requiredCorrectCount,
+                        timerDuration
+                    }}
+                    courses={availableCourses}
+                    units={Array.isArray(units) ? units : []}
+                    onLevelChange={setLevel}
+                    onCourseChange={setCourse}
+                    onUnitChange={setUnit}
+                    onCountChange={setCount}
+                    onPartsOfSpeechChange={setPartsOfSpeech}
+                    onShowOptionsChange={setShowOptions}
+                    onAskOptionsChange={setAskOptions}
+                    onThresholdChange={setRequiredCorrectCount}
+                    onTimerChange={setTimerDuration}
+                    onStart={handleConfigStart}
+                    isLoading={startSessionMutation.isPending}
+                    isMobile={Boolean(isMobile)}
+                />
+
+                <SessionRestartDialog
+                    open={restartGuard.showRestartDialog}
+                    onOpenChange={restartGuard.setShowRestartDialog}
+                    title="Start a new flashcard test?"
+                    description="These changes require a new test session. Your current progress will be lost."
+                    checkboxId="word-restart-warning"
+                    dontShowAgain={restartGuard.dontShowRestartDialogAgain}
+                    onDontShowAgainChange={restartGuard.setDontShowRestartDialogAgain}
+                    onKeepCurrent={restartGuard.keepCurrentSession}
+                    onStartNew={restartGuard.startNewSession}
+                    keepCurrentLabel="Keep Current Test"
+                    startNewLabel="Start New Test"
+                />
+            </>
         )
     }
 

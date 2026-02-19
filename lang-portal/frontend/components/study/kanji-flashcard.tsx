@@ -15,6 +15,7 @@ import type {
 import { useKanjiFlashcardStore } from "@/stores/kanji-flashcard-store"
 import { useIsMobile } from "@/components/ui/use-mobile"
 import { useUserSettingsStore } from "@/stores/user-settings-store"
+import { useStudySessionRestartGuard } from "@/hooks/use-study-session-restart-guard"
 import { KanjiFlashcardConfig } from "./configs/kanji-flashcard-config"
 import { FlashcardSession as FlashcardSessionComponent } from "./shared/flashcard-session"
 import { FlashcardResults } from "./shared/flashcard-results"
@@ -22,6 +23,7 @@ import { MobileKanjiFlashcard } from "./mobile/mobile-kanji-flashcard"
 import { FlashcardSkeleton } from "./shared/flashcard-skeleton"
 import { ConfigSkeleton } from "./configs/config-skeleton"
 import { AudioPlayer } from "@/components/vocabulary/audio-player"
+import { SessionRestartDialog } from "./shared/session-restart-dialog"
 
 export function KanjiFlashcard() {
     const isMobile = useIsMobile()
@@ -60,6 +62,49 @@ export function KanjiFlashcard() {
     } = store
 
     const effectiveLevel = level === 5 && globalJlptLevel ? globalJlptLevel : level
+
+    const buildRestartSignature = () => {
+        return JSON.stringify({
+            level: effectiveLevel,
+            selectedGroup,
+            count,
+            askForCharacter,
+            askForOnyomi,
+            askForKunyomi,
+            askForKanjiEnglish,
+            requiredCorrectCount,
+        })
+    }
+
+    const getConfigSignature = (config: FlashcardConfig) => {
+        const kanjiOptions = config.kanji_options
+
+        return JSON.stringify({
+            level: config.filters.jlpt_levels?.[0] ?? effectiveLevel,
+            selectedGroup: config.group_id ?? null,
+            count: config.card_count,
+            askForCharacter: Boolean(kanjiOptions?.ask_for_character),
+            askForOnyomi: Boolean(kanjiOptions?.ask_for_onyomi),
+            askForKunyomi: Boolean(kanjiOptions?.ask_for_kunyomi),
+            askForKanjiEnglish: Boolean(kanjiOptions?.ask_for_english),
+            requiredCorrectCount: config.required_correct_count ?? requiredCorrectCount,
+        })
+    }
+
+    const restoreConfig = (config: FlashcardConfig) => {
+        if (!config.kanji_options) return
+
+        setLevel(config.filters.jlpt_levels?.[0] ?? level)
+        setGroup(config.group_id ?? null)
+        setCount(config.card_count)
+        setKanjiAskOptions({
+            askForCharacter: Boolean(config.kanji_options.ask_for_character),
+            askForOnyomi: Boolean(config.kanji_options.ask_for_onyomi),
+            askForKunyomi: Boolean(config.kanji_options.ask_for_kunyomi),
+            askForKanjiEnglish: Boolean(config.kanji_options.ask_for_english),
+        })
+        setRequiredCorrectCount(config.required_correct_count ?? requiredCorrectCount)
+    }
 
     // Auto-start session if preferences exist and haven't auto-started yet
     useEffect(() => {
@@ -125,7 +170,7 @@ export function KanjiFlashcard() {
     // Mutations
     const startSessionMutation = useMutation({
         mutationFn: (config: FlashcardConfig) => flashcardsV2Api.start(config),
-        onSuccess: (data) => {
+        onSuccess: (data, config) => {
             setSession(data)
             setCards(data.cards)
             setCurrentIndex(0)
@@ -135,6 +180,7 @@ export function KanjiFlashcard() {
             setScore(0)
             setShowConfig(false)
             setShowResults(false)
+            restartGuard.rememberActiveSession(config)
         },
         onError: (error) => {
             console.error("Failed to start kanji session:", error)
@@ -302,10 +348,28 @@ export function KanjiFlashcard() {
             setScore(0)
             setShowConfig(false)
             setShowResults(false)
+            restartGuard.rememberActiveSession(config)
             return
         }
 
         startSessionMutation.mutate(config)
+    }
+
+    const restartGuard = useStudySessionRestartGuard<FlashcardConfig>({
+        getCurrentSignature: buildRestartSignature,
+        getConfigSignature,
+        restoreConfig,
+        onContinueCurrentSession: () => setShowConfig(false),
+        onStartNewSession: () => {
+            void startSession()
+        },
+    })
+
+    const handleConfigStart = () => {
+        restartGuard.handleConfigStart({
+            hasActiveSession: Boolean(session) && !showResults,
+            hasProgress: answers.length > 0 || currentIndex > 0,
+        })
     }
 
     const handleOptionSelect = (optionIndex: number) => {
@@ -367,6 +431,7 @@ export function KanjiFlashcard() {
         setShowConfig(true)
         setShowResults(false)
         setResults(null)
+        restartGuard.clearActiveSession()
     }
 
     // Custom rendering for kanji content
@@ -449,34 +514,50 @@ export function KanjiFlashcard() {
     // Only show config if explicitly requested or if we have no valid preferences
     if (showConfig || (!session && !hasAutoStarted && !startSessionMutation.isPending)) {
         return (
-            <KanjiFlashcardConfig
-                preferences={{
-                    level,
-                    selectedGroup,
-                    count,
-                    showCharacter,
-                    showOnyomi,
-                    showKunyomi,
-                    showKanjiEnglish,
-                    askForCharacter,
-                    askForOnyomi,
-                    askForKunyomi,
-                    askForKanjiEnglish,
-                    requiredCorrectCount,
-                    timerDuration
-                }}
-                groups={Array.isArray(groups) ? groups : []}
-                onLevelChange={setLevel}
-                onGroupChange={setGroup}
-                onCountChange={setCount}
-                onShowOptionsChange={setKanjiShowOptions}
-                onAskOptionsChange={setKanjiAskOptions}
-                onThresholdChange={setRequiredCorrectCount}
-                onTimerChange={setTimerDuration}
-                onStart={startSession}
-                isLoading={startSessionMutation.isPending}
-                isMobile={isMobile ?? false}
-            />
+            <>
+                <KanjiFlashcardConfig
+                    preferences={{
+                        level,
+                        selectedGroup,
+                        count,
+                        showCharacter,
+                        showOnyomi,
+                        showKunyomi,
+                        showKanjiEnglish,
+                        askForCharacter,
+                        askForOnyomi,
+                        askForKunyomi,
+                        askForKanjiEnglish,
+                        requiredCorrectCount,
+                        timerDuration
+                    }}
+                    groups={Array.isArray(groups) ? groups : []}
+                    onLevelChange={setLevel}
+                    onGroupChange={setGroup}
+                    onCountChange={setCount}
+                    onShowOptionsChange={setKanjiShowOptions}
+                    onAskOptionsChange={setKanjiAskOptions}
+                    onThresholdChange={setRequiredCorrectCount}
+                    onTimerChange={setTimerDuration}
+                    onStart={handleConfigStart}
+                    isLoading={startSessionMutation.isPending}
+                    isMobile={isMobile ?? false}
+                />
+
+                <SessionRestartDialog
+                    open={restartGuard.showRestartDialog}
+                    onOpenChange={restartGuard.setShowRestartDialog}
+                    title="Start a new flashcard test?"
+                    description="These changes require a new test session. Your current progress will be lost."
+                    checkboxId="kanji-restart-warning"
+                    dontShowAgain={restartGuard.dontShowRestartDialogAgain}
+                    onDontShowAgainChange={restartGuard.setDontShowRestartDialogAgain}
+                    onKeepCurrent={restartGuard.keepCurrentSession}
+                    onStartNew={restartGuard.startNewSession}
+                    keepCurrentLabel="Keep Current Test"
+                    startNewLabel="Start New Test"
+                />
+            </>
         )
     }
 

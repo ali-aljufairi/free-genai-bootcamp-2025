@@ -15,12 +15,14 @@ import type {
 import { useGrammarStore } from "@/stores/grammar-store"
 import { useIsMobile } from "@/components/ui/use-mobile"
 import { useUserSettingsStore } from "@/stores/user-settings-store"
+import { useStudySessionRestartGuard } from "@/hooks/use-study-session-restart-guard"
 import { GrammarQuizConfig as GrammarQuizConfigComponent } from "./configs/grammar-quiz-config"
 import { GrammarQuizResults, type GrammarQuizReviewItem } from "./grammar-quiz-results"
 import { MobileGrammarQuiz } from "./mobile/mobile-grammar-quiz"
 import { FlashcardSkeleton } from "./shared/flashcard-skeleton"
 import { ConfigSkeleton } from "./configs/config-skeleton"
 import { FlashcardQuestionCard } from "./shared/flashcard-question-card"
+import { SessionRestartDialog } from "./shared/session-restart-dialog"
 import { Button } from "@/components/ui/button"
 import { Settings, Clock } from "lucide-react"
 
@@ -59,6 +61,34 @@ export function GrammarQuiz() {
     } = store
 
     const effectiveLevel = level === 5 && globalJlptLevel ? globalJlptLevel : level
+
+    const buildRestartSignature = () => {
+        return JSON.stringify({
+            level: effectiveLevel,
+            questionType,
+            useSRS,
+            count,
+            requiredCorrectCount,
+        })
+    }
+
+    const getConfigSignature = (config: GrammarQuizConfig) => {
+        return JSON.stringify({
+            level: config.level,
+            questionType: config.question_type,
+            useSRS: config.use_srs,
+            count: config.question_count,
+            requiredCorrectCount: config.required_correct_count ?? requiredCorrectCount,
+        })
+    }
+
+    const restoreConfig = (config: GrammarQuizConfig) => {
+        setLevel(config.level)
+        setQuestionType(config.question_type)
+        setUseSRS(config.use_srs)
+        setCount(config.question_count)
+        setRequiredCorrectCount(config.required_correct_count ?? requiredCorrectCount)
+    }
 
     // Show settings on first use; auto-start on subsequent visits
     useEffect(() => {
@@ -116,7 +146,7 @@ export function GrammarQuiz() {
     // Mutations
     const startSessionMutation = useMutation({
         mutationFn: (config: GrammarQuizConfig) => grammarApi.start(config),
-        onSuccess: (data) => {
+        onSuccess: (data, config) => {
             setSession(data)
             setQuestions(data.questions && Array.isArray(data.questions) ? data.questions : [])
             setCurrentIndex(0)
@@ -128,6 +158,7 @@ export function GrammarQuiz() {
             setShowConfig(false)
             setShowResults(false)
             setHasStarted(true)
+            restartGuard.rememberActiveSession(config)
         },
         onError: (error) => {
             alert("Failed to start quiz. Please try again.")
@@ -263,10 +294,28 @@ export function GrammarQuiz() {
             setShowConfig(false)
             setShowResults(false)
             setHasStarted(true)
+            restartGuard.rememberActiveSession(config)
             return
         }
 
         startSessionMutation.mutate(config)
+    }
+
+    const restartGuard = useStudySessionRestartGuard<GrammarQuizConfig>({
+        getCurrentSignature: buildRestartSignature,
+        getConfigSignature,
+        restoreConfig,
+        onContinueCurrentSession: () => setShowConfig(false),
+        onStartNewSession: () => {
+            void startSession()
+        },
+    })
+
+    const handleConfigStart = () => {
+        restartGuard.handleConfigStart({
+            hasActiveSession: Boolean(session) && !showResults,
+            hasProgress: answers.length > 0 || currentIndex > 0,
+        })
     }
 
     const handleOptionSelect = (optionIndex: number) => {
@@ -336,6 +385,7 @@ export function GrammarQuiz() {
         setShowConfig(true)
         setShowResults(false)
         setResults(null)
+        restartGuard.clearActiveSession()
     }
 
     const renderGrammarQuestion = (question: GrammarQuestion) => {
@@ -399,25 +449,41 @@ export function GrammarQuiz() {
     // Only show config if explicitly requested or if we have no valid preferences
     if (showConfig || (!session && !hasAutoStarted && !startSessionMutation.isPending)) {
         return (
-            <GrammarQuizConfigComponent
-                preferences={{
-                    level,
-                    questionType,
-                    useSRS,
-                    count,
-                    requiredCorrectCount,
-                    timerDuration
-                }}
-                onLevelChange={setLevel}
-                onQuestionTypeChange={setQuestionType}
-                onUseSRSChange={setUseSRS}
-                onCountChange={setCount}
-                onThresholdChange={setRequiredCorrectCount}
-                onTimerChange={setTimerDuration}
-                onStart={startSession}
-                isLoading={startSessionMutation.isPending}
-                isMobile={isMobile}
-            />
+            <>
+                <GrammarQuizConfigComponent
+                    preferences={{
+                        level,
+                        questionType,
+                        useSRS,
+                        count,
+                        requiredCorrectCount,
+                        timerDuration
+                    }}
+                    onLevelChange={setLevel}
+                    onQuestionTypeChange={setQuestionType}
+                    onUseSRSChange={setUseSRS}
+                    onCountChange={setCount}
+                    onThresholdChange={setRequiredCorrectCount}
+                    onTimerChange={setTimerDuration}
+                    onStart={handleConfigStart}
+                    isLoading={startSessionMutation.isPending}
+                    isMobile={isMobile}
+                />
+
+                <SessionRestartDialog
+                    open={restartGuard.showRestartDialog}
+                    onOpenChange={restartGuard.setShowRestartDialog}
+                    title="Start a new grammar test?"
+                    description="These changes require a new test session. Your current progress will be lost."
+                    checkboxId="grammar-restart-warning"
+                    dontShowAgain={restartGuard.dontShowRestartDialogAgain}
+                    onDontShowAgainChange={restartGuard.setDontShowRestartDialogAgain}
+                    onKeepCurrent={restartGuard.keepCurrentSession}
+                    onStartNew={restartGuard.startNewSession}
+                    keepCurrentLabel="Keep Current Test"
+                    startNewLabel="Start New Test"
+                />
+            </>
         )
     }
 

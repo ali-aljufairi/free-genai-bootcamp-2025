@@ -15,6 +15,7 @@ import type {
 import { useReadingStore } from "@/stores/reading-store"
 import { useIsMobile } from "@/components/ui/use-mobile"
 import { useUserSettingsStore } from "@/stores/user-settings-store"
+import { useStudySessionRestartGuard } from "@/hooks/use-study-session-restart-guard"
 import { ReadingQuizConfig as ReadingQuizConfigComponent } from "./configs/reading-quiz-config"
 import { FlashcardResults } from "./shared/flashcard-results"
 import { MobileReadingQuiz } from "./mobile/mobile-reading-quiz"
@@ -22,6 +23,7 @@ import { FlashcardSkeleton } from "./shared/flashcard-skeleton"
 import { ConfigSkeleton } from "./configs/config-skeleton"
 import { FlashcardQuestionCard } from "./shared/flashcard-question-card"
 import { FlashcardOptionList } from "./shared/flashcard-option-list"
+import { SessionRestartDialog } from "./shared/session-restart-dialog"
 import { Button } from "@/components/ui/button"
 import { Settings, Clock } from "lucide-react"
 
@@ -79,6 +81,34 @@ export function ReadingQuiz() {
     } = store
 
     const effectiveLevel = level === 5 && globalJlptLevel ? globalJlptLevel : level
+
+    const buildRestartSignature = () => {
+        return JSON.stringify({
+            level: effectiveLevel,
+            questionType,
+            useSRS,
+            count,
+            requiredCorrectCount,
+        })
+    }
+
+    const getConfigSignature = (config: ReadingQuizConfig) => {
+        return JSON.stringify({
+            level: config.level,
+            questionType: config.question_type,
+            useSRS: config.use_srs,
+            count: config.question_count,
+            requiredCorrectCount: config.required_correct_count ?? requiredCorrectCount,
+        })
+    }
+
+    const restoreConfig = (config: ReadingQuizConfig) => {
+        setLevel(config.level)
+        setQuestionType(config.question_type)
+        setUseSRS(config.use_srs)
+        setCount(config.question_count)
+        setRequiredCorrectCount(config.required_correct_count ?? requiredCorrectCount)
+    }
 
     // Auto-start if user has configured preferences, otherwise show config
     useEffect(() => {
@@ -138,7 +168,7 @@ export function ReadingQuiz() {
     // Mutations
     const startSessionMutation = useMutation({
         mutationFn: (config: ReadingQuizConfig) => readingApi.start(config),
-        onSuccess: (data) => {
+        onSuccess: (data, config) => {
             setSession(data)
             setQuestions(data.questions && Array.isArray(data.questions) ? data.questions : [])
             setCurrentIndex(0)
@@ -148,6 +178,7 @@ export function ReadingQuiz() {
             setScore(0)
             setShowConfig(false)
             setShowResults(false)
+            restartGuard.rememberActiveSession(config)
         },
         onError: (error) => {
             alert("Failed to start quiz. Please try again.")
@@ -252,10 +283,28 @@ export function ReadingQuiz() {
             setScore(0)
             setShowConfig(false)
             setShowResults(false)
+            restartGuard.rememberActiveSession(config)
             return
         }
 
         startSessionMutation.mutate(config)
+    }
+
+    const restartGuard = useStudySessionRestartGuard<ReadingQuizConfig>({
+        getCurrentSignature: buildRestartSignature,
+        getConfigSignature,
+        restoreConfig,
+        onContinueCurrentSession: () => setShowConfig(false),
+        onStartNewSession: () => {
+            void startSession()
+        },
+    })
+
+    const handleConfigStart = () => {
+        restartGuard.handleConfigStart({
+            hasActiveSession: Boolean(session) && !showResults,
+            hasProgress: answers.length > 0 || currentIndex > 0,
+        })
     }
 
     const handleOptionSelect = (optionIndex: number) => {
@@ -322,6 +371,7 @@ export function ReadingQuiz() {
         setShowConfig(true)
         setShowResults(false)
         setResults(null)
+        restartGuard.clearActiveSession()
     }
 
     const renderReadingQuestion = (question: ReadingQuestion) => {
@@ -402,25 +452,41 @@ export function ReadingQuiz() {
     // Only show config if explicitly requested or if we have no valid preferences
     if (showConfig || (!session && !hasAutoStarted && !startSessionMutation.isPending)) {
         return (
-            <ReadingQuizConfigComponent
-                preferences={{
-                    level,
-                    questionType,
-                    useSRS,
-                    count,
-                    requiredCorrectCount,
-                    timerDuration
-                }}
-                onLevelChange={setLevel}
-                onQuestionTypeChange={setQuestionType}
-                onUseSRSChange={setUseSRS}
-                onCountChange={setCount}
-                onThresholdChange={setRequiredCorrectCount}
-                onTimerChange={setTimerDuration}
-                onStart={startSession}
-                isLoading={startSessionMutation.isPending}
-                isMobile={isMobile}
-            />
+            <>
+                <ReadingQuizConfigComponent
+                    preferences={{
+                        level,
+                        questionType,
+                        useSRS,
+                        count,
+                        requiredCorrectCount,
+                        timerDuration
+                    }}
+                    onLevelChange={setLevel}
+                    onQuestionTypeChange={setQuestionType}
+                    onUseSRSChange={setUseSRS}
+                    onCountChange={setCount}
+                    onThresholdChange={setRequiredCorrectCount}
+                    onTimerChange={setTimerDuration}
+                    onStart={handleConfigStart}
+                    isLoading={startSessionMutation.isPending}
+                    isMobile={isMobile}
+                />
+
+                <SessionRestartDialog
+                    open={restartGuard.showRestartDialog}
+                    onOpenChange={restartGuard.setShowRestartDialog}
+                    title="Start a new reading test?"
+                    description="These changes require a new test session. Your current progress will be lost."
+                    checkboxId="reading-restart-warning"
+                    dontShowAgain={restartGuard.dontShowRestartDialogAgain}
+                    onDontShowAgainChange={restartGuard.setDontShowRestartDialogAgain}
+                    onKeepCurrent={restartGuard.keepCurrentSession}
+                    onStartNew={restartGuard.startNewSession}
+                    keepCurrentLabel="Keep Current Test"
+                    startNewLabel="Start New Test"
+                />
+            </>
         )
     }
 
