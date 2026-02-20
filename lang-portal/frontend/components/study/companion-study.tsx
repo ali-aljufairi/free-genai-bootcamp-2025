@@ -212,12 +212,14 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
     const [callStartTime, setCallStartTime] = useState<Date | null>(null);
     const [isReconnecting, setIsReconnecting] = useState(false);
     const [isFinalizingSession, setIsFinalizingSession] = useState(false);
+    const [hasSavedSession, setHasSavedSession] = useState(false);
     const [reconnectAttempts, setReconnectAttempts] = useState(0);
     const vapiRef = useRef<any>(null);
     const hasSavedRef = useRef(false);
     const isFinalizingSessionRef = useRef(false);
     const callStartTimeRef = useRef<Date | null>(null);
     const transcriptMessagesRef = useRef<TranscriptMessage[]>([]);
+    const reconnectAttemptsRef = useRef(0);
     const transcriptEndRef = useRef<HTMLDivElement>(null);
     const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const callStatusRef = useRef<CallStatus>("idle");
@@ -238,6 +240,10 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
     useEffect(() => {
         transcriptMessagesRef.current = transcriptMessages;
     }, [transcriptMessages]);
+
+    useEffect(() => {
+        reconnectAttemptsRef.current = reconnectAttempts;
+    }, [reconnectAttempts]);
 
     const cleanup = () => {
         // Clear any pending reconnection attempts
@@ -263,6 +269,7 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
         setCallStartTime(null);
         isReconnectingRef.current = false;
         setIsReconnecting(false);
+        reconnectAttemptsRef.current = 0;
         setReconnectAttempts(0);
     };
 
@@ -377,8 +384,10 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
         setIsFinalizingSession(true);
 
         try {
-            if (!hasSavedRef.current) {
+            const shouldPersistSession = callStartTimeRef.current !== null;
+            if (shouldPersistSession && !hasSavedRef.current) {
                 hasSavedRef.current = true;
+                setHasSavedSession(true);
                 await saveCompanionSession();
             }
 
@@ -402,7 +411,7 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
         }
 
         const maxReconnectAttempts = 3;
-        const currentAttempts = reconnectAttempts;
+        const currentAttempts = reconnectAttemptsRef.current;
         
         if (currentAttempts >= maxReconnectAttempts) {
             console.error('Max reconnection attempts reached');
@@ -415,7 +424,9 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
 
         isReconnectingRef.current = true;
         setIsReconnecting(true);
-        setReconnectAttempts(prev => prev + 1);
+        const nextAttempts = currentAttempts + 1;
+        reconnectAttemptsRef.current = nextAttempts;
+        setReconnectAttempts(nextAttempts);
         callStatusRef.current = "connecting";
         setCallStatus("connecting");
 
@@ -432,6 +443,7 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
                     await vapiRef.current.start(selectedAssistant);
                     isReconnectingRef.current = false;
                     setIsReconnecting(false);
+                    reconnectAttemptsRef.current = 0;
                     setReconnectAttempts(0);
                     callStatusRef.current = "active";
                     toast.success("Reconnected", {
@@ -522,6 +534,7 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
                             // Successfully reconnected
                             isReconnectingRef.current = false;
                             setIsReconnecting(false);
+                            reconnectAttemptsRef.current = 0;
                             setReconnectAttempts(0);
                             callStatusRef.current = "active";
                             setCallStatus("active");
@@ -672,9 +685,16 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
     }, [onComplete, selectedAssistant]);
 
     const startCall = async () => {
-        if (isFinalizingSessionRef.current || hasSavedRef.current) {
+        if (isFinalizingSessionRef.current) {
             toast.info("Finishing previous session", {
                 description: "Please wait while your previous session is being finalized.",
+            });
+            return;
+        }
+
+        if (hasSavedRef.current || hasSavedSession) {
+            toast.info("Session already saved", {
+                description: "Previous session was saved. Please return to the dashboard to start a new session.",
             });
             return;
         }
@@ -806,9 +826,10 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
                                 onClick={startCall}
                                 className="flex items-center gap-2 w-full"
                                 size="lg"
-                                disabled={!isVapiInitialized || isFinalizingSession}
+                                disabled={!isVapiInitialized || isFinalizingSession || hasSavedSession}
+                                aria-label={hasSavedSession ? "Session saved, restart disabled" : "Start Call"}
                             >
-                                <PhoneCall className="h-5 w-5" /> {isFinalizingSession ? "Finishing..." : "Start Call"}
+                                <PhoneCall className="h-5 w-5" /> {hasSavedSession ? "Session Saved" : isFinalizingSession ? "Finishing..." : "Start Call"}
                             </Button>
                         </div>
                     )}
