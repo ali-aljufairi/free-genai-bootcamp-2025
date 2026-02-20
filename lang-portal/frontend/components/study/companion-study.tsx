@@ -216,6 +216,8 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
     const vapiRef = useRef<any>(null);
     const hasSavedRef = useRef(false);
     const isFinalizingSessionRef = useRef(false);
+    const callStartTimeRef = useRef<Date | null>(null);
+    const transcriptMessagesRef = useRef<TranscriptMessage[]>([]);
     const transcriptEndRef = useRef<HTMLDivElement>(null);
     const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const callStatusRef = useRef<CallStatus>("idle");
@@ -228,6 +230,14 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
         showTranscription,
         setSelectedAssistant: setStoreSelectedAssistant
     } = useCompanionStudyStore();
+
+    useEffect(() => {
+        callStartTimeRef.current = callStartTime;
+    }, [callStartTime]);
+
+    useEffect(() => {
+        transcriptMessagesRef.current = transcriptMessages;
+    }, [transcriptMessages]);
 
     const cleanup = () => {
         // Clear any pending reconnection attempts
@@ -245,7 +255,11 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
         callStatusRef.current = "ended";
         setCallStatus("ended");
         setAssistantIsSpeaking(false);
-        setTranscriptMessages([]);
+        setTranscriptMessages(() => {
+            transcriptMessagesRef.current = [];
+            return [];
+        });
+        callStartTimeRef.current = null;
         setCallStartTime(null);
         isReconnectingRef.current = false;
         setIsReconnecting(false);
@@ -304,12 +318,13 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
 
     // Function to save companion study session to database
     const saveCompanionSession = async () => {
-        if (!callStartTime) {
+        const startedAt = callStartTimeRef.current;
+        if (!startedAt) {
             return; // Don't save if call never started
         }
 
         // Extract final transcripts from messages (exclude partial messages)
-        const finalMessages = transcriptMessages.filter(msg => !msg.isPartial);
+        const finalMessages = transcriptMessagesRef.current.filter(msg => !msg.isPartial);
         const userTranscript = finalMessages
             .filter(msg => msg.role === 'user')
             .map(msg => msg.text)
@@ -322,7 +337,7 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
         // Save even with empty transcripts to track session attempts
         try {
             const endedAt = new Date();
-            const durationSeconds = Math.max(0, Math.floor((endedAt.getTime() - callStartTime.getTime()) / 1000));
+            const durationSeconds = Math.max(0, Math.floor((endedAt.getTime() - startedAt.getTime()) / 1000));
 
             const response = await fetch('/api/companion-study/save', {
                 method: 'POST',
@@ -335,7 +350,7 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
                     user_transcript: userTranscript || '',
                     assistant_transcript: assistantTranscript || '',
                     duration_seconds: durationSeconds,
-                    started_at: callStartTime.toISOString(),
+                    started_at: startedAt.toISOString(),
                     ended_at: endedAt.toISOString(),
                 }),
             });
@@ -382,7 +397,7 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
 
     // Attempt to reconnect after a disconnection
     const attemptReconnection = async () => {
-        if (!vapiRef.current || !callStartTime || hasSavedRef.current) {
+        if (!vapiRef.current || !callStartTimeRef.current || hasSavedRef.current) {
             return; // Can't reconnect if call never started or already saved
         }
 
@@ -413,7 +428,7 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
         reconnectTimeoutRef.current = setTimeout(async () => {
             try {
                 // Try to restart the call with the same assistant
-                if (vapiRef.current && callStartTime && !hasSavedRef.current) {
+                if (vapiRef.current && callStartTimeRef.current && !hasSavedRef.current) {
                     await vapiRef.current.start(selectedAssistant);
                     isReconnectingRef.current = false;
                     setIsReconnecting(false);
@@ -457,9 +472,11 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
                     const Vapi = VapiModule.default;
                     vapiRef.current = new Vapi(VAPI_PUBLIC_KEY);
                     vapiRef.current.on("call-start", () => {
+                        const startedAt = new Date();
                         callStatusRef.current = "active";
                         setCallStatus("active");
-                        setCallStartTime(new Date());
+                        callStartTimeRef.current = startedAt;
+                        setCallStartTime(startedAt);
                     });
                     vapiRef.current.on("call-end", async () => {
                         console.log('Vapi call-end event received');
@@ -494,7 +511,7 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
                             });
 
                             // Only attempt reconnection if call was active and not already reconnecting
-                            if (callStartTime && !isReconnectingRef.current && callStatusRef.current !== 'ended' && !hasSavedRef.current) {
+                            if (callStartTimeRef.current && !isReconnectingRef.current && callStatusRef.current !== 'ended' && !hasSavedRef.current) {
                                 console.log('Attempting to reconnect after status update...');
                                 attemptReconnection();
                             } else if (callStatusRef.current === 'ended' || hasSavedRef.current) {
@@ -532,12 +549,14 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
                                         const filtered = prev.filter(msg => !(msg.role === role && msg.isPartial));
 
                                         // Add the new message
-                                        return [...filtered, {
+                                        const nextMessages = [...filtered, {
                                             id: messageId,
                                             role: role as "user" | "assistant",
                                             text: transcript,
                                             isPartial
                                         }];
+                                        transcriptMessagesRef.current = nextMessages;
+                                        return nextMessages;
                                     });
                                 }
                             }
@@ -570,7 +589,7 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
                             code: err?.code || err?.error?.code,
                             type: err?.type || err?.error?.type,
                             callStatus: callStatus,
-                            hasCallStarted: callStartTime !== null,
+                            hasCallStarted: callStartTimeRef.current !== null,
                             sessionId: sessionId,
                             assistantId: selectedAssistant,
                             timestamp: err?.timestamp,
@@ -598,7 +617,7 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
                         });
                         
                         // If call was never started, just cleanup
-                        if (callStartTime === null) {
+                        if (callStartTimeRef.current === null) {
                             cleanup();
                             toast.error("Connection Error", { 
                                 description: errorMessage !== 'Unknown error' ? errorMessage : "Failed to start call. Please try again." 
@@ -719,6 +738,10 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
     };
 
     const endCall = async () => {
+        if (isFinalizingSessionRef.current) {
+            return;
+        }
+
         if (vapiRef.current) {
             try {
                 vapiRef.current.stop();
@@ -862,6 +885,10 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
                             <div className="flex items-center justify-center pt-4">
                                 <Button
                                     onClick={() => {
+                                        if (isFinalizingSession) {
+                                            return;
+                                        }
+
                                         endCall().catch((error) => {
                                             console.error("Failed to end call:", error);
                                             toast.error("Call End Failed", {
@@ -869,6 +896,7 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
                                             });
                                         });
                                     }}
+                                    disabled={isFinalizingSession}
                                     variant="destructive"
                                     size={isMobile ? "icon" : "icon"}
                                     className={`${isMobile ? "h-12 w-12 rounded-full" : "h-14 w-14 rounded-full"} shadow-lg`}
