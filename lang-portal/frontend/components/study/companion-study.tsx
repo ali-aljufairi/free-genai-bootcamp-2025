@@ -261,10 +261,8 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
         callStatusRef.current = "ended";
         setCallStatus("ended");
         setAssistantIsSpeaking(false);
-        setTranscriptMessages(() => {
-            transcriptMessagesRef.current = [];
-            return [];
-        });
+        transcriptMessagesRef.current = [];
+        setTranscriptMessages([]);
         callStartTimeRef.current = null;
         setCallStartTime(null);
         isReconnectingRef.current = false;
@@ -557,20 +555,21 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
                                 const messageId = `${role}-${Date.now()}-${Math.random()}`;
 
                                 if (role === 'user' || role === 'assistant') {
-                                    setTranscriptMessages(prev => {
-                                        // Remove any existing partial message for this role
-                                        const filtered = prev.filter(msg => !(msg.role === role && msg.isPartial));
-
-                                        // Add the new message
-                                        const nextMessages = [...filtered, {
+                                    // Remove existing partial message for this role before appending fresh transcript
+                                    const filtered = transcriptMessagesRef.current.filter(
+                                        (msg) => !(msg.role === role && msg.isPartial),
+                                    );
+                                    const nextMessages = [
+                                        ...filtered,
+                                        {
                                             id: messageId,
                                             role: role as "user" | "assistant",
                                             text: transcript,
-                                            isPartial
-                                        }];
-                                        transcriptMessagesRef.current = nextMessages;
-                                        return nextMessages;
-                                    });
+                                            isPartial,
+                                        },
+                                    ];
+                                    transcriptMessagesRef.current = nextMessages;
+                                    setTranscriptMessages(nextMessages);
                                 }
                             }
                         } catch (error) {
@@ -601,7 +600,7 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
                             message: errorMessage,
                             code: err?.code || err?.error?.code,
                             type: err?.type || err?.error?.type,
-                            callStatus: callStatus,
+                            callStatus: callStatusRef.current,
                             hasCallStarted: callStartTimeRef.current !== null,
                             sessionId: sessionId,
                             assistantId: selectedAssistant,
