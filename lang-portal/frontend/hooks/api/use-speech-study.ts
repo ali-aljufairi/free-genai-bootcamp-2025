@@ -143,15 +143,23 @@ export function useSpeechStudy(sessionId?: string) {
             }
 
             // Set up audio analysis
+            let sourceNode: MediaStreamAudioSourceNode | null = null;
             try {
                 audioContextRef.current = new AudioContext();
-                const source = audioContextRef.current.createMediaStreamSource(streamRef.current);
+                sourceNode = audioContextRef.current.createMediaStreamSource(streamRef.current);
                 analyserRef.current = audioContextRef.current.createAnalyser();
                 analyserRef.current.fftSize = 256;
-                source.connect(analyserRef.current);
+                sourceNode.connect(analyserRef.current);
                 console.log('Audio context and analyzer set up');
             } catch (audioError) {
                 console.error('Error setting up audio context:', audioError);
+                sourceNode?.disconnect();
+                analyserRef.current?.disconnect();
+                if (streamRef.current) {
+                    stopMediaStream();
+                }
+                await closeAudioContextSafely();
+                setAudioLevel(0);
                 setError('Failed to set up audio processing. Please try again.');
                 toast({
                     title: "Audio Setup Error",
@@ -199,7 +207,7 @@ export function useSpeechStudy(sessionId?: string) {
                     analyserRef.current.getByteFrequencyData(dataArray);
                     const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
                     setAudioLevel(average / 128); // Normalize to 0-1
-                    if (isRecording) {
+                    if (analyserRef.current) {
                         requestAnimationFrame(updateAudioLevel);
                     }
                 };
@@ -240,15 +248,25 @@ export function useSpeechStudy(sessionId?: string) {
             clearRecordingTimer();
             const recorder = recorderRef.current;
 
-            recorder.stopRecording(async () => {
-                const blob = recorder.getBlob();
-                await handleStop(URL.createObjectURL(blob), blob);
+            await new Promise<void>((resolve) => {
+                recorder.stopRecording(() => {
+                    // Teardown after encoding callback so blob retrieval and processing are reliable.
+                    void (async () => {
+                        try {
+                            const blob = recorder.getBlob();
+                            await handleStop(URL.createObjectURL(blob), blob);
+                        } catch (handleStopError) {
+                            console.error('Error handling stopped recording:', handleStopError);
+                        } finally {
+                            stopMediaStream();
+                            await closeAudioContextSafely();
+                            recorderRef.current = null;
+                            setAudioLevel(0);
+                            resolve();
+                        }
+                    })();
+                });
             });
-
-            stopMediaStream();
-            await closeAudioContextSafely();
-            recorderRef.current = null;
-            setAudioLevel(0);
 
         } catch (err) {
             console.error('Error stopping recording:', err);
@@ -358,28 +376,28 @@ export function useSpeechStudy(sessionId?: string) {
                         console.error('Analysis error:', error);
                         return ''; // Return empty string if analysis fails
                     });
-                    
-                    // Save session to database when both image and analysis are complete
-                    Promise.all([imagePromise, analysisPromise])
-                        .then(([imageUrl, analysis]) => {
-                            // Only save if we have at least transcription
-                            if (result.text) {
-                                saveSpeechStudySession(apiClient, {
-                                    sessionId: sessionId || `speech-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-                                    transcription: result.text,
-                                    analysis: analysis || '',
-                                    imageUrl: imageUrl || '',
-                                    recordingDurationSeconds: recordingTime,
-                                    modelUsed: 'gemini-2.5-flash-image'
-                                }).catch(error => {
-                                    console.error('Failed to save speech study session:', error);
-                                    // Don't show error toast to user as this is a background operation
-                                });
-                            }
-                        })
-                        .catch(error => {
-                            console.error('Error in speech study session:', error);
+
+                    // Wait for the full pipeline so isProcessing maps to end-to-end completion.
+                    let imageUrl: string | null = null;
+                    let analysis = '';
+                    try {
+                        [imageUrl, analysis] = await Promise.all([imagePromise, analysisPromise]);
+                    } catch (pipelineError) {
+                        console.error('Error in speech study session pipeline:', pipelineError);
+                    }
+
+                    try {
+                        await saveSpeechStudySession(apiClient, {
+                            sessionId: sessionId || `speech-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+                            transcription: result.text,
+                            analysis: analysis || '',
+                            imageUrl: imageUrl || '',
+                            recordingDurationSeconds: recordingTime,
+                            modelUsed: 'gemini-2.5-flash-image'
                         });
+                    } catch (saveError) {
+                        console.error('Failed to save speech study session:', saveError);
+                    }
                 } else {
                     throw new Error('No transcription text returned');
                 }
