@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { toast } from "@/components/ui/sonner";
 import { generateImageFromText } from '@/services/google-ai';
 import { transcribeAudio } from '@/app/actions/transcribe';
@@ -38,22 +38,59 @@ export function useSpeechStudy(sessionId?: string) {
     const timerRef = useRef<NodeJS.Timeout | null>(null);
     const audioContextRef = useRef<AudioContext | null>(null);
     const analyserRef = useRef<AnalyserNode | null>(null);
+    const isStartingRef = useRef(false);
+
+    const clearRecordingTimer = useCallback(() => {
+        if (timerRef.current) {
+            clearInterval(timerRef.current);
+            timerRef.current = null;
+        }
+    }, []);
+
+    const stopMediaStream = useCallback(() => {
+        if (!streamRef.current) return;
+
+        streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current = null;
+        console.log('Media tracks stopped');
+    }, []);
+
+    const closeAudioContextSafely = useCallback(async () => {
+        const context = audioContextRef.current;
+        audioContextRef.current = null;
+        analyserRef.current = null;
+
+        if (!context || context.state === 'closed') return;
+
+        try {
+            await context.close();
+        } catch (closeError) {
+            const isInvalidStateError =
+                closeError instanceof DOMException && closeError.name === 'InvalidStateError';
+
+            if (!isInvalidStateError) {
+                console.error('Failed to close audio context:', closeError);
+            }
+        }
+    }, []);
 
     useEffect(() => {
         return () => {
-            if (timerRef.current) clearInterval(timerRef.current);
-            if (streamRef.current) {
-                streamRef.current.getTracks().forEach(track => track.stop());
-            }
-            if (audioContextRef.current) {
-                audioContextRef.current.close();
-            }
+            clearRecordingTimer();
+            stopMediaStream();
+            void closeAudioContextSafely();
         };
-    }, []);
+    }, [clearRecordingTimer, closeAudioContextSafely, stopMediaStream]);
 
     const startRecording = async () => {
+        if (isRecording || isProcessing || isStartingRef.current) return;
+        isStartingRef.current = true;
+
         try {
             setError(null);
+            clearRecordingTimer();
+            stopMediaStream();
+            await closeAudioContextSafely();
 
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
                 const errorMsg = 'Your browser does not support audio recording. Please try a modern browser like Chrome, Firefox, or Edge.';
@@ -106,15 +143,23 @@ export function useSpeechStudy(sessionId?: string) {
             }
 
             // Set up audio analysis
+            let sourceNode: MediaStreamAudioSourceNode | null = null;
             try {
                 audioContextRef.current = new AudioContext();
-                const source = audioContextRef.current.createMediaStreamSource(streamRef.current);
+                sourceNode = audioContextRef.current.createMediaStreamSource(streamRef.current);
                 analyserRef.current = audioContextRef.current.createAnalyser();
                 analyserRef.current.fftSize = 256;
-                source.connect(analyserRef.current);
+                sourceNode.connect(analyserRef.current);
                 console.log('Audio context and analyzer set up');
             } catch (audioError) {
                 console.error('Error setting up audio context:', audioError);
+                sourceNode?.disconnect();
+                analyserRef.current?.disconnect();
+                if (streamRef.current) {
+                    stopMediaStream();
+                }
+                await closeAudioContextSafely();
+                setAudioLevel(0);
                 setError('Failed to set up audio processing. Please try again.');
                 toast({
                     title: "Audio Setup Error",
@@ -162,7 +207,7 @@ export function useSpeechStudy(sessionId?: string) {
                     analyserRef.current.getByteFrequencyData(dataArray);
                     const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
                     setAudioLevel(average / 128); // Normalize to 0-1
-                    if (isRecording) {
+                    if (analyserRef.current) {
                         requestAnimationFrame(updateAudioLevel);
                     }
                 };
@@ -177,12 +222,8 @@ export function useSpeechStudy(sessionId?: string) {
                 });
 
                 // Clean up resources
-                if (streamRef.current) {
-                    streamRef.current.getTracks().forEach(track => track.stop());
-                }
-                if (audioContextRef.current) {
-                    audioContextRef.current.close();
-                }
+                stopMediaStream();
+                await closeAudioContextSafely();
                 return;
             }
 
@@ -194,6 +235,8 @@ export function useSpeechStudy(sessionId?: string) {
                 title: "Error",
                 description: "An unexpected error occurred. Please try again.",
             });
+        } finally {
+            isStartingRef.current = false;
         }
     };
 
@@ -202,20 +245,28 @@ export function useSpeechStudy(sessionId?: string) {
 
         try {
             setIsRecording(false);
-            if (timerRef.current) clearInterval(timerRef.current);
+            clearRecordingTimer();
+            const recorder = recorderRef.current;
 
-            recorderRef.current.stopRecording(async () => {
-                const blob = recorderRef.current.getBlob();
-                await handleStop(URL.createObjectURL(blob), blob);
+            await new Promise<void>((resolve) => {
+                recorder.stopRecording(() => {
+                    // Teardown after encoding callback so blob retrieval and processing are reliable.
+                    void (async () => {
+                        try {
+                            const blob = recorder.getBlob();
+                            await handleStop(URL.createObjectURL(blob), blob);
+                        } catch (handleStopError) {
+                            console.error('Error handling stopped recording:', handleStopError);
+                        } finally {
+                            stopMediaStream();
+                            await closeAudioContextSafely();
+                            recorderRef.current = null;
+                            setAudioLevel(0);
+                            resolve();
+                        }
+                    })();
+                });
             });
-
-            if (streamRef.current) {
-                streamRef.current.getTracks().forEach(track => track.stop());
-                console.log('Media tracks stopped');
-            }
-            if (audioContextRef.current) {
-                audioContextRef.current.close();
-            }
 
         } catch (err) {
             console.error('Error stopping recording:', err);
@@ -325,28 +376,28 @@ export function useSpeechStudy(sessionId?: string) {
                         console.error('Analysis error:', error);
                         return ''; // Return empty string if analysis fails
                     });
-                    
-                    // Save session to database when both image and analysis are complete
-                    Promise.all([imagePromise, analysisPromise])
-                        .then(([imageUrl, analysis]) => {
-                            // Only save if we have at least transcription
-                            if (result.text) {
-                                saveSpeechStudySession(apiClient, {
-                                    sessionId: sessionId || `speech-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-                                    transcription: result.text,
-                                    analysis: analysis || '',
-                                    imageUrl: imageUrl || '',
-                                    recordingDurationSeconds: recordingTime,
-                                    modelUsed: 'gemini-2.5-flash-image'
-                                }).catch(error => {
-                                    console.error('Failed to save speech study session:', error);
-                                    // Don't show error toast to user as this is a background operation
-                                });
-                            }
-                        })
-                        .catch(error => {
-                            console.error('Error in speech study session:', error);
+
+                    // Wait for the full pipeline so isProcessing maps to end-to-end completion.
+                    let imageUrl: string | null = null;
+                    let analysis = '';
+                    try {
+                        [imageUrl, analysis] = await Promise.all([imagePromise, analysisPromise]);
+                    } catch (pipelineError) {
+                        console.error('Error in speech study session pipeline:', pipelineError);
+                    }
+
+                    try {
+                        await saveSpeechStudySession(apiClient, {
+                            sessionId: sessionId || `speech-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+                            transcription: result.text,
+                            analysis: analysis || '',
+                            imageUrl: imageUrl || '',
+                            recordingDurationSeconds: recordingTime,
+                            modelUsed: 'gemini-2.5-flash-image'
                         });
+                    } catch (saveError) {
+                        console.error('Failed to save speech study session:', saveError);
+                    }
                 } else {
                     throw new Error('No transcription text returned');
                 }
