@@ -211,9 +211,11 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
     const [transcriptMessages, setTranscriptMessages] = useState<TranscriptMessage[]>([]);
     const [callStartTime, setCallStartTime] = useState<Date | null>(null);
     const [isReconnecting, setIsReconnecting] = useState(false);
+    const [isFinalizingSession, setIsFinalizingSession] = useState(false);
     const [reconnectAttempts, setReconnectAttempts] = useState(0);
     const vapiRef = useRef<any>(null);
     const hasSavedRef = useRef(false);
+    const isFinalizingSessionRef = useRef(false);
     const transcriptEndRef = useRef<HTMLDivElement>(null);
     const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const callStatusRef = useRef<CallStatus>("idle");
@@ -248,7 +250,6 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
         isReconnectingRef.current = false;
         setIsReconnecting(false);
         setReconnectAttempts(0);
-        hasSavedRef.current = false;
     };
 
     // Check if an error is recoverable (can attempt reconnection)
@@ -353,12 +354,27 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
     };
 
     const handleCallEnd = async () => {
+        if (isFinalizingSessionRef.current) {
+            return;
+        }
+
+        isFinalizingSessionRef.current = true;
+        setIsFinalizingSession(true);
+
         if (!hasSavedRef.current) {
             hasSavedRef.current = true;
             await saveCompanionSession();
         }
-        cleanup();
-        onComplete && onComplete();
+
+        try {
+            cleanup();
+            await onComplete?.();
+        } catch (error) {
+            console.error("Failed to complete companion study flow:", error);
+            toast.error("Session Completed", {
+                description: "Your session was saved. Please return to the dashboard manually.",
+            });
+        }
     };
 
     // Attempt to reconnect after a disconnection
@@ -634,6 +650,18 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
     }, [onComplete, selectedAssistant]);
 
     const startCall = async () => {
+        if (isFinalizingSessionRef.current || hasSavedRef.current) {
+            toast.info("Finishing previous session", {
+                description: "Please wait while your previous session is being finalized.",
+            });
+            return;
+        }
+
+        if (!selectedAssistant || typeof selectedAssistant !== "string") {
+            toast.error("Assistant Required", { description: "Please select an assistant before starting." });
+            return;
+        }
+
         if (!isVapiInitialized) {
             toast.error("Initialization Error", { description: "VAPI is not initialized. Please wait a moment and try again." });
             return;
@@ -752,9 +780,9 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
                                 onClick={startCall}
                                 className="flex items-center gap-2 w-full"
                                 size="lg"
-                                disabled={!isVapiInitialized}
+                                disabled={!isVapiInitialized || isFinalizingSession}
                             >
-                                <PhoneCall className="h-5 w-5" /> Start Call
+                                <PhoneCall className="h-5 w-5" /> {isFinalizingSession ? "Finishing..." : "Start Call"}
                             </Button>
                         </div>
                     )}
