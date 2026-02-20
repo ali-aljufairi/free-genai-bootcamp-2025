@@ -59,7 +59,7 @@ RUN --mount=type=secret,id=SENTRY_AUTH_TOKEN,required=false \
     if [ -f /run/secrets/SENTRY_AUTH_TOKEN ]; then \
       export SENTRY_AUTH_TOKEN="$(cat /run/secrets/SENTRY_AUTH_TOKEN)"; \
     fi; \
-    pnpm run build
+    pnpm run build:k8s
 
 # ================================
 # Stage 2: Production runner
@@ -107,4 +107,4 @@ RUN rm -f .env .env.example .env.local .env.production .env.production.local 2>/
 EXPOSE 3000
 
 # Start with wattpm
-CMD ["pnpm", "run", "start"]
+CMD ["pnpm", "run", "start:k8s"]
