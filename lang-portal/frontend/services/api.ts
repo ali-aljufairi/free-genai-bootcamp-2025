@@ -48,7 +48,10 @@ export function createApiService(client: ApiClient) {
     getLastStudySession: () => client.get<StudySession>(endpoint('/dashboard/last_study_session')),
     getStudyProgress: () => client.get<StudyProgress>(endpoint('/dashboard/study_progress')),
     getQuickStats: () => client.get<QuickStats>(endpoint('/dashboard/quick-stats')),
-    getActivityDates: () => client.get<ActivityDatesResponse>(endpoint('/dashboard/activity_dates')),
+    getActivityDates: () => client.get<ActivityDatesResponse>(endpoint('/dashboard/activity_dates'), {
+      retryCount: 2,
+      retryDelayMs: 300,
+    }),
     getRecentActivities: (limit?: number) => 
       client.get<RecentActivitiesResponse>(endpoint(`/dashboard/recent_activities${limit ? `?limit=${limit}` : ''}`)),
   };
