@@ -7,7 +7,11 @@ export function StreakCalendar() {
   const { data, isLoading, error } = useActivityDates()
 
   // Convert activity dates to a map for quick lookup
-  const activityData = useMemo(() => {
+  const activityData = useMemo<Record<string, boolean>>(() => {
+    if (error) {
+      return {}
+    }
+
     const activityMap: { [key: string]: boolean } = {}
 
     if (data?.dates && Array.isArray(data.dates)) {
@@ -22,7 +26,7 @@ export function StreakCalendar() {
     }
 
     return activityMap;
-  }, [data?.dates]);
+  }, [data?.dates, error]);
 
   // Generate last 28 days (4 weeks)
   const days = useMemo(() => {

@@ -5,6 +5,7 @@ export interface ApiClientOptions extends RequestInit {
   unwrapResponse?: boolean;
   retryCount?: number;
   retryDelayMs?: number;
+  retryJitterMs?: number;
   retryStatuses?: number[];
 }
 
@@ -23,10 +24,21 @@ export class ApiError extends Error {
 }
 
 const DEFAULT_RETRY_DELAY_MS = 300;
+const DEFAULT_RETRY_JITTER_MS = 120;
 const RETRYABLE_STATUS_CODES = new Set<number>([502, 503, 504, 520, 521, 522, 523, 524]);
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function getRetryDelayMs(baseDelayMs: number, attempt: number, jitterMs: number): number {
+  const linearDelay = baseDelayMs * attempt;
+  if (jitterMs <= 0) {
+    return linearDelay;
+  }
+
+  const jitter = Math.floor(Math.random() * (jitterMs * 2 + 1)) - jitterMs;
+  return Math.max(0, linearDelay + jitter);
 }
 
 async function getTokenFromBrowser(): Promise<string | null> {
@@ -61,6 +73,7 @@ export class ApiClient {
       unwrapResponse = true,
       retryCount = 0,
       retryDelayMs = DEFAULT_RETRY_DELAY_MS,
+      retryJitterMs = DEFAULT_RETRY_JITTER_MS,
       retryStatuses,
       headers = {},
       ...fetchOptions
@@ -120,7 +133,7 @@ export class ApiClient {
             retryableStatuses.has(error.status);
 
           if (canRetry) {
-            await sleep(retryDelayMs * attempt);
+            await sleep(getRetryDelayMs(retryDelayMs, attempt, retryJitterMs));
             continue;
           }
 
@@ -144,7 +157,26 @@ export class ApiClient {
           throw error;
         }
 
-        const data = await response.json();
+        let data: unknown;
+        try {
+          data = await response.json();
+        } catch (parseError) {
+          throw new ApiError(
+            parseError instanceof Error
+              ? `Invalid JSON response: ${parseError.message}`
+              : 'Invalid JSON response from API',
+            {
+              code: 'INVALID_JSON_RESPONSE',
+              status: response.status,
+              details: {
+                url,
+                statusText: response.statusText,
+                contentType: response.headers.get('content-type'),
+                contentLength: response.headers.get('content-length'),
+              },
+            }
+          );
+        }
 
         if (unwrapResponse && data && typeof data === 'object' && 'success' in data && 'data' in data) {
           if (data.success) {
@@ -169,7 +201,7 @@ export class ApiClient {
 
         const canRetry = method === 'GET' && attempt < maxAttempts;
         if (canRetry) {
-          await sleep(retryDelayMs * attempt);
+          await sleep(getRetryDelayMs(retryDelayMs, attempt, retryJitterMs));
           continue;
         }
 
@@ -187,6 +219,8 @@ export class ApiClient {
       }
     }
 
+    // Intentional exhaustiveness guard: the retry loop should always return or throw ApiError before maxAttempts is exceeded.
+    // This final throw keeps Promise<T> total for TypeScript and protects future loop changes.
     throw new ApiError('API request failed after retry attempts', { code: 'RETRY_EXHAUSTED' });
   }
 
