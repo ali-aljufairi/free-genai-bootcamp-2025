@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { toast } from "@/components/ui/sonner";
 import { generateImageFromText } from '@/services/google-ai';
 import { transcribeAudio } from '@/app/actions/transcribe';
@@ -38,22 +38,59 @@ export function useSpeechStudy(sessionId?: string) {
     const timerRef = useRef<NodeJS.Timeout | null>(null);
     const audioContextRef = useRef<AudioContext | null>(null);
     const analyserRef = useRef<AnalyserNode | null>(null);
+    const isStartingRef = useRef(false);
+
+    const clearRecordingTimer = useCallback(() => {
+        if (timerRef.current) {
+            clearInterval(timerRef.current);
+            timerRef.current = null;
+        }
+    }, []);
+
+    const stopMediaStream = useCallback(() => {
+        if (!streamRef.current) return;
+
+        streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current = null;
+        console.log('Media tracks stopped');
+    }, []);
+
+    const closeAudioContextSafely = useCallback(async () => {
+        const context = audioContextRef.current;
+        audioContextRef.current = null;
+        analyserRef.current = null;
+
+        if (!context || context.state === 'closed') return;
+
+        try {
+            await context.close();
+        } catch (closeError) {
+            const isInvalidStateError =
+                closeError instanceof DOMException && closeError.name === 'InvalidStateError';
+
+            if (!isInvalidStateError) {
+                console.error('Failed to close audio context:', closeError);
+            }
+        }
+    }, []);
 
     useEffect(() => {
         return () => {
-            if (timerRef.current) clearInterval(timerRef.current);
-            if (streamRef.current) {
-                streamRef.current.getTracks().forEach(track => track.stop());
-            }
-            if (audioContextRef.current) {
-                audioContextRef.current.close();
-            }
+            clearRecordingTimer();
+            stopMediaStream();
+            void closeAudioContextSafely();
         };
-    }, []);
+    }, [clearRecordingTimer, closeAudioContextSafely, stopMediaStream]);
 
     const startRecording = async () => {
+        if (isRecording || isProcessing || isStartingRef.current) return;
+        isStartingRef.current = true;
+
         try {
             setError(null);
+            clearRecordingTimer();
+            stopMediaStream();
+            await closeAudioContextSafely();
 
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
                 const errorMsg = 'Your browser does not support audio recording. Please try a modern browser like Chrome, Firefox, or Edge.';
@@ -177,12 +214,8 @@ export function useSpeechStudy(sessionId?: string) {
                 });
 
                 // Clean up resources
-                if (streamRef.current) {
-                    streamRef.current.getTracks().forEach(track => track.stop());
-                }
-                if (audioContextRef.current) {
-                    audioContextRef.current.close();
-                }
+                stopMediaStream();
+                await closeAudioContextSafely();
                 return;
             }
 
@@ -194,6 +227,8 @@ export function useSpeechStudy(sessionId?: string) {
                 title: "Error",
                 description: "An unexpected error occurred. Please try again.",
             });
+        } finally {
+            isStartingRef.current = false;
         }
     };
 
@@ -202,20 +237,18 @@ export function useSpeechStudy(sessionId?: string) {
 
         try {
             setIsRecording(false);
-            if (timerRef.current) clearInterval(timerRef.current);
+            clearRecordingTimer();
+            const recorder = recorderRef.current;
 
-            recorderRef.current.stopRecording(async () => {
-                const blob = recorderRef.current.getBlob();
+            recorder.stopRecording(async () => {
+                const blob = recorder.getBlob();
                 await handleStop(URL.createObjectURL(blob), blob);
             });
 
-            if (streamRef.current) {
-                streamRef.current.getTracks().forEach(track => track.stop());
-                console.log('Media tracks stopped');
-            }
-            if (audioContextRef.current) {
-                audioContextRef.current.close();
-            }
+            stopMediaStream();
+            await closeAudioContextSafely();
+            recorderRef.current = null;
+            setAudioLevel(0);
 
         } catch (err) {
             console.error('Error stopping recording:', err);
