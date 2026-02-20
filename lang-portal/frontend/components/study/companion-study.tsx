@@ -361,12 +361,12 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
         isFinalizingSessionRef.current = true;
         setIsFinalizingSession(true);
 
-        if (!hasSavedRef.current) {
-            hasSavedRef.current = true;
-            await saveCompanionSession();
-        }
-
         try {
+            if (!hasSavedRef.current) {
+                hasSavedRef.current = true;
+                await saveCompanionSession();
+            }
+
             cleanup();
             await onComplete?.();
         } catch (error) {
@@ -374,6 +374,9 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
             toast.error("Session Completed", {
                 description: "Your session was saved. Please return to the dashboard manually.",
             });
+        } finally {
+            isFinalizingSessionRef.current = false;
+            setIsFinalizingSession(false);
         }
     };
 
@@ -715,7 +718,7 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
         setStoreSelectedAssistant(assistantId);
     };
 
-    const endCall = () => {
+    const endCall = async () => {
         if (vapiRef.current) {
             try {
                 vapiRef.current.stop();
@@ -723,7 +726,7 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
                 // ignore stop errors on manual hangup
             }
         }
-        handleCallEnd();
+        await handleCallEnd();
     };
 
     // Auto-scroll to bottom when new messages arrive
@@ -858,7 +861,14 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
                             {/* End Call Button - Icon Only */}
                             <div className="flex items-center justify-center pt-4">
                                 <Button
-                                    onClick={endCall}
+                                    onClick={() => {
+                                        endCall().catch((error) => {
+                                            console.error("Failed to end call:", error);
+                                            toast.error("Call End Failed", {
+                                                description: "Unable to finalize the call. Please try again.",
+                                            });
+                                        });
+                                    }}
                                     variant="destructive"
                                     size={isMobile ? "icon" : "icon"}
                                     className={`${isMobile ? "h-12 w-12 rounded-full" : "h-14 w-14 rounded-full"} shadow-lg`}
