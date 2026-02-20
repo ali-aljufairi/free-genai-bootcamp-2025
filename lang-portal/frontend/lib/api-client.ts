@@ -1,8 +1,14 @@
 import * as Sentry from '@sentry/nextjs';
+import type { ApiResponse } from '@/lib/api-utils';
 
 export interface ApiClientOptions extends RequestInit {
   requireAuth?: boolean;
   unwrapResponse?: boolean;
+  /**
+   * Number of retries after the initial request (GET requests only).
+   * Must be a non-negative integer.
+   * Hard-capped at 3 retries.
+   */
   retryCount?: number;
   retryDelayMs?: number;
   retryJitterMs?: number;
@@ -25,20 +31,57 @@ export class ApiError extends Error {
 
 const DEFAULT_RETRY_DELAY_MS = 300;
 const DEFAULT_RETRY_JITTER_MS = 120;
+const MAX_RETRY_COUNT = 3;
 const RETRYABLE_STATUS_CODES = new Set<number>([502, 503, 504, 520, 521, 522, 523, 524]);
+type WrappedApiResponse<T> = ApiResponse<T> & {
+  error?: ApiResponse<T>['error'] & { message?: string };
+};
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function getRetryDelayMs(baseDelayMs: number, attempt: number, jitterMs: number): number {
-  const linearDelay = baseDelayMs * attempt;
+  const exponentialDelay = baseDelayMs * 2 ** (attempt - 1);
   if (jitterMs <= 0) {
-    return linearDelay;
+    return exponentialDelay;
   }
 
   const jitter = Math.floor(Math.random() * (jitterMs * 2 + 1)) - jitterMs;
-  return Math.max(0, linearDelay + jitter);
+  return Math.max(0, exponentialDelay + jitter);
+}
+
+function normalizeRetryCount(retryCount: number): number {
+  if (!Number.isFinite(retryCount) || retryCount < 0) {
+    throw new ApiError('Invalid retryCount: expected a non-negative finite number', {
+      code: 'INVALID_RETRY_COUNT',
+      details: { retryCount },
+    });
+  }
+  if (!Number.isInteger(retryCount)) {
+    throw new ApiError('Invalid retryCount: expected a non-negative integer', {
+      code: 'INVALID_RETRY_COUNT',
+      details: { retryCount },
+    });
+  }
+
+  if (retryCount > MAX_RETRY_COUNT) {
+    console.warn(
+      `[ApiClient] retryCount=${retryCount} exceeds max ${MAX_RETRY_COUNT}; clamping to ${MAX_RETRY_COUNT}.`
+    );
+    return MAX_RETRY_COUNT;
+  }
+
+  return retryCount;
+}
+
+function isWrappedApiResponse<T>(value: unknown): value is WrappedApiResponse<T> {
+  return Boolean(
+    value &&
+      typeof value === 'object' &&
+      'success' in value &&
+      'data' in value
+  );
 }
 
 async function getTokenFromBrowser(): Promise<string | null> {
@@ -81,7 +124,7 @@ export class ApiClient {
 
     const method = (fetchOptions.method || 'GET').toUpperCase();
     const url = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
-    const normalizedRetryCount = Math.max(0, Math.min(retryCount, 3));
+    const normalizedRetryCount = normalizeRetryCount(retryCount);
     const maxAttempts = normalizedRetryCount + 1;
     const retryableStatuses = new Set<number>(
       retryStatuses && retryStatuses.length > 0 ? retryStatuses : Array.from(RETRYABLE_STATUS_CODES)
@@ -178,7 +221,7 @@ export class ApiClient {
           );
         }
 
-        if (unwrapResponse && data && typeof data === 'object' && 'success' in data && 'data' in data) {
+        if (unwrapResponse && isWrappedApiResponse<T>(data)) {
           if (data.success) {
             return data.data as T;
           }
