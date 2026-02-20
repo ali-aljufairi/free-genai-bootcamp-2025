@@ -3,6 +3,9 @@ import * as Sentry from '@sentry/nextjs';
 export interface ApiClientOptions extends RequestInit {
   requireAuth?: boolean;
   unwrapResponse?: boolean;
+  retryCount?: number;
+  retryDelayMs?: number;
+  retryStatuses?: number[];
 }
 
 export class ApiError extends Error {
@@ -17,6 +20,13 @@ export class ApiError extends Error {
     this.status = options?.status;
     this.details = options?.details;
   }
+}
+
+const DEFAULT_RETRY_DELAY_MS = 300;
+const RETRYABLE_STATUS_CODES = new Set<number>([502, 503, 504, 520, 521, 522, 523, 524]);
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 async function getTokenFromBrowser(): Promise<string | null> {
@@ -49,11 +59,20 @@ export class ApiClient {
     const {
       requireAuth = true,
       unwrapResponse = true,
+      retryCount = 0,
+      retryDelayMs = DEFAULT_RETRY_DELAY_MS,
+      retryStatuses,
       headers = {},
       ...fetchOptions
     } = options;
 
+    const method = (fetchOptions.method || 'GET').toUpperCase();
     const url = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+    const normalizedRetryCount = Math.max(0, Math.min(retryCount, 3));
+    const maxAttempts = normalizedRetryCount + 1;
+    const retryableStatuses = new Set<number>(
+      retryStatuses && retryStatuses.length > 0 ? retryStatuses : Array.from(RETRYABLE_STATUS_CODES)
+    );
     
     // Only set Content-Type if there's a body to send
     const hasBody = fetchOptions.body !== undefined && fetchOptions.body !== null;
@@ -78,69 +97,97 @@ export class ApiClient {
       }
     }
 
-    try {
-      const response = await fetch(url, {
-        ...fetchOptions,
-        credentials: 'omit',
-        cache: 'no-store',
-        headers: defaultHeaders,
-      });
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        const response = await fetch(url, {
+          ...fetchOptions,
+          credentials: 'omit',
+          cache: 'no-store',
+          headers: defaultHeaders,
+        });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        const error = new ApiError(
-          errorData.message || errorData.error || `API request failed with status ${response.status}`,
-          { code: errorData.code, status: response.status, details: errorData }
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          const error = new ApiError(
+            errorData.message || errorData.error || `API request failed with status ${response.status}`,
+            { code: errorData.code, status: response.status, details: errorData }
+          );
+
+          const canRetry =
+            method === 'GET' &&
+            attempt < maxAttempts &&
+            typeof error.status === 'number' &&
+            retryableStatuses.has(error.status);
+
+          if (canRetry) {
+            await sleep(retryDelayMs * attempt);
+            continue;
+          }
+
+          Sentry.captureException(error, {
+            tags: {
+              location: 'api-client',
+              endpoint: url,
+              method,
+              status: String(response.status),
+            },
+            extra: {
+              url,
+              status: response.status,
+              statusText: response.statusText,
+              errorData,
+              attempt,
+              maxAttempts,
+            },
+          });
+
+          throw error;
+        }
+
+        const data = await response.json();
+
+        if (unwrapResponse && data && typeof data === 'object' && 'success' in data && 'data' in data) {
+          if (data.success) {
+            return data.data as T;
+          }
+          throw new ApiError(
+            data.error?.error || data.error?.message || 'API request failed',
+            { code: data.error?.code, details: data.error }
+          );
+        }
+
+        return data as T;
+      } catch (error) {
+        if (error instanceof ApiError) {
+          throw error;
+        }
+
+        const networkError = new ApiError(
+          error instanceof Error ? error.message : 'Network error occurred',
+          { code: 'NETWORK_ERROR' }
         );
-        
-        Sentry.captureException(error, {
+
+        const canRetry = method === 'GET' && attempt < maxAttempts;
+        if (canRetry) {
+          await sleep(retryDelayMs * attempt);
+          continue;
+        }
+
+        Sentry.captureException(networkError, {
           tags: {
             location: 'api-client',
             endpoint: url,
-            method: fetchOptions.method || 'GET',
-            status: response.status,
+            method,
+            errorType: 'network',
           },
-          extra: { url, status: response.status, statusText: response.statusText, errorData },
+          extra: { url, options: fetchOptions, attempt, maxAttempts },
         });
-        
-        throw error;
+
+        throw networkError;
       }
-
-      const data = await response.json();
-
-      if (unwrapResponse && data && typeof data === 'object' && 'success' in data && 'data' in data) {
-        if (data.success) {
-          return data.data as T;
-        }
-        throw new ApiError(
-          data.error?.error || data.error?.message || 'API request failed',
-          { code: data.error?.code, details: data.error }
-        );
-      }
-
-      return data as T;
-    } catch (error) {
-      if (error instanceof ApiError) {
-        throw error;
-      }
-
-      const networkError = new ApiError(
-        error instanceof Error ? error.message : 'Network error occurred',
-        { code: 'NETWORK_ERROR' }
-      );
-
-      Sentry.captureException(networkError, {
-        tags: {
-          location: 'api-client',
-          endpoint: url,
-          method: fetchOptions.method || 'GET',
-          errorType: 'network',
-        },
-        extra: { url, options: fetchOptions },
-      });
-
-      throw networkError;
     }
+
+    throw new ApiError('API request failed after retry attempts', { code: 'RETRY_EXHAUSTED' });
   }
 
   async get<T>(endpoint: string, options?: ApiClientOptions): Promise<T> {
