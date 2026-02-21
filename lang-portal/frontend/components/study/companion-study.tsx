@@ -1,10 +1,10 @@
 "use client"
-import { useEffect, useRef, useState, useLayoutEffect } from "react";
+import { useCallback, useEffect, useRef, useState, useLayoutEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Mic, PhoneOff, PhoneCall, Volume2, X } from "lucide-react";
+import { Mic, PhoneOff, PhoneCall } from "lucide-react";
 import { toast } from "sonner";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCompanionStudyStore } from "@/stores/companion-study-store";
 import { useIsMobile } from "@/components/ui/use-mobile";
@@ -58,6 +58,8 @@ interface FluidVisualizationProps {
     isSpeaking: boolean;
     size?: number;
 }
+
+type SentryBreadcrumbLevel = "fatal" | "error" | "warning" | "log" | "info" | "debug";
 
 function FluidVisualization({ isActive, isListening, isSpeaking, size = 300 }: FluidVisualizationProps) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -209,7 +211,7 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
     const [isVapiInitialized, setIsVapiInitialized] = useState(false);
     const [assistantIsSpeaking, setAssistantIsSpeaking] = useState(false);
     const [transcriptMessages, setTranscriptMessages] = useState<TranscriptMessage[]>([]);
-    const [callStartTime, setCallStartTime] = useState<Date | null>(null);
+    const [, setCallStartTime] = useState<Date | null>(null);
     const [isReconnecting, setIsReconnecting] = useState(false);
     const [reconnectAttempts, setReconnectAttempts] = useState(0);
     const vapiRef = useRef<any>(null);
@@ -218,6 +220,13 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
     const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const callStatusRef = useRef<CallStatus>("idle");
     const isReconnectingRef = useRef(false);
+    const callStartTimeRef = useRef<Date | null>(null);
+    const reconnectAttemptsRef = useRef(0);
+    const transcriptMessagesRef = useRef<TranscriptMessage[]>([]);
+    const selectedAssistantRef = useRef<string>(ASSISTANTS.casual.id);
+    const onCompleteRef = useRef(onComplete);
+    const manualHangupRef = useRef(false);
+    const callCompletionHandledRef = useRef(false);
     const isMobile = useIsMobile();
 
     // Zustand store for preferences
@@ -227,7 +236,44 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
         setSelectedAssistant: setStoreSelectedAssistant
     } = useCompanionStudyStore();
 
-    const cleanup = () => {
+    useEffect(() => {
+        onCompleteRef.current = onComplete;
+    }, [onComplete]);
+
+    useEffect(() => {
+        selectedAssistantRef.current = selectedAssistant;
+    }, [selectedAssistant]);
+
+    const getCallContext = useCallback(() => ({
+        sessionId,
+        assistantId: selectedAssistantRef.current,
+        callStatus: callStatusRef.current,
+        hasCallStarted: callStartTimeRef.current !== null,
+        reconnectAttempts: reconnectAttemptsRef.current,
+        isReconnecting: isReconnectingRef.current,
+        hasSaved: hasSavedRef.current,
+        manualHangup: manualHangupRef.current,
+    }), [sessionId]);
+
+    const addCallBreadcrumb = useCallback((
+        message: string,
+        data: Record<string, unknown> = {},
+        level: SentryBreadcrumbLevel = "info",
+    ) => {
+        Sentry.addBreadcrumb({
+            category: "companion-call",
+            message,
+            level,
+            data: {
+                ...getCallContext(),
+                ...data,
+            },
+        });
+    }, [getCallContext]);
+
+    const cleanup = useCallback((reason: string = "cleanup") => {
+        addCallBreadcrumb("cleanup", { reason });
+
         // Clear any pending reconnection attempts
         if (reconnectTimeoutRef.current) {
             clearTimeout(reconnectTimeoutRef.current);
@@ -245,11 +291,15 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
         setAssistantIsSpeaking(false);
         setTranscriptMessages([]);
         setCallStartTime(null);
+        callStartTimeRef.current = null;
         isReconnectingRef.current = false;
         setIsReconnecting(false);
         setReconnectAttempts(0);
+        reconnectAttemptsRef.current = 0;
+        transcriptMessagesRef.current = [];
+        manualHangupRef.current = false;
         hasSavedRef.current = false;
-    };
+    }, [addCallBreadcrumb, getCallContext]);
 
     // Check if an error is recoverable (can attempt reconnection)
     const isRecoverableError = (err: any): boolean => {
@@ -302,13 +352,15 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
     };
 
     // Function to save companion study session to database
-    const saveCompanionSession = async () => {
-        if (!callStartTime) {
+    const saveCompanionSession = useCallback(async () => {
+        const startedAt = callStartTimeRef.current;
+        if (!startedAt) {
+            addCallBreadcrumb("save-session-skipped", { reason: "missing-start-time" }, "warning");
             return; // Don't save if call never started
         }
 
         // Extract final transcripts from messages (exclude partial messages)
-        const finalMessages = transcriptMessages.filter(msg => !msg.isPartial);
+        const finalMessages = transcriptMessagesRef.current.filter(msg => !msg.isPartial);
         const userTranscript = finalMessages
             .filter(msg => msg.role === 'user')
             .map(msg => msg.text)
@@ -321,7 +373,13 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
         // Save even with empty transcripts to track session attempts
         try {
             const endedAt = new Date();
-            const durationSeconds = Math.max(0, Math.floor((endedAt.getTime() - callStartTime.getTime()) / 1000));
+            const durationSeconds = Math.max(0, Math.floor((endedAt.getTime() - startedAt.getTime()) / 1000));
+
+            addCallBreadcrumb("save-session-started", {
+                durationSeconds,
+                userTranscriptLength: userTranscript.length,
+                assistantTranscriptLength: assistantTranscript.length,
+            });
 
             const response = await fetch('/api/companion-study/save', {
                 method: 'POST',
@@ -330,11 +388,11 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
                 },
                 body: JSON.stringify({
                     session_id: sessionId,
-                    assistant_id: selectedAssistant,
+                    assistant_id: selectedAssistantRef.current,
                     user_transcript: userTranscript || '',
                     assistant_transcript: assistantTranscript || '',
                     duration_seconds: durationSeconds,
-                    started_at: callStartTime.toISOString(),
+                    started_at: startedAt.toISOString(),
                     ended_at: endedAt.toISOString(),
                 }),
             });
@@ -342,48 +400,108 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
             if (!response.ok) {
                 const error = await response.json().catch(() => ({ error: 'Unknown error' }));
                 console.error('Failed to save companion study session:', error);
+                Sentry.captureMessage("Companion session save failed", {
+                    level: "error",
+                    tags: {
+                        location: "companion-study",
+                        component: "save-session",
+                    },
+                    extra: {
+                        ...getCallContext(),
+                        status: response.status,
+                        saveError: error,
+                    },
+                });
                 // Don't show error toast to user as this is a background operation
                 // Session data is still valuable even if save fails
+            } else {
+                addCallBreadcrumb("save-session-success", { status: response.status });
             }
         } catch (error) {
             console.error('Error saving companion study session:', error);
+            Sentry.captureException(error, {
+                tags: {
+                    location: "companion-study",
+                    component: "save-session",
+                },
+                extra: getCallContext(),
+            });
             // Don't show error toast to user as this is a background operation
             // Session data is still valuable even if save fails
         }
-    };
+    }, [addCallBreadcrumb, getCallContext, sessionId]);
 
-    const handleCallEnd = async () => {
+    const handleCallEnd = useCallback(async (reason: string = "unknown") => {
+        if (callCompletionHandledRef.current) {
+            addCallBreadcrumb("call-end-ignored", { reason, ignored: true });
+            return;
+        }
+
+        callCompletionHandledRef.current = true;
+        addCallBreadcrumb("call-end", { reason }, manualHangupRef.current ? "info" : "warning");
+
+        const shouldCaptureEndEvent = reason !== "manual-hangup" && reason !== "manual-hangup-event";
+        if (shouldCaptureEndEvent) {
+            Sentry.captureMessage("Companion call ended", {
+                level: "warning",
+                tags: {
+                    location: "companion-study",
+                    component: "call-lifecycle",
+                    reason,
+                },
+                extra: getCallContext(),
+            });
+        }
+
         if (!hasSavedRef.current) {
             hasSavedRef.current = true;
             await saveCompanionSession();
         }
-        cleanup();
-        onComplete && onComplete();
-    };
+        cleanup(reason);
+        onCompleteRef.current && onCompleteRef.current();
+    }, [addCallBreadcrumb, cleanup, getCallContext, saveCompanionSession]);
 
     // Attempt to reconnect after a disconnection
-    const attemptReconnection = async () => {
-        if (!vapiRef.current || !callStartTime || hasSavedRef.current) {
+    const attemptReconnection = useCallback(async () => {
+        if (!vapiRef.current || !callStartTimeRef.current || hasSavedRef.current) {
+            addCallBreadcrumb("reconnect-skipped", {
+                hasVapi: Boolean(vapiRef.current),
+                hasCallStarted: callStartTimeRef.current !== null,
+                hasSaved: hasSavedRef.current,
+            });
             return; // Can't reconnect if call never started or already saved
         }
 
         const maxReconnectAttempts = 3;
-        const currentAttempts = reconnectAttempts;
+        const currentAttempts = reconnectAttemptsRef.current;
         
         if (currentAttempts >= maxReconnectAttempts) {
             console.error('Max reconnection attempts reached');
+            Sentry.captureMessage("Companion reconnect attempts exhausted", {
+                level: "warning",
+                tags: {
+                    location: "companion-study",
+                    component: "reconnect",
+                },
+                extra: getCallContext(),
+            });
             toast.error("Connection Lost", {
                 description: "Unable to reconnect after multiple attempts. Your session will be saved."
             });
-            await handleCallEnd();
+            await handleCallEnd("reconnect-exhausted");
             return;
         }
 
         isReconnectingRef.current = true;
         setIsReconnecting(true);
-        setReconnectAttempts(prev => prev + 1);
+        reconnectAttemptsRef.current = currentAttempts + 1;
+        setReconnectAttempts(reconnectAttemptsRef.current);
         callStatusRef.current = "connecting";
         setCallStatus("connecting");
+        addCallBreadcrumb("reconnect-attempt", {
+            attempt: reconnectAttemptsRef.current,
+            maxReconnectAttempts,
+        }, "warning");
 
         toast.info("Reconnecting...", {
             description: `Attempt ${currentAttempts + 1} of ${maxReconnectAttempts}`,
@@ -394,12 +512,15 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
         reconnectTimeoutRef.current = setTimeout(async () => {
             try {
                 // Try to restart the call with the same assistant
-                if (vapiRef.current && callStartTime && !hasSavedRef.current) {
-                    await vapiRef.current.start(selectedAssistant);
+                if (vapiRef.current && callStartTimeRef.current && !hasSavedRef.current) {
+                    await vapiRef.current.start(selectedAssistantRef.current);
                     isReconnectingRef.current = false;
                     setIsReconnecting(false);
                     setReconnectAttempts(0);
+                    reconnectAttemptsRef.current = 0;
                     callStatusRef.current = "active";
+                    setCallStatus("active");
+                    addCallBreadcrumb("reconnect-success", {}, "info");
                     toast.success("Reconnected", {
                         description: "Connection restored successfully.",
                         duration: 3000,
@@ -407,94 +528,125 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
                 }
             } catch (error: any) {
                 console.error('Reconnection attempt failed:', error);
+                Sentry.captureException(error, {
+                    tags: {
+                        location: "companion-study",
+                        component: "reconnect",
+                    },
+                    extra: getCallContext(),
+                });
                 // If reconnection fails, try again or give up
                 const nextAttempt = currentAttempts + 1;
                 if (nextAttempt < maxReconnectAttempts && !hasSavedRef.current) {
                     // Try again after a longer delay
                     reconnectTimeoutRef.current = setTimeout(() => {
-                        attemptReconnection();
+                        void attemptReconnection();
                     }, 2000 * nextAttempt); // Exponential backoff
                 } else {
                     // Give up after max attempts
                     isReconnectingRef.current = false;
                     setIsReconnecting(false);
+                    reconnectAttemptsRef.current = nextAttempt;
                     toast.error("Connection Lost", {
                         description: "Unable to reconnect. Your session will be saved."
                     });
-                    await handleCallEnd();
+                    await handleCallEnd("reconnect-failed");
                 }
             }
         }, 1000 * (currentAttempts + 1)); // Exponential backoff
-    };
+    }, [addCallBreadcrumb, getCallContext, handleCallEnd]);
 
     useEffect(() => {
+        addCallBreadcrumb("sdk-effect-mount");
+
         if (!VAPI_PUBLIC_KEY) {
+            callStatusRef.current = "ended";
             setCallStatus("ended");
             return;
         }
+
         if (!vapiRef.current && typeof window !== "undefined") {
             import("@vapi-ai/web").then((VapiModule) => {
                 try {
                     const Vapi = VapiModule.default;
                     vapiRef.current = new Vapi(VAPI_PUBLIC_KEY);
+                    addCallBreadcrumb("sdk-initialized");
+
                     vapiRef.current.on("call-start", () => {
+                        const startedAt = new Date();
                         callStatusRef.current = "active";
+                        callStartTimeRef.current = startedAt;
+                        manualHangupRef.current = false;
+                        callCompletionHandledRef.current = false;
                         setCallStatus("active");
-                        setCallStartTime(new Date());
+                        setCallStartTime(startedAt);
+                        addCallBreadcrumb("call-start", { startedAt: startedAt.toISOString() });
                     });
-                    vapiRef.current.on("call-end", async () => {
-                        console.log('Vapi call-end event received');
-                        await handleCallEnd();
+
+                    vapiRef.current.on("call-end", () => {
+                        const reason = manualHangupRef.current ? "manual-hangup-event" : "vapi-call-end-event";
+                        addCallBreadcrumb("call-end-event", { reason }, manualHangupRef.current ? "info" : "warning");
+                        void handleCallEnd(reason);
                     });
+
                     vapiRef.current.on("speech-start", () => {
                         setAssistantIsSpeaking(true);
                         callStatusRef.current = "speaking";
                         setCallStatus("speaking");
                     });
+
                     vapiRef.current.on("speech-end", () => {
                         setAssistantIsSpeaking(false);
                         callStatusRef.current = "listening";
                         setCallStatus("listening");
                     });
+
                     // Listen for connection status changes
                     vapiRef.current.on("status-update", (status: any) => {
-                        console.log('Vapi status update:', status);
                         const statusValue = status?.status || status;
-                        
+                        addCallBreadcrumb("status-update", { status: statusValue });
+
                         // Handle disconnection events
                         if (statusValue === 'disconnected' || statusValue === 'failed') {
-                            console.warn('Vapi connection issue detected:', status);
-                            
                             Sentry.captureMessage('Vapi connection status change', {
                                 level: 'warning',
                                 tags: {
                                     location: 'companion-study',
                                     status: statusValue,
                                 },
-                                extra: status,
+                                extra: {
+                                    ...getCallContext(),
+                                    statusPayload: status,
+                                },
                             });
 
                             // Only attempt reconnection if call was active and not already reconnecting
-                            if (callStartTime && !isReconnectingRef.current && callStatusRef.current !== 'ended' && !hasSavedRef.current) {
-                                console.log('Attempting to reconnect after status update...');
-                                attemptReconnection();
+                            if (callStartTimeRef.current && !isReconnectingRef.current && callStatusRef.current !== 'ended' && !hasSavedRef.current) {
+                                addCallBreadcrumb("status-triggered-reconnect", { status: statusValue }, "warning");
+                                void attemptReconnection();
                             } else if (callStatusRef.current === 'ended' || hasSavedRef.current) {
                                 // Call already ended, don't attempt reconnection
-                                console.log('Call already ended, skipping reconnection');
+                                addCallBreadcrumb("status-reconnect-skipped", {
+                                    status: statusValue,
+                                    skipped: true,
+                                });
                             }
                         } else if (statusValue === 'connected' && isReconnectingRef.current) {
                             // Successfully reconnected
                             isReconnectingRef.current = false;
                             setIsReconnecting(false);
                             setReconnectAttempts(0);
+                            reconnectAttemptsRef.current = 0;
                             callStatusRef.current = "active";
                             setCallStatus("active");
+                            addCallBreadcrumb("status-reconnected");
                             toast.success("Reconnected", {
                                 description: "Connection restored successfully.",
                                 duration: 3000,
                             });
                         }
                     });
+
                     // Add message event listener for transcription
                     vapiRef.current.on("message", (message: any) => {
                         try {
@@ -513,23 +665,33 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
                                         const filtered = prev.filter(msg => !(msg.role === role && msg.isPartial));
 
                                         // Add the new message
-                                        return [...filtered, {
+                                        const nextMessages = [...filtered, {
                                             id: messageId,
                                             role: role as "user" | "assistant",
                                             text: transcript,
                                             isPartial
                                         }];
+                                        transcriptMessagesRef.current = nextMessages;
+                                        return nextMessages;
                                     });
                                 }
                             }
                         } catch (error) {
                             console.error('Error processing transcription message:', error);
+                            Sentry.captureException(error, {
+                                tags: {
+                                    location: 'companion-study',
+                                    component: 'transcription',
+                                },
+                                extra: getCallContext(),
+                            });
                             // Don't show error to user for transcription issues
                         }
                     });
+
                     vapiRef.current.on("error", async (err: any) => {
                         console.error('Vapi SDK error:', err);
-                        
+
                         // Extract error message from various possible structures
                         let errorMessage = 'Unknown error';
                         if (err instanceof Error) {
@@ -543,30 +705,37 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
                         } else if (typeof err === 'string') {
                             errorMessage = err;
                         }
-                        
+
                         // Log error details for debugging
                         const errorDetails = {
                             originalError: err,
                             message: errorMessage,
                             code: err?.code || err?.error?.code,
                             type: err?.type || err?.error?.type,
-                            callStatus: callStatus,
-                            hasCallStarted: callStartTime !== null,
+                            callStatus: callStatusRef.current,
+                            hasCallStarted: callStartTimeRef.current !== null,
                             sessionId: sessionId,
-                            assistantId: selectedAssistant,
+                            assistantId: selectedAssistantRef.current,
+                            reconnectAttempts: reconnectAttemptsRef.current,
                             timestamp: err?.timestamp,
                             errorObject: err?.error,
                         };
                         console.error('Vapi error details:', errorDetails);
-                        
+
+                        addCallBreadcrumb("vapi-error", {
+                            message: errorMessage,
+                            code: errorDetails.code as string | undefined,
+                            type: errorDetails.type as string | undefined,
+                        }, "error");
+
                         // Check if this is a recoverable error (use original err for pattern matching)
                         const recoverable = isRecoverableError(err);
-                        
+
                         // Convert to proper Error instance for Sentry
-                        const sentryError = err instanceof Error 
-                            ? err 
+                        const sentryError = err instanceof Error
+                            ? err
                             : new Error(errorMessage);
-                        
+
                         // Log to Sentry for production debugging
                         Sentry.captureException(sentryError, {
                             tags: {
@@ -577,61 +746,92 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
                             },
                             extra: errorDetails,
                         });
-                        
+
                         // If call was never started, just cleanup
-                        if (callStartTime === null) {
-                            cleanup();
-                            toast.error("Connection Error", { 
-                                description: errorMessage !== 'Unknown error' ? errorMessage : "Failed to start call. Please try again." 
+                        if (callStartTimeRef.current === null) {
+                            cleanup("vapi-error-before-call-start");
+                            toast.error("Connection Error", {
+                                description: errorMessage !== 'Unknown error' ? errorMessage : "Failed to start call. Please try again."
                             });
                             return;
                         }
-                        
+
                         // If it's a recoverable error and call was active, attempt reconnection
                         if (recoverable && !isReconnectingRef.current && !hasSavedRef.current) {
-                            console.log('Recoverable error detected, attempting reconnection...');
+                            addCallBreadcrumb("recoverable-error-reconnect", {
+                                message: errorMessage,
+                            }, "warning");
                             await attemptReconnection();
                             return;
                         }
-                        
+
                         // For fatal errors or if reconnection failed, end the call
                         callStatusRef.current = "ended";
                         setCallStatus("ended");
                         setAssistantIsSpeaking(false);
-                        
-                        const userErrorMessage = recoverable 
+
+                        const userErrorMessage = recoverable
                             ? "Connection lost after reconnection attempts. Your session will be saved."
                             : (errorMessage !== 'Unknown error' ? errorMessage : "Connection error. Your session will be saved.");
-                            
-                        toast.error("Call Error", { 
+
+                        toast.error("Call Error", {
                             description: userErrorMessage
                         });
-                        
+
                         // Save session before cleanup
-                        await handleCallEnd();
+                        await handleCallEnd(recoverable ? "vapi-error-recovery-failed" : "vapi-fatal-error");
                     });
+
                     setIsVapiInitialized(true);
                 } catch (error: any) {
+                    callStatusRef.current = "ended";
                     setCallStatus("ended");
                     setAssistantIsSpeaking(false);
                     console.error('VAPI initialization error:', error);
+                    Sentry.captureException(error, {
+                        tags: {
+                            location: "companion-study",
+                            component: "vapi-init",
+                        },
+                        extra: getCallContext(),
+                    });
                     toast.error("Initialization Error", {
                         description: error?.message || "Failed to initialize Vapi. Please refresh the page and try again."
                     });
                 }
             }).catch((error: any) => {
+                callStatusRef.current = "ended";
                 setCallStatus("ended");
                 setAssistantIsSpeaking(false);
                 console.error('VAPI module loading error:', error);
+                Sentry.captureException(error, {
+                    tags: {
+                        location: "companion-study",
+                        component: "vapi-module-load",
+                    },
+                    extra: getCallContext(),
+                });
                 toast.error("Loading Error", {
                     description: error?.message || "Failed to load Vapi module. Please check your internet connection and try again."
                 });
             });
         }
+
         return () => {
-            cleanup();
+            const isUnexpectedUnmount = callStartTimeRef.current !== null && callStatusRef.current !== "ended" && !hasSavedRef.current;
+            if (isUnexpectedUnmount) {
+                Sentry.captureMessage("Companion component unmounted while call active", {
+                    level: "warning",
+                    tags: {
+                        location: "companion-study",
+                        component: "lifecycle",
+                    },
+                    extra: getCallContext(),
+                });
+            }
+            cleanup("component-unmount");
         };
-    }, [onComplete, selectedAssistant]);
+    }, [addCallBreadcrumb, attemptReconnection, cleanup, getCallContext, handleCallEnd, sessionId]);
 
     const startCall = async () => {
         if (!isVapiInitialized) {
@@ -643,12 +843,33 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
             return;
         }
 
+        callCompletionHandledRef.current = false;
+        manualHangupRef.current = false;
+        hasSavedRef.current = false;
+        callStartTimeRef.current = null;
+        callStatusRef.current = "connecting";
         setCallStatus("connecting");
+        addCallBreadcrumb("start-call-clicked");
+
         try {
             // Check subscription limit with backend before starting the call
             const limit = await subscriptionApi.checkLimit();
+            addCallBreadcrumb("limit-check-result", limit);
             if (!limit.can_start) {
+                callStatusRef.current = "idle";
                 setCallStatus("idle");
+                Sentry.captureMessage("Companion call blocked by limit check", {
+                    level: "warning",
+                    tags: {
+                        location: "companion-study",
+                        component: "limit-check",
+                        plan: limit.plan,
+                    },
+                    extra: {
+                        ...getCallContext(),
+                        limitResponse: limit,
+                    },
+                });
                 if (limit.plan === "basic") {
                     toast.error("Monthly limit reached", {
                         description: "You've used all your Basic plan companion study sessions for this month. Upgrade to Pro for unlimited access.",
@@ -666,9 +887,17 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
             stream.getTracks().forEach(track => track.stop());
 
             // Start the call
-            vapiRef.current.start(selectedAssistant);
+            addCallBreadcrumb("starting-vapi-call", { assistantId: selectedAssistantRef.current });
+            vapiRef.current.start(selectedAssistantRef.current);
         } catch (error: any) {
             console.error('Error starting call:', error);
+            Sentry.captureException(error, {
+                tags: {
+                    location: "companion-study",
+                    component: "start-call",
+                },
+                extra: getCallContext(),
+            });
             let errorMessage = "Could not start the call. ";
             if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
                 errorMessage += "Please grant microphone access and try again.";
@@ -678,6 +907,7 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
                 errorMessage += "Please ensure microphone access is granted.";
             }
             toast.error("Call Start Failed", { description: errorMessage });
+            callStatusRef.current = "idle";
             setCallStatus("idle");
             setAssistantIsSpeaking(false);
         }
@@ -688,6 +918,8 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
     };
 
     const endCall = () => {
+        manualHangupRef.current = true;
+        addCallBreadcrumb("manual-end-call-clicked");
         if (vapiRef.current) {
             try {
                 vapiRef.current.stop();
@@ -695,7 +927,7 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
                 // ignore stop errors on manual hangup
             }
         }
-        handleCallEnd();
+        void handleCallEnd("manual-hangup");
     };
 
     // Auto-scroll to bottom when new messages arrive
@@ -849,4 +1081,4 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
             </Card>
         </div>
     );
-} 
+}
