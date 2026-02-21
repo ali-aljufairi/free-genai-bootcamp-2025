@@ -10,6 +10,7 @@ import { useCompanionStudyStore } from "@/stores/companion-study-store";
 import { useIsMobile } from "@/components/ui/use-mobile";
 import { subscriptionApi } from "@/services/api";
 import * as Sentry from "@sentry/nextjs";
+import type { SeverityLevel } from "@sentry/core";
 
 // Get Vapi public key from environment variable
 const VAPI_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPI_PUBLIC_KEY;
@@ -59,7 +60,62 @@ interface FluidVisualizationProps {
     size?: number;
 }
 
-type SentryBreadcrumbLevel = "fatal" | "error" | "warning" | "log" | "info" | "debug";
+const RECOVERABLE_ERROR_PATTERNS = [
+    "network",
+    "timeout",
+    "connection",
+    "websocket",
+    "disconnected",
+    "failed to connect",
+    "connection lost",
+    "connection closed",
+    "socket",
+];
+
+const FATAL_ERROR_PATTERNS = [
+    "unauthorized",
+    "forbidden",
+    "invalid",
+    "permission",
+    "not found",
+    "404",
+    "401",
+    "403",
+];
+
+function isRecoverableError(err: unknown): boolean {
+    if (!err) return false;
+
+    const errObj = err as {
+        message?: unknown;
+        code?: unknown;
+        type?: unknown;
+        error?: {
+            code?: unknown;
+            type?: unknown;
+        };
+    };
+
+    const errorMessage = String(errObj?.message ?? "").toLowerCase();
+    const errorCode = String(errObj?.code ?? errObj?.error?.code ?? "");
+    const errorType = String(errObj?.type ?? errObj?.error?.type ?? "").toLowerCase();
+
+    // Check if it's a fatal error first.
+    if (FATAL_ERROR_PATTERNS.some((pattern) =>
+        errorMessage.includes(pattern) ||
+        errorCode.includes(pattern) ||
+        errorType.includes(pattern)
+    )) {
+        return false;
+    }
+
+    // Check if it's a recoverable error.
+    return RECOVERABLE_ERROR_PATTERNS.some((pattern) =>
+        errorMessage.includes(pattern) ||
+        errorCode.includes(pattern) ||
+        errorType.includes(pattern)
+    );
+}
 
 function FluidVisualization({ isActive, isListening, isSpeaking, size = 300 }: FluidVisualizationProps) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -257,7 +313,7 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
     const addCallBreadcrumb = useCallback((
         message: string,
         data: Record<string, unknown> = {},
-        level: SentryBreadcrumbLevel = "info",
+        level: SeverityLevel = "info",
     ) => {
         Sentry.addBreadcrumb({
             category: "companion-call",
@@ -300,57 +356,7 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
         transcriptMessagesRef.current = [];
         manualHangupRef.current = false;
         hasSavedRef.current = false;
-    }, [addCallBreadcrumb, getCallContext]);
-
-    // Check if an error is recoverable (can attempt reconnection)
-    const isRecoverableError = (err: any): boolean => {
-        if (!err) return false;
-        
-        const errorMessage = (err?.message || '').toLowerCase();
-        const errorCode = err?.code || '';
-        const errorType = err?.type || '';
-        
-        // Recoverable errors: network issues, timeouts, connection drops
-        const recoverablePatterns = [
-            'network',
-            'timeout',
-            'connection',
-            'websocket',
-            'disconnected',
-            'failed to connect',
-            'connection lost',
-            'connection closed',
-            'socket',
-        ];
-        
-        // Fatal errors: authentication, invalid config, permission denied
-        const fatalPatterns = [
-            'unauthorized',
-            'forbidden',
-            'invalid',
-            'permission',
-            'not found',
-            '404',
-            '401',
-            '403',
-        ];
-        
-        // Check if it's a fatal error first
-        if (fatalPatterns.some(pattern => 
-            errorMessage.includes(pattern) || 
-            errorCode.toString().includes(pattern) ||
-            errorType.toLowerCase().includes(pattern)
-        )) {
-            return false;
-        }
-        
-        // Check if it's a recoverable error
-        return recoverablePatterns.some(pattern => 
-            errorMessage.includes(pattern) || 
-            errorCode.toString().includes(pattern) ||
-            errorType.toLowerCase().includes(pattern)
-        );
-    };
+    }, [addCallBreadcrumb]);
 
     // Function to save companion study session to database
     const saveCompanionSession = useCallback(async () => {
@@ -550,7 +556,6 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
                     // Give up after max attempts
                     isReconnectingRef.current = false;
                     setIsReconnecting(false);
-                    reconnectAttemptsRef.current = nextAttempt;
                     toast.error("Connection Lost", {
                         description: "Unable to reconnect. Your session will be saved."
                     });
