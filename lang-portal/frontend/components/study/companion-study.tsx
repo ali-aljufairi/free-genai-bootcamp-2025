@@ -1,5 +1,6 @@
 "use client"
 import { useCallback, useEffect, useRef, useState, useLayoutEffect } from "react";
+import type { ReactNode } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Mic, PhoneOff, PhoneCall } from "lucide-react";
@@ -42,6 +43,7 @@ const ASSISTANTS = {
 interface CompanionStudyProps {
     sessionId: string;
     onComplete: () => void;
+    usageInline?: ReactNode;
 }
 
 type CallStatus = "idle" | "connecting" | "active" | "speaking" | "listening" | "ended";
@@ -262,7 +264,7 @@ function FluidVisualization({ isActive, isListening, isSpeaking, size = 300 }: F
     );
 }
 
-export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
+export function CompanionStudy({ sessionId, onComplete, usageInline }: CompanionStudyProps) {
     const [callStatus, setCallStatus] = useState<CallStatus>("idle");
     const [isVapiInitialized, setIsVapiInitialized] = useState(false);
     const [assistantIsSpeaking, setAssistantIsSpeaking] = useState(false);
@@ -1052,6 +1054,7 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
                     <CardDescription>
                         Practice speaking with your AI language companion
                     </CardDescription>
+                    {usageInline}
                 </CardHeader>
                 <CardContent className="flex-1 flex flex-col overflow-hidden p-4 sm:p-8">
                     {(callStatus === "idle" || callStatus === "ended") && (
