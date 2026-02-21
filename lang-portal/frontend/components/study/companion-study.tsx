@@ -515,15 +515,20 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
                 // Try to restart the call with the same assistant
                 if (vapiRef.current && callStartTimeRef.current && !hasSavedRef.current) {
                     await vapiRef.current.start(selectedAssistantRef.current);
-                    isReconnectingRef.current = false;
-                    setIsReconnecting(false);
-                    setReconnectAttempts(0);
-                    reconnectAttemptsRef.current = 0;
-                    addCallBreadcrumb("reconnect-success", {}, "info");
-                    toast.success("Reconnected", {
-                        description: "Connection restored successfully.",
-                        duration: 3000,
-                    });
+
+                    // status-update("connected") can clear reconnect state first.
+                    // Only emit success side effects once.
+                    if (isReconnectingRef.current) {
+                        isReconnectingRef.current = false;
+                        setIsReconnecting(false);
+                        setReconnectAttempts(0);
+                        reconnectAttemptsRef.current = 0;
+                        addCallBreadcrumb("reconnect-success", {}, "info");
+                        toast.success("Reconnected", {
+                            description: "Connection restored successfully.",
+                            duration: 3000,
+                        });
+                    }
                 }
             } catch (error: any) {
                 console.error('Reconnection attempt failed:', error);
