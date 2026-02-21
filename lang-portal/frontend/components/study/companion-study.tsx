@@ -268,9 +268,15 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
     const [assistantIsSpeaking, setAssistantIsSpeaking] = useState(false);
     const [transcriptMessages, setTranscriptMessages] = useState<TranscriptMessage[]>([]);
     const [isReconnecting, setIsReconnecting] = useState(false);
+    const [isFinalizingSession, setIsFinalizingSession] = useState(false);
+    const [hasSavedSession, setHasSavedSession] = useState(false);
     const [reconnectAttempts, setReconnectAttempts] = useState(0);
     const vapiRef = useRef<any>(null);
     const hasSavedRef = useRef(false);
+    const isFinalizingSessionRef = useRef(false);
+    const callStartTimeRef = useRef<Date | null>(null);
+    const transcriptMessagesRef = useRef<TranscriptMessage[]>([]);
+    const reconnectAttemptsRef = useRef(0);
     const transcriptEndRef = useRef<HTMLDivElement>(null);
     const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const callStatusRef = useRef<CallStatus>("idle");
@@ -347,10 +353,12 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
         callStatusRef.current = "ended";
         setCallStatus("ended");
         setAssistantIsSpeaking(false);
+        transcriptMessagesRef.current = [];
         setTranscriptMessages([]);
         callStartTimeRef.current = null;
         isReconnectingRef.current = false;
         setIsReconnecting(false);
+        reconnectAttemptsRef.current = 0;
         setReconnectAttempts(0);
         reconnectAttemptsRef.current = 0;
         transcriptMessagesRef.current = [];
@@ -657,6 +665,7 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
                             // Successfully reconnected
                             isReconnectingRef.current = false;
                             setIsReconnecting(false);
+                            reconnectAttemptsRef.current = 0;
                             setReconnectAttempts(0);
                             reconnectAttemptsRef.current = 0;
                             callStatusRef.current = "active";
@@ -897,6 +906,25 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
     }, [addCallBreadcrumb, attemptReconnection, cleanup, getCallContext, handleCallEnd, sessionId]);
 
     const startCall = async () => {
+        if (isFinalizingSessionRef.current) {
+            toast.info("Finishing previous session", {
+                description: "Please wait while your previous session is being finalized.",
+            });
+            return;
+        }
+
+        if (hasSavedRef.current || hasSavedSession) {
+            toast.info("Session already saved", {
+                description: "Previous session was saved. Please return to the dashboard to start a new session.",
+            });
+            return;
+        }
+
+        if (!selectedAssistant || typeof selectedAssistant !== "string") {
+            toast.error("Assistant Required", { description: "Please select an assistant before starting." });
+            return;
+        }
+
         if (!isVapiInitialized) {
             toast.error("Initialization Error", { description: "VAPI is not initialized. Please wait a moment and try again." });
             return;
@@ -1047,9 +1075,10 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
                                 onClick={startCall}
                                 className="flex items-center gap-2 w-full"
                                 size="lg"
-                                disabled={!isVapiInitialized}
+                                disabled={!isVapiInitialized || isFinalizingSession || hasSavedSession}
+                                aria-label={hasSavedSession ? "Session saved, restart disabled" : "Start Call"}
                             >
-                                <PhoneCall className="h-5 w-5" /> Start Call
+                                <PhoneCall className="h-5 w-5" /> {hasSavedSession ? "Session Saved" : isFinalizingSession ? "Finishing..." : "Start Call"}
                             </Button>
                         </div>
                     )}
@@ -1125,7 +1154,19 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
                             {/* End Call Button - Icon Only */}
                             <div className="flex items-center justify-center pt-4">
                                 <Button
-                                    onClick={endCall}
+                                    onClick={() => {
+                                        if (isFinalizingSession) {
+                                            return;
+                                        }
+
+                                        endCall().catch((error) => {
+                                            console.error("Failed to end call:", error);
+                                            toast.error("Call End Failed", {
+                                                description: "Unable to finalize the call. Please try again.",
+                                            });
+                                        });
+                                    }}
+                                    disabled={isFinalizingSession}
                                     variant="destructive"
                                     size="icon"
                                     className={`${isMobile ? "h-12 w-12 rounded-full" : "h-14 w-14 rounded-full"} shadow-lg`}
