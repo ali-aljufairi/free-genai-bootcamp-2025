@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useEffect, useState } from "react"
+import React, { useCallback, useEffect, useState } from "react"
 import { CompanionStudy } from "@/components/study/companion-study"
 import { useRouter } from "next/navigation"
 import { navigateWithTransition } from "@/lib/view-transitions"
@@ -78,17 +78,17 @@ export default function CompanionStudySessionPage({
         checkAccess()
     }, [has])
 
-    const handleComplete = async () => {
+    const handleComplete = useCallback(async () => {
         await navigateWithTransition(router, "/dashboard", {
             transitionName: 'page',
         })
-    }
+    }, [router])
 
-    const handleBack = async () => {
+    const handleBack = useCallback(async () => {
         await navigateWithTransition(router, "/study", {
             transitionName: 'page',
         })
-    }
+    }, [router])
 
     // Check if user has reached their limit (Basic plan only)
     const hasReachedLimit = isBasic && usageData && usageData.remaining <= 0
