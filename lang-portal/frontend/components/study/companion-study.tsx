@@ -11,7 +11,7 @@ import { IdlePanel } from "./companion-study/idle-panel";
 import { useCompanionCallSession } from "./companion-study/use-companion-call-session";
 import type { CompanionStudyProps } from "./companion-study/types";
 
-export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
+export function CompanionStudy({ sessionId, onComplete, usageInline }: CompanionStudyProps) {
     const isMobile = useIsMobile();
 
     const {
@@ -69,6 +69,7 @@ export function CompanionStudy({ sessionId, onComplete }: CompanionStudyProps) {
                     <CardDescription>
                         Practice speaking with your AI language companion
                     </CardDescription>
+                    {usageInline}
                 </CardHeader>
 
                 <CardContent className="flex-1 flex flex-col overflow-hidden p-4 sm:p-8">

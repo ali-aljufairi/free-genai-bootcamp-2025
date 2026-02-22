@@ -1,6 +1,9 @@
+import type { ReactNode } from "react";
+
 export interface CompanionStudyProps {
     sessionId: string;
     onComplete: () => void;
+    usageInline?: ReactNode;
 }
 
 export type CallStatus = "idle" | "connecting" | "active" | "speaking" | "listening" | "ended";

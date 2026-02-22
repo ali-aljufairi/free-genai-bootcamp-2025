@@ -1,13 +1,13 @@
 "use client"
 
-import React, { useCallback, useEffect, useState } from "react"
+import React, { useCallback, useEffect, useMemo, useState } from "react"
+import Link from "next/link"
 import { CompanionStudy } from "@/components/study/companion-study"
 import { useRouter } from "next/navigation"
 import { navigateWithTransition } from "@/lib/view-transitions"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { AlertTriangle, Crown, ArrowLeft } from "lucide-react"
+import { Crown, ArrowLeft } from "lucide-react"
 import { useSubscription } from "@/components/subscription/subscription-gate"
 import { subscriptionApi } from "@/services/api"
 import { useAuth } from "@clerk/nextjs"
@@ -79,7 +79,7 @@ export default function CompanionStudySessionPage({
     }, [has])
 
     const handleComplete = useCallback(async () => {
-        await navigateWithTransition(router, "/dashboard", {
+        await navigateWithTransition(router, "/study", {
             transitionName: 'page',
         })
     }, [router])
@@ -93,71 +93,35 @@ export default function CompanionStudySessionPage({
     // Check if user has reached their limit (Basic plan only)
     const hasReachedLimit = isBasic && usageData && usageData.remaining <= 0
 
-    const UsageDisplay = () => {
+    const usageInline = useMemo(() => {
         if (!usageData || isPro) return null
 
         const { session_count, limit, remaining } = usageData
-
-        if (remaining <= 0) {
-            return (
-                <Alert className="border-orange-500 bg-orange-50 dark:bg-orange-950">
-                    <AlertTriangle className="h-4 w-4 text-orange-600" />
-                    <AlertTitle>Monthly Limit Reached</AlertTitle>
-                    <AlertDescription className="mt-2">
-                        <p className="mb-3">
-                            You've used all {limit} companion study sessions this month. Upgrade to Pro for unlimited access!
-                        </p>
-                        <Button
-                            onClick={() => router.push('/pricing')}
-                            className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white"
-                        >
-                            <Crown className="mr-2 h-4 w-4" />
-                            Upgrade to Pro
-                        </Button>
-                    </AlertDescription>
-                </Alert>
-            )
-        }
-
-        if (remaining <= 3) {
-            return (
-                <Alert className="border-yellow-500 bg-yellow-50 dark:bg-yellow-950">
-                    <AlertTriangle className="h-4 w-4 text-yellow-600" />
-                    <AlertTitle>Limit Warning</AlertTitle>
-                    <AlertDescription className="mt-2">
-                        <p className="mb-3">
-                            You have {remaining} companion study session{remaining !== 1 ? 's' : ''} remaining this month ({session_count}/{limit} used).
-                        </p>
-                        <Button
-                            variant="outline"
-                            onClick={() => router.push('/pricing')}
-                        >
-                            Upgrade to Pro for Unlimited
-                        </Button>
-                    </AlertDescription>
-                </Alert>
-            )
-        }
+        const statusText = remaining <= 0
+            ? "Limit reached"
+            : `${remaining} left`
 
         return (
-            <Card className="mb-4">
-                <CardHeader className="pb-3">
-                    <CardTitle className="text-sm font-medium">Usage This Month</CardTitle>
-                    <CardDescription>
-                        {session_count} of {limit} sessions used
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <div className="w-full bg-gray-200 rounded-full h-2 dark:bg-gray-700">
-                        <div
-                            className="bg-blue-600 h-2 rounded-full transition-all"
-                            style={{ width: `${(session_count / limit) * 100}%` }}
-                        />
-                    </div>
-                </CardContent>
-            </Card>
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                <span className="rounded-full border border-border/70 bg-background/50 px-2 py-1 font-semibold text-foreground">
+                    {session_count}/{limit}
+                </span>
+                <span className={remaining <= 0 ? "font-medium text-amber-600 dark:text-amber-400" : "text-muted-foreground"}>
+                    {statusText}
+                </span>
+                {remaining > 0 && remaining <= 3 && (
+                    <Button
+                        asChild
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-2 text-xs text-blue-600 dark:text-blue-400"
+                    >
+                        <Link href="/pricing">Upgrade</Link>
+                    </Button>
+                )}
+            </div>
         )
-    }
+    }, [usageData, isPro])
 
     // Show loading state
     if (checkingAccess) {
@@ -218,8 +182,6 @@ export default function CompanionStudySessionPage({
                 </div>
             </div>
 
-            <UsageDisplay />
-
             {hasReachedLimit ? (
                 <Card className="glass-card border-amber-200/80 dark:border-amber-800/70">
                     <CardHeader>
@@ -239,7 +201,7 @@ export default function CompanionStudySessionPage({
                     </CardContent>
                 </Card>
             ) : (
-                <CompanionStudy sessionId={id} onComplete={handleComplete} />
+                <CompanionStudy sessionId={id} onComplete={handleComplete} usageInline={usageInline} />
             )}
         </div>
     )
