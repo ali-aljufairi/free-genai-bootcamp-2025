@@ -79,7 +79,7 @@ export default function CompanionStudySessionPage({
     }, [has])
 
     const handleComplete = useCallback(async () => {
-        await navigateWithTransition(router, "/dashboard", {
+        await navigateWithTransition(router, "/study", {
             transitionName: 'page',
         })
     }, [router])
