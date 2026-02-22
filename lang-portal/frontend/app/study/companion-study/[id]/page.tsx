@@ -1,6 +1,7 @@
 "use client"
 
-import React, { useCallback, useEffect, useState } from "react"
+import React, { useCallback, useEffect, useMemo, useState } from "react"
+import Link from "next/link"
 import { CompanionStudy } from "@/components/study/companion-study"
 import { useRouter } from "next/navigation"
 import { navigateWithTransition } from "@/lib/view-transitions"
@@ -92,7 +93,7 @@ export default function CompanionStudySessionPage({
     // Check if user has reached their limit (Basic plan only)
     const hasReachedLimit = isBasic && usageData && usageData.remaining <= 0
 
-    const usageInline = (() => {
+    const usageInline = useMemo(() => {
         if (!usageData || isPro) return null
 
         const { session_count, limit, remaining } = usageData
@@ -110,17 +111,17 @@ export default function CompanionStudySessionPage({
                 </span>
                 {remaining > 0 && remaining <= 3 && (
                     <Button
+                        asChild
                         variant="ghost"
                         size="sm"
-                        onClick={() => router.push('/pricing')}
                         className="h-6 px-2 text-xs text-blue-600 dark:text-blue-400"
                     >
-                        Upgrade
+                        <Link href="/pricing">Upgrade</Link>
                     </Button>
                 )}
             </div>
         )
-    })()
+    }, [usageData, isPro])
 
     // Show loading state
     if (checkingAccess) {
