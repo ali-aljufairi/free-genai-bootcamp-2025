@@ -1,5 +1,6 @@
 import { Suspense } from "react"
 import { VocabularyBrowser } from "@/components/vocabulary/vocabulary-browser"
+import { SubscriptionGate } from "@/components/subscription/subscription-gate"
 import { Loader2 } from "lucide-react"
 
 function VocabularyBrowserFallback() {
@@ -12,16 +13,17 @@ function VocabularyBrowserFallback() {
 
 export default function VocabularyPage() {
   return (
-    <div className="space-y-6">
-      <div className="hidden md:flex flex-col gap-2">
-        <h1 className="text-3xl font-bold tracking-tight">Vocabulary Browser</h1>
-        <p className="text-muted-foreground">Browse, search and study your vocabulary cards.</p>
-      </div>
+    <SubscriptionGate feature="Vocabulary Browser">
+      <div className="space-y-6">
+        <div className="hidden md:flex flex-col gap-2">
+          <h1 className="text-3xl font-bold tracking-tight">Vocabulary Browser</h1>
+          <p className="text-muted-foreground">Browse, search and study your vocabulary cards.</p>
+        </div>
 
-      <Suspense fallback={<VocabularyBrowserFallback />}>
-        <VocabularyBrowser />
-      </Suspense>
-    </div>
+        <Suspense fallback={<VocabularyBrowserFallback />}>
+          <VocabularyBrowser />
+        </Suspense>
+      </div>
+    </SubscriptionGate>
   )
 }
-
