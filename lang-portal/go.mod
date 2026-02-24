@@ -5,7 +5,7 @@ go 1.24.0
 require (
 	github.com/MicahParks/keyfunc/v2 v2.1.0
 	github.com/clerk/clerk-sdk-go/v2 v2.5.0
-	github.com/getsentry/sentry-go v0.36.2
+	github.com/getsentry/sentry-go v0.42.0
 	github.com/gofiber/fiber/v2 v2.52.9
 	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/joho/godotenv v1.5.1
