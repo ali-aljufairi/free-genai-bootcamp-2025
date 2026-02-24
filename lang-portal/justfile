@@ -48,16 +48,30 @@ clean:
 
 # === DATABASE - DOCKER ===
 
-# Ensure DB_PORT is free; auto-bump in .env and update DATABASE_URL if present
+# Ensure DB_PORT matches a running Sorami DB, otherwise choose a free one
 [private]
 ensure-db-port:
     @test -f .env || (echo ".env not found. Run 'just init' from repo root." && exit 1)
     @DB_PORT_VALUE=${DB_PORT:-}; \
+      RUNNING_DB_PORT=""; \
+      RUNNING_CONTAINER_ID=""; \
+      CONTAINER_NAME="${SORAMI_DB_CONTAINER_NAME:-sorami-postgres}"; \
       if [ -z "$DB_PORT_VALUE" ]; then \
           DB_PORT_VALUE=$(grep -E '^DB_PORT=' .env | tail -n1 | cut -d= -f2-); \
       fi; \
       if [ -z "$DB_PORT_VALUE" ]; then DB_PORT_VALUE=5432; fi; \
-      if lsof -i:"$DB_PORT_VALUE" >/dev/null 2>&1; then \
+      if command -v docker >/dev/null 2>&1; then \
+          RUNNING_CONTAINER_ID=$(docker ps --filter "name=$CONTAINER_NAME" --filter "status=running" -q | head -n1); \
+          if [ -n "$RUNNING_CONTAINER_ID" ]; then \
+              RUNNING_DB_PORT=$(docker port "$CONTAINER_NAME" 5432/tcp 2>/dev/null | tail -n1 | sed -E 's/.*:([0-9]+)$/\1/' || true); \
+          fi; \
+      fi; \
+      if [ -n "$RUNNING_DB_PORT" ]; then \
+          if [ "$RUNNING_DB_PORT" != "$DB_PORT_VALUE" ]; then \
+              echo "Reusing running $CONTAINER_NAME on port $RUNNING_DB_PORT"; \
+              bash "{{ justfile_directory() }}/../scripts/update-db-port.sh" .env "$RUNNING_DB_PORT"; \
+          fi; \
+      elif lsof -i:"$DB_PORT_VALUE" >/dev/null 2>&1; then \
           NEW_DB_PORT=$(bash "{{ justfile_directory() }}/../scripts/find-free-port.sh" "$DB_PORT_VALUE"); \
           if [ "$NEW_DB_PORT" != "$DB_PORT_VALUE" ]; then \
               echo "DB_PORT $DB_PORT_VALUE is busy; switching to $NEW_DB_PORT"; \

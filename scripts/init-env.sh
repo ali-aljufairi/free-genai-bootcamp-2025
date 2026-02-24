@@ -16,6 +16,26 @@ find_free_port() {
     echo "$port"
 }
 
+get_running_sorami_db_port() {
+    local container_name="${SORAMI_DB_CONTAINER_NAME:-sorami-postgres}"
+    local running=""
+    local mapping=""
+
+    if ! command -v docker >/dev/null 2>&1; then
+        return 0
+    fi
+
+    running=$(docker inspect -f '{{.State.Running}}' "$container_name" 2>/dev/null || true)
+    if [ "$running" != "true" ]; then
+        return 0
+    fi
+
+    mapping=$(docker port "$container_name" 5432/tcp 2>/dev/null | tail -n1 || true)
+    if [ -n "$mapping" ]; then
+        echo "$mapping" | sed -E 's/.*:([0-9]+)$/\1/'
+    fi
+}
+
 if [ -f "$SECRETS_FILE" ]; then
     echo "Found secrets at $SECRETS_FILE"
     set -a
@@ -39,7 +59,12 @@ if [ -f "$SECRETS_FILE" ]; then
 
     BACKEND_PORT=$(find_free_port "${PORT:-8080}")
     FRONTEND_PORT=$(find_free_port "${FRONTEND_PORT:-3000}")
-    DB_PORT=$(find_free_port "${DB_PORT:-5432}")
+    RUNNING_DB_PORT=$(get_running_sorami_db_port)
+    if [ -n "$RUNNING_DB_PORT" ]; then
+        DB_PORT="$RUNNING_DB_PORT"
+    else
+        DB_PORT=$(find_free_port "${DB_PORT:-5432}")
+    fi
 
     echo "Ports: backend=$BACKEND_PORT frontend=$FRONTEND_PORT db=$DB_PORT"
 
