@@ -50,7 +50,7 @@ export default function Page() {
             await signIn.authenticateWithRedirect({
                 strategy,
                 redirectUrl: "/sso-callback",
-                redirectUrlComplete: "/sso-callback",
+                redirectUrlComplete: "/study",
             });
         } catch (err: any) {
             toast.error("OAuth sign in failed. Please try again.");

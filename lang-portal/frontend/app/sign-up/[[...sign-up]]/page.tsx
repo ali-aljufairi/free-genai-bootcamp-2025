@@ -56,9 +56,7 @@ export default function Page() {
                 await setActive({ session: result.createdSessionId });
                 toast.success("Welcome to Sorami! Your account has been created.");
 
-                // Redirect to callback page which will check subscription status and redirect appropriately
-                // This ensures consistent handling across all sign-up flows
-                router.push("/sso-callback");
+                router.push("/pricing");
             } else {
                 toast.error("Verification failed. Please try again.");
                 setIsLoading(false);
@@ -76,7 +74,7 @@ export default function Page() {
             await signUp.authenticateWithRedirect({
                 strategy,
                 redirectUrl: "/sso-callback",
-                redirectUrlComplete: "/sso-callback",
+                redirectUrlComplete: "/pricing",
             });
         } catch (err: any) {
             toast.error("OAuth sign up failed. Please try again.");
