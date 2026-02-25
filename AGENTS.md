@@ -44,3 +44,48 @@
 
 - Database are found in lang-portal/internal/database/migrations 
 - You never edit migration you just add new one 
+
+## Cursor Cloud specific instructions
+
+### Required tools (pre-installed in the VM)
+- Go 1.24+ at `/usr/local/go/bin/go`
+- bun at `~/.bun/bin/bun`
+- Docker (dockerd must be started before use — see below)
+- just (command runner) at `/usr/local/bin/just`
+- uv (Python package manager) at `~/.local/bin/uv`
+- air (Go hot reload) at `~/go/bin/air`
+
+PATH is configured in `~/.bashrc`. If tools are not found, run: `source ~/.bashrc`
+
+### Starting services
+
+1. **Docker daemon** must be started first (it does not auto-start in the VM):
+   ```bash
+   sudo dockerd &>/tmp/dockerd.log &
+   sleep 3
+   sudo chmod 666 /var/run/docker.sock
+   ```
+
+2. **PostgreSQL**: From `lang-portal/`, run `just docker-up` (or `cd Database && docker compose --env-file ../.env up -d`). Wait ~5s for readiness.
+
+3. **Migrations**: From `lang-portal/`, run `just db-migrate-up` (or `go run cmd/migrate/main.go up`).
+
+4. **Dev fallback user**: The Go backend uses `ALLOW_DEV_FALLBACK_USER=1` to bypass Clerk auth in dev. A user with `id=1` must exist in the `users` table:
+   ```sql
+   INSERT INTO users (id, clerk_id, email, display_name)
+   VALUES (1, 'dev-fallback-user', 'dev@sorami.test', 'Dev User')
+   ON CONFLICT (id) DO NOTHING;
+   ```
+
+5. **Go backend**: From `lang-portal/`, run `air` (hot-reload on port 8080).
+
+6. **Next.js frontend**: From `lang-portal/frontend/`, run `bun run dev -- --port 3000`.
+
+### Key gotchas
+- `.env` files are **not committed**. On fresh setup, copy from `.env.example` or use `just init` from repo root. The backend `.env` needs valid `DB_*` and `POSTGRES_*` values; the frontend `.env` needs `GO_BACKEND_URL=http://localhost:8080`.
+- The Docker Postgres image builds from `Database/config/Dockerfile.postgres` (includes pgvector). First `docker-up` takes ~15s to build.
+- **Seed data** (`data/cleaned_json/db/`) is not in the repository. The database will work with empty tables; some tests (`TestComputeValidWords`) fail without seed data — this is expected.
+- API routes are under `/api/langportal/...` (not `/api/...`). Health check is at `GET /health`.
+- Frontend ESLint has pre-existing errors (React Compiler warnings, `set-state-in-effect`, etc.) — these are not regressions.
+- `bun install` in `frontend/` may report "Blocked postinstalls" — this is normal; run `bun pm untrusted` if needed.
+- Standard dev commands are documented in `lang-portal/README.md` and `lang-portal/justfile` (`just --list`).
