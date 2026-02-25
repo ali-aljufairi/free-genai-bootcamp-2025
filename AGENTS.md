@@ -84,7 +84,7 @@ PATH is configured in `~/.bashrc`. If tools are not found, run: `source ~/.bashr
 ### Key gotchas
 - `.env` files are **not committed**. On fresh setup, copy from `.env.example` or use `just init` from repo root. The backend `.env` needs valid `DB_*` and `POSTGRES_*` values; the frontend `.env` needs `GO_BACKEND_URL=http://localhost:8080`.
 - The Docker Postgres image builds from `Database/config/Dockerfile.postgres` (includes pgvector). First `docker-up` takes ~15s to build.
-- **Seed data** (`data/cleaned_json/db/`) is not in the repository. The database will work with empty tables; some tests (`TestComputeValidWords`) fail without seed data — this is expected.
+- **Seed data** (`data/cleaned_json/db/`) is not in the repository. It is hosted on Cloudflare R2 (bucket `sorami`, path `cleaned_json/db/`). To download, use `aws s3 sync` with the R2 endpoint and credentials from secrets (`R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`). Then run `just db-seed` from `lang-portal/`. Without seed data, the database works with empty tables but some tests (`TestComputeValidWords`) will fail.
 - API routes are under `/api/langportal/...` (not `/api/...`). Health check is at `GET /health`.
 - Frontend ESLint has pre-existing errors (React Compiler warnings, `set-state-in-effect`, etc.) — these are not regressions.
 - `bun install` in `frontend/` may report "Blocked postinstalls" — this is normal; run `bun pm untrusted` if needed.
