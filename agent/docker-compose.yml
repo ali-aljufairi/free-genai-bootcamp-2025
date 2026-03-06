@@ -1,12 +1,12 @@
 services:
-  # Streamlit service (renamed from voacab_importer)
+  # Streamlit service
   shopping_agent_ui:
     image: ${REGISTRY:-ghcr.io}/${OWNER:-$GITHUB_REPOSITORY_OWNER}/shopping-agent-ui:${TAG:-latest}
     build:
       context: .
       dockerfile: .docker/Dockerfile.streamlit.multistage
     ports:
-      - "${VOCAB_IMPORT_UI_PORT:-8503}:8503"
+      - "${AGENT_UI_PORT:-8503}:8503"
     volumes:
       - ./data:/app/data
       - ./logs:/app/logs
@@ -37,7 +37,7 @@ services:
       context: .
       dockerfile: .docker/Dockerfile.fastapi.multistage
     ports:
-      - "${VOCAB_IMPORT_API_PORT:-8002}:8002"
+      - "${AGENT_API_PORT:-8002}:8002"
     volumes:
       # Mount data directory for persistence
       - ./data:/app/data

@@ -9,7 +9,6 @@ Sorami consists of multiple independently deployable services:
 - **agent**: AI shopping/search assistant using LangGraph and Groq LLM
 - **listening-comp**: JLPT audio comprehension using RAG
 - **quiz-gen**: AI-powered quiz generation for language tests
-- **vocab-importer**: Vocabulary extraction and management
 - **writing-practice**: Handwriting OCR with AI feedback
 
 ## Quick Start
