@@ -34,68 +34,35 @@ export default function ClientLayout({ children, nonce }: { children: React.Reac
   const isHomePage = pathname === "/"
   const isAuthPage = pathname?.startsWith("/sign-in") || pathname?.startsWith("/sign-up")
   const isPublicPage = pathname === "/pricing" || pathname === "/terms" || pathname === "/privacy" || pathname === "/business-info"
+  const isMarketingPage = isHomePage || isPublicPage
+  let content: React.ReactNode
 
-  if (isHomePage) {
-    return (
-      <QueryClientProvider client={queryClient}>
-        <ThemeProvider
-          attribute="class"
-          forcedTheme="dark"
-          enableSystem={false}
-          defaultTheme="dark"
-          disableTransitionOnChange
-        >
-          <PostHogUserIdentity />
-          <div className="flex flex-col min-h-screen">
-            <Navbar />
-            <main className="flex-1">{children}</main>
-            <Footer />
-          </div>
-          <Toaster />
-        </ThemeProvider>
-      </QueryClientProvider>
+  if (isMarketingPage) {
+    content = (
+      <div className="flex flex-col min-h-screen">
+        <Navbar />
+        <main className="flex-1">{children}</main>
+        <Footer />
+      </div>
     )
-  }
-
-  if (isAuthPage) {
-    return (
-      <QueryClientProvider client={queryClient}>
-        <ThemeProvider
-          attribute="class"
-          forcedTheme="dark"
-          enableSystem={false}
-          defaultTheme="dark"
-          disableTransitionOnChange
-        >
-          <PostHogUserIdentity />
-          <main className="min-h-screen flex items-center justify-center p-4 md:p-8">
-            {children}
+  } else if (isAuthPage) {
+    content = (
+      <main className="min-h-screen flex items-center justify-center p-4 md:p-8">
+        {children}
+      </main>
+    )
+  } else {
+    content = (
+      <div className="flex min-h-screen">
+        <Sidebar />
+        <div className="flex-1 flex flex-col">
+          <main className="flex-1 p-4 md:p-6 lg:p-8 pb-20 md:pb-4">
+            <ErrorBoundary>
+              {children}
+            </ErrorBoundary>
           </main>
-          <Toaster />
-        </ThemeProvider>
-      </QueryClientProvider>
-    )
-  }
-
-  if (isPublicPage) {
-    return (
-      <QueryClientProvider client={queryClient}>
-        <ThemeProvider
-          attribute="class"
-          forcedTheme="dark"
-          enableSystem={false}
-          defaultTheme="dark"
-          disableTransitionOnChange
-        >
-          <PostHogUserIdentity />
-          <div className="flex flex-col min-h-screen">
-            <Navbar />
-            <main className="flex-1">{children}</main>
-            <Footer />
-          </div>
-          <Toaster />
-        </ThemeProvider>
-      </QueryClientProvider>
+        </div>
+      </div>
     )
   }
 
@@ -109,16 +76,7 @@ export default function ClientLayout({ children, nonce }: { children: React.Reac
         disableTransitionOnChange
       >
         <PostHogUserIdentity />
-        <div className="flex min-h-screen">
-          <Sidebar />
-          <div className="flex-1 flex flex-col">
-            <main className="flex-1 p-4 md:p-6 lg:p-8 pb-20 md:pb-4">
-              <ErrorBoundary>
-                {children}
-              </ErrorBoundary>
-            </main>
-          </div>
-        </div>
+        {content}
         <Toaster />
       </ThemeProvider>
     </QueryClientProvider>

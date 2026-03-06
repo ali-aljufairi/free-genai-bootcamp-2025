@@ -47,6 +47,25 @@ function resolvePostHogProxyPath() {
   return '';
 }
 
+function resolvePostHogProxyTarget() {
+  return trimTrailingSlashes(process.env.POSTHOG_PROXY_TARGET || '');
+}
+
+function getPostHogProxyConfig() {
+  const proxyPath = resolvePostHogProxyPath();
+  const proxyTarget = resolvePostHogProxyTarget();
+
+  return {
+    proxyPath,
+    proxyTarget,
+    enabled: Boolean(proxyPath && proxyTarget),
+  };
+}
+
+function isPostHogProxyEnabled() {
+  return getPostHogProxyConfig().enabled;
+}
+
 function resolvePostHogAssetsHost(proxyTarget) {
   const explicitAssetsHost = process.env.POSTHOG_PROXY_ASSETS_HOST;
   if (explicitAssetsHost) {
@@ -64,9 +83,8 @@ function resolvePostHogAssetsHost(proxyTarget) {
 }
 
 function getPostHogRewrites() {
-  const proxyPath = resolvePostHogProxyPath();
-  const proxyTarget = trimTrailingSlashes(process.env.POSTHOG_PROXY_TARGET || '');
-  if (!proxyPath || !proxyTarget) {
+  const { enabled, proxyPath, proxyTarget } = getPostHogProxyConfig();
+  if (!enabled) {
     return [];
   }
 
@@ -112,7 +130,7 @@ const nextConfig = {
   output: 'standalone',
   turbopack: {},
   productionBrowserSourceMaps: false,
-  skipTrailingSlashRedirect: Boolean(resolvePostHogProxyPath()),
+  skipTrailingSlashRedirect: isPostHogProxyEnabled(),
   experimental: {
     parallelServerBuildTraces: true,
     parallelServerCompiles: true,
