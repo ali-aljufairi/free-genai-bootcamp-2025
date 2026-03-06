@@ -37,7 +37,7 @@ GROQ_API_KEY=gsk_...
 TAVILY_API_KEY=tvly-...
 YOUTUBE_API_KEY=AIza...
 
-# === EMAIL (agent, vocab-importer) ===
+# === EMAIL (agent) ===
 GMAIL_USER=your@gmail.com
 GMAIL_PASS=your_app_password
 
@@ -63,8 +63,8 @@ API_PROTOCOL=http
 GRADIO_SERVER_PORT=8081
 GRADIO_SERVER_NAME=0.0.0.0
 GROUP_ID=1
-VOCAB_IMPORT_UI_PORT=8501
-VOCAB_IMPORT_API_PORT=8000
+AGENT_UI_PORT=8503
+AGENT_API_PORT=8002
 BLUEPRINT_DB_URL=./words.db
 TEMPLATE
 echo "Template created at $SECRETS_DIR/.env.template"
