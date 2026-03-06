@@ -160,22 +160,6 @@ Analyzes spoken Japanese to provide feedback on pronunciation, intonation, and f
 
 
 
-### Vocabulary Importer
-**[vocab-importer/](./vocab-importer/)**
-
-#### Langpotal  Integration
-https://github.com/user-attachments/assets/9b875221-6160-416d-998a-6d62ca5e9a30
-
-
-Helps language learners efficiently import and manage vocabulary lists. This tool:
-- Extracts vocabulary from various source formats (text, PDF, websites)
-- Organizes words by frequency, JLPT level, or custom categories
-- Generates example sentences for each vocabulary item
-- Integrates with the central language portal database
-- Provides API endpoints for vocabulary retrieval
-
----
-
 ### Writing Practice
 **[writing-practice/](./writing-practice/)**
 
@@ -230,5 +214,4 @@ The Sorami project collection leverages several key technologies:
 - Next.js for interactive frontends
 - Docker and Kubernetes for containerization
 - PostgreSQL and SQLite for data storage
-
 
