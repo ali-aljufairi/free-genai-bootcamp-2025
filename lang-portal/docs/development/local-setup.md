@@ -35,13 +35,25 @@ ALLOW_DEV_FALLBACK_USER=0
 SEED_BUNDLE_PATH=/Users/ali/github/free-genai-bootcamp-2025/lang-portal/data/cleaned_json/db
 ```
 
-### Frontend (`lang-portal/frontend/.env.local`)
+### Frontend (`lang-portal/frontend/.env`)
 
 ```dotenv
 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
 CLERK_SECRET_KEY=sk_test_...
 GO_BACKEND_URL=http://localhost:8080
 NEXT_PUBLIC_APP_ENV=development
+NEXT_PUBLIC_POSTHOG_KEY=phc_...
+
+# Option A: managed PostHog reverse proxy on your own domain
+NEXT_PUBLIC_POSTHOG_HOST=https://events.example.com
+NEXT_PUBLIC_POSTHOG_UI_HOST=https://us.posthog.com
+
+# Option B: same-domain proxy path handled by Next.js rewrites
+# NEXT_PUBLIC_POSTHOG_HOST=/x9k4
+# NEXT_PUBLIC_POSTHOG_UI_HOST=https://us.posthog.com
+# POSTHOG_PROXY_PATH=/x9k4
+# POSTHOG_PROXY_TARGET=https://us.i.posthog.com
+# POSTHOG_PROXY_ASSETS_HOST=https://us-assets.i.posthog.com
 
 NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
 NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
