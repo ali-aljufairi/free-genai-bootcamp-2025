@@ -22,16 +22,10 @@ export default function PricingPage() {
 
     useEffect(() => {
         setIsVisible(true)
-        // Disable body scrolling
-        document.body.style.overflow = 'hidden'
-        return () => {
-            // Re-enable scrolling when component unmounts
-            document.body.style.overflow = 'unset'
-        }
     }, [])
 
     return (
-        <main className="flex flex-col gap-12 pb-20 pt-8 overflow-hidden">
+        <main className="flex flex-col gap-12 overflow-x-hidden pb-20 pt-8">
             {/* Hero Section */}
             <section id="pricing-hero" className="container mx-auto px-4">
                 <div className="text-center max-w-3xl mx-auto">
