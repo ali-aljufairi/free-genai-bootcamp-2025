@@ -21,14 +21,61 @@ const isPublicRoute = createRouteMatcher([
   '/study', // Allow study page for tour (individual study sessions are still protected)
 ]);
 
+function normalizePathPrefix(path: string | undefined): string {
+  if (!path) {
+    return '';
+  }
+
+  const trimmed = path.replace(/\/+$/, '');
+  if (!trimmed || trimmed === '/') {
+    return '';
+  }
+
+  return trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+}
+
+function getPostHogProxyPath(): string {
+  const explicitProxyPath = process.env.POSTHOG_PROXY_PATH;
+  if (explicitProxyPath) {
+    return normalizePathPrefix(explicitProxyPath);
+  }
+
+  const publicHost = process.env.NEXT_PUBLIC_POSTHOG_HOST;
+  if (publicHost?.startsWith('/')) {
+    return normalizePathPrefix(publicHost);
+  }
+
+  return '';
+}
+
+function isPostHogProxyRequest(pathname: string, proxyPath: string): boolean {
+  if (!proxyPath) {
+    return false;
+  }
+
+  return pathname === proxyPath || pathname.startsWith(`${proxyPath}/`);
+}
+
 export default clerkMiddleware(async (auth, req) => {
+  const posthogProxyPath = getPostHogProxyPath();
+
   // Redirect /home to /
   if (req.nextUrl.pathname === '/home') {
     return NextResponse.redirect(new URL('/', req.url));
   }
 
+  if (
+    req.nextUrl.pathname.length > 1 &&
+    req.nextUrl.pathname.endsWith('/') &&
+    !isPostHogProxyRequest(req.nextUrl.pathname, posthogProxyPath)
+  ) {
+    const redirectUrl = req.nextUrl.clone();
+    redirectUrl.pathname = req.nextUrl.pathname.replace(/\/+$/, '') || '/';
+    return NextResponse.redirect(redirectUrl, 308);
+  }
+
   // Check authentication for protected routes first
-  if (!isPublicRoute(req)) {
+  if (!isPostHogProxyRequest(req.nextUrl.pathname, posthogProxyPath) && !isPublicRoute(req)) {
     const { userId } = await auth();
     if (!userId) {
       return NextResponse.redirect(new URL('/sign-in', req.url));
@@ -47,35 +94,24 @@ export default clerkMiddleware(async (auth, req) => {
     },
   });
 
-  // Get configurable domains from environment variables (with sensible defaults)
-  // These can be set via K8s ConfigMap or environment variables
-  // Note: Using regular env vars (not NEXT_PUBLIC_*) since middleware runs server-side
-  const appDomain = process.env.APP_DOMAIN || '*.sorami.aljufairi.org';
-  const cloudfrontDomain = process.env.CLOUDFRONT_DOMAIN || '*.cloudfront.net';
-  const clerkDomain = process.env.CLERK_DOMAIN || '*.clerk.accounts.dev';
-  
-    // In development, allow 'unsafe-inline' for styles to support libraries like Radix UI and React dev tools
-    // that inject styles without CSP nonce support. In production, use strict nonce-only policy.
-    const isDevEnvironment = req.nextUrl.hostname === 'localhost' || req.nextUrl.hostname === '127.0.0.1';
-    
-    const cspDirectives = [
-      "default-src 'self' https: 'unsafe-inline' 'unsafe-eval' blob:",
-      "script-src 'self' https: 'unsafe-inline' 'unsafe-eval' blob:",
-      "style-src 'self' https: 'unsafe-inline'",
-      "img-src 'self' https: data: blob:",
-      "font-src 'self' https: data:",
-      "connect-src 'self' https: ws: wss:",
-      "frame-src 'self' https: blob: data: about:",
-      "media-src 'self' https: blob: data:",
-      "object-src 'none'",
-      "base-uri 'self'",
-      "form-action 'self' https:",
-      // Note: CSP sandbox interferes with Clerk CAPTCHA/Apple PAT iframes (about:blank)
-      // and blocks script execution inside the challenge frame. Avoid sandboxing the
-      // entire document; rely on Clerk + frame-src restrictions instead.
-      "upgrade-insecure-requests",
-    ];
-  
+  const cspDirectives = [
+    "default-src 'self' https: 'unsafe-inline' 'unsafe-eval' blob:",
+    "script-src 'self' https: 'unsafe-inline' 'unsafe-eval' blob:",
+    "style-src 'self' https: 'unsafe-inline'",
+    "img-src 'self' https: data: blob:",
+    "font-src 'self' https: data:",
+    "connect-src 'self' https: ws: wss:",
+    "frame-src 'self' https: blob: data: about:",
+    "media-src 'self' https: blob: data:",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self' https:",
+    // Note: CSP sandbox interferes with Clerk CAPTCHA/Apple PAT iframes (about:blank)
+    // and blocks script execution inside the challenge frame. Avoid sandboxing the
+    // entire document; rely on Clerk + frame-src restrictions instead.
+    "upgrade-insecure-requests",
+  ];
+
   const cspHeader = cspDirectives.join('; ');
 
   // Set security headers

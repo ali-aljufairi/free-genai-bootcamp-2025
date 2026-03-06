@@ -3,6 +3,8 @@
 // https://docs.sentry.io/platforms/javascript/guides/nextjs/
 
 import * as Sentry from "@sentry/nextjs";
+import posthog from "posthog-js";
+import { POSTHOG_ENABLED, POSTHOG_HOST, POSTHOG_KEY, POSTHOG_UI_HOST } from "@/lib/posthog";
 
 Sentry.init({
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
@@ -42,6 +44,14 @@ Sentry.init({
     return event;
   },
 });
+
+if (typeof window !== "undefined" && POSTHOG_ENABLED) {
+  posthog.init(POSTHOG_KEY, {
+    api_host: POSTHOG_HOST,
+    ...(POSTHOG_UI_HOST ? { ui_host: POSTHOG_UI_HOST } : {}),
+    defaults: "2026-01-30",
+  });
+}
 
 // Export Sentry router transition hook for Next.js App Router instrumentation
 export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;

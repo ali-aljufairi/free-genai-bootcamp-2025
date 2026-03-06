@@ -73,6 +73,7 @@
     "lucide-react": "^0.552.0",
     "next": "latest",
     "next-themes": "latest",
+    "posthog-js": "^1.359.0",
     "react": "latest",
     "react-day-picker": "9.11.1",
     "react-dom": "latest",

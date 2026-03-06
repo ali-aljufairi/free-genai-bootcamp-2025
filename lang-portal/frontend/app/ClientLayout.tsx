@@ -10,6 +10,7 @@ import { ThemeProvider } from "@/components/providers/theme-provider"
 import { Toaster } from "@/components/ui/sonner"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { useEffect } from "react"
+import PostHogUserIdentity from "@/components/providers/posthog-user-identity"
 // Import the instrumentation client for Sentry
 import "../instrumentation-client"
 
@@ -44,6 +45,7 @@ export default function ClientLayout({ children, nonce }: { children: React.Reac
           defaultTheme="dark"
           disableTransitionOnChange
         >
+          <PostHogUserIdentity />
           <div className="flex flex-col min-h-screen">
             <Navbar />
             <main className="flex-1">{children}</main>
@@ -65,6 +67,7 @@ export default function ClientLayout({ children, nonce }: { children: React.Reac
           defaultTheme="dark"
           disableTransitionOnChange
         >
+          <PostHogUserIdentity />
           <main className="min-h-screen flex items-center justify-center p-4 md:p-8">
             {children}
           </main>
@@ -84,6 +87,7 @@ export default function ClientLayout({ children, nonce }: { children: React.Reac
           defaultTheme="dark"
           disableTransitionOnChange
         >
+          <PostHogUserIdentity />
           <div className="flex flex-col min-h-screen">
             <Navbar />
             <main className="flex-1">{children}</main>
@@ -104,6 +108,7 @@ export default function ClientLayout({ children, nonce }: { children: React.Reac
         defaultTheme="dark"
         disableTransitionOnChange
       >
+        <PostHogUserIdentity />
         <div className="flex min-h-screen">
           <Sidebar />
           <div className="flex-1 flex flex-col">
