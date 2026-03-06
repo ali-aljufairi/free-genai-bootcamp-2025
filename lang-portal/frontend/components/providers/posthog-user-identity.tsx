@@ -16,7 +16,9 @@ export default function PostHogUserIdentity() {
     }
 
     if (!isSignedIn || !userId) {
-      posthog.reset();
+      if (identifiedUserId.current !== null) {
+        posthog.reset();
+      }
       identifiedUserId.current = null;
       return;
     }

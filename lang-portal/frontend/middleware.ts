@@ -158,8 +158,10 @@ export default clerkMiddleware(async (auth, req) => {
     },
   });
 
+  // Third-party allowances for Clerk, PostHog, Vapi, and Daily are scoped to
+  // the specific directives below instead of default-src.
   const cspDirectives = [
-    joinDirective("default-src", "'self'", ...allowedHttpsSources, "'unsafe-inline'", "'unsafe-eval'", 'blob:'),
+    joinDirective("default-src", "'self'", ...allowedHttpsSources, 'blob:'),
     joinDirective("script-src", "'self'", `'nonce-${nonce}'`, ...allowedHttpsSources, 'blob:'),
     joinDirective("style-src", "'self'", ...allowedHttpsSources, "'unsafe-inline'"),
     joinDirective("img-src", "'self'", ...allowedHttpsSources, 'data:', 'blob:'),
