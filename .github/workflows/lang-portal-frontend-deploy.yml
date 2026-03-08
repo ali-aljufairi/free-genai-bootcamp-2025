@@ -186,6 +186,13 @@ jobs:
 
           echo "Deploying Frontend image: $FRONTEND_IMAGE"
 
+          # Single-node cluster: free capacity by terminating one old pod before
+          # creating the replacement. maxUnavailable=0 + maxSurge=1 deadlocks
+          # when both 1500m frontend replicas are already scheduled.
+          kubectl patch deployment lang-portal-frontend -n sorami \
+            --type='merge' \
+            -p='{"spec":{"strategy":{"type":"RollingUpdate","rollingUpdate":{"maxSurge":0,"maxUnavailable":1}}}}'
+
           # Update deployment with new image (this triggers a new pull)
           kubectl set image deployment/lang-portal-frontend \
             lang-portal-frontend=$FRONTEND_IMAGE \
@@ -196,8 +203,9 @@ jobs:
             deployment.kubernetes.io/revision-time="$(date +%s)" \
             -n sorami --overwrite || true
 
-          # Force rollout restart to ensure pods are replaced one by one
-          echo "Forcing rollout restart for Frontend deployment (one-by-one)..."
+          # Force rollout restart to ensure pods are replaced one at a time
+          # without requiring extra node capacity for a surge pod.
+          echo "Forcing rollout restart for Frontend deployment (single-node-safe rolling update)..."
           kubectl rollout restart deployment/lang-portal-frontend -n sorami
 
           # Ensure imagePullPolicy is Always to force pull of latest images
@@ -207,7 +215,7 @@ jobs:
 
       - name: Wait for Frontend rollout
         run: |
-          echo "Waiting for Frontend deployment rollout (one-by-one)..."
+          echo "Waiting for Frontend deployment rollout (single-node-safe rolling update)..."
           # Increased timeout to 15 minutes for startup probe to complete
           kubectl rollout status deployment/lang-portal-frontend -n sorami --timeout=900s || {
             echo "\n=== Rollout Status Debug Info ==="
@@ -244,7 +252,7 @@ jobs:
             echo "ERROR: Not all Frontend pods are running!"
             exit 1
           fi
-          echo "Frontend deployment successful (one-by-one rollout completed)"
+          echo "Frontend deployment successful (single-node-safe rolling update completed)"
           echo ""
           echo "=== Recent Events ==="
           kubectl get events -n sorami --sort-by='.lastTimestamp' | tail -15
@@ -253,7 +261,7 @@ jobs:
         run: |
           echo "## Frontend Deployment Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Successfully deployed Frontend to Kubernetes cluster via Tailscale (one-by-one rollout)" >> $GITHUB_STEP_SUMMARY
+          echo "Successfully deployed Frontend to Kubernetes cluster via Tailscale (single-node-safe rolling update)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Image Deployed" >> $GITHUB_STEP_SUMMARY
           echo "- **Frontend**: \`${{ env.REGISTRY }}/${{ env.OWNER }}/lang-portal-frontend:${{ env.IMAGE_TAG }}\`" >> $GITHUB_STEP_SUMMARY
