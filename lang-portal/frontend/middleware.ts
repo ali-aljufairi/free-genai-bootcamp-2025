@@ -162,7 +162,9 @@ export default clerkMiddleware(async (auth, req) => {
   // the specific directives below instead of default-src.
   const cspDirectives = [
     joinDirective("default-src", "'self'", ...allowedHttpsSources, 'blob:'),
-    joinDirective("script-src", "'self'", `'nonce-${nonce}'`, ...allowedHttpsSources, 'blob:'),
+    // 'unsafe-eval' is required by Daily.co's call-machine bundle which uses eval() internally.
+    // See: https://docs.daily.co/reference/daily-js/content-security-policy
+    joinDirective("script-src", "'self'", `'nonce-${nonce}'`, "'unsafe-eval'", ...allowedHttpsSources, 'blob:'),
     joinDirective("style-src", "'self'", ...allowedHttpsSources, "'unsafe-inline'"),
     joinDirective("img-src", "'self'", ...allowedHttpsSources, 'data:', 'blob:'),
     joinDirective("font-src", "'self'", ...allowedHttpsSources, 'data:'),
