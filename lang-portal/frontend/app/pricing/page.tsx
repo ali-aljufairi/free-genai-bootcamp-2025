@@ -136,6 +136,7 @@ export default function PricingPage() {
                             <Link href="/privacy" className="text-blue-600 dark:text-blue-400 hover:underline">
                                 Privacy Policy
                             </Link>
+                            {!hasPaidPlan && " If you subscribe during the free trial, you will not be charged until the free trial period ends."}
                             .
                         </p>
                     </div>
