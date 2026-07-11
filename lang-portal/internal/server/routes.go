@@ -8,8 +8,9 @@ import (
 	"lang-portal/internal/handlers/flashcard"
 	"lang-portal/internal/handlers/grammar"
 	"lang-portal/internal/handlers/group"
-	"lang-portal/internal/handlers/reading"
+	"lang-portal/internal/handlers/jellyfin"
 	"lang-portal/internal/handlers/kanji"
+	"lang-portal/internal/handlers/reading"
 	"lang-portal/internal/handlers/session"
 	"lang-portal/internal/handlers/speech"
 	"lang-portal/internal/handlers/subscription"
@@ -24,11 +25,24 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
+	"gorm.io/gorm"
 )
+
+func registerJellyfinRoutes(app *fiber.App, db *gorm.DB, serviceToken string) {
+	store := repositories.NewJellyfinDictionaryStore(db)
+	handler := jellyfin.NewHandler(store, services.NewJapaneseTokenizer())
+	api := app.Group("/api/internal/jellyfin", ServiceTokenMiddleware(serviceToken))
+	api.Post("/dictionary/analyze", handler.Analyze)
+}
 
 func (s *FiberServer) RegisterFiberRoutes() {
 	// Apply Sentry middleware first
 	s.App.Use(SentryMiddleware())
+
+	// Jellyfin integration routes deliberately use bearer service authentication,
+	// not Clerk. Register before global CORS so browser-originated requests fail
+	// closed without CORS headers; the bearer token remains the security boundary.
+	registerJellyfinRoutes(s.App, s.postgresDB, serviceTokenFromEnvironment())
 
 	// Apply CORS middleware
 	s.App.Use(cors.New(cors.Config{
