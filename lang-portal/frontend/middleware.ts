@@ -179,6 +179,7 @@ export default clerkMiddleware(async (auth, req) => {
       strict: true,
       directives: {
         'script-src': uniqueSources([
+          'https://metrics.aljufairi.org',
           'https://challenges.cloudflare.com',
           ...allowedHttpsSources,
           'blob:',
@@ -187,6 +188,7 @@ export default clerkMiddleware(async (auth, req) => {
         'img-src': uniqueSources([...allowedHttpsSources, 'data:', 'blob:']),
         'font-src': uniqueSources([...allowedHttpsSources, 'data:']),
         'connect-src': uniqueSources([
+          'https://metrics.aljufairi.org',
           ...connectHttpsSources,
           ...allowedWssSources,
           ...devHttpSources,
