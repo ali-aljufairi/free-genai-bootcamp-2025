@@ -137,10 +137,23 @@ jobs:
           echo "Tailscale IP:"
           tailscale ip -4
 
-      - name: Set up kubectl
-        uses: azure/setup-kubectl@v4
-        with:
-          version: "latest"
+      - name: Install checksum-verified kubectl
+        # Match the cluster's minor version; do not fall back to obsolete v1.15.0
+        # when the setup action cannot reach its deprecated stable.txt endpoint.
+        env:
+          KUBECTL_VERSION: v1.33.6
+        run: |
+          set -euo pipefail
+          bin_dir="$RUNNER_TEMP/analytics-kubectl"
+          mkdir -p "$bin_dir"
+          cd "$bin_dir"
+          base="https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64"
+          curl --fail --show-error --location --retry 3 --connect-timeout 15 --max-time 120 "$base/kubectl" -o kubectl
+          curl --fail --show-error --location --retry 3 --connect-timeout 15 --max-time 120 "$base/kubectl.sha256" -o kubectl.sha256
+          printf '%s  kubectl\n' "$(tr -d '\r\n' < kubectl.sha256)" | sha256sum --check
+          chmod 0755 kubectl
+          ./kubectl version --client=true --output=json
+          printf '%s\n' "$bin_dir" >> "$GITHUB_PATH"
 
       - name: Configure kubectl for K3s via Tailscale
         run: |
