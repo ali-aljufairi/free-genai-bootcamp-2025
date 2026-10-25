@@ -122,21 +122,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Connect to Tailscale
-        uses: tailscale/github-action@v4
-        with:
-          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
-          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
-          tags: tag:ci
-
-      - name: Verify Tailscale connection
-        run: |
-          echo "Tailscale status:"
-          tailscale status
-          echo ""
-          echo "Tailscale IP:"
-          tailscale ip -4
-
       - name: Install checksum-verified kubectl
         # Match the cluster's minor version; do not fall back to obsolete v1.15.0
         # when the setup action cannot reach its deprecated stable.txt endpoint.
@@ -154,6 +139,21 @@ jobs:
           chmod 0755 kubectl
           ./kubectl version --client=true --output=json
           printf '%s\n' "$bin_dir" >> "$GITHUB_PATH"
+
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
+
+      - name: Verify Tailscale connection
+        run: |
+          echo "Tailscale status:"
+          tailscale status
+          echo ""
+          echo "Tailscale IP:"
+          tailscale ip -4
 
       - name: Configure kubectl for K3s via Tailscale
         run: |
