@@ -48,12 +48,12 @@ ENV NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=$NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL
 ENV SENTRY_RELEASE=$SENTRY_RELEASE
 
 # Install pnpm globally
-RUN npm install -g pnpm
+RUN npm install -g pnpm@10.19.0
 
 WORKDIR $APP_HOME
 
 # Copy package files
-COPY package*.json ./
+COPY package*.json pnpm-workspace.yaml ./
 
 # Install dependencies
 RUN pnpm install
@@ -89,7 +89,7 @@ ENV POSTHOG_PROXY_TARGET=$POSTHOG_PROXY_TARGET
 ENV POSTHOG_PROXY_ASSETS_HOST=$POSTHOG_PROXY_ASSETS_HOST
 
 # Install pnpm globally
-RUN npm install -g pnpm
+RUN npm install -g pnpm@10.19.0
 
 WORKDIR $APP_HOME
 
