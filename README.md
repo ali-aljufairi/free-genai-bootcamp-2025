@@ -1,5 +1,9 @@
 # Sorami
 
+Live site: https://sorami.aljufairi.org
+
+Public landing-page analytics is installed in `lang-portal/frontend/app/layout.tsx`, restricted to `/` and `/pricing` via `data-paths`. Authenticated study pages and sign-in/up flows are not tracked by this integration. `middleware.ts` permits only the collector origin for scripts/connections. The collector `https://metrics.aljufairi.org/script.js` uses a public website ID, origin/path and origin-only referrers; no queries, fragments, titles, cookies/storage or replay. Do Not Track is respected. This does not change any pre-existing PostHog/Sentry integrations. Private analytics: https://sin.koi-procyon.ts.net:9443 (Tailscale and app login).
+
 Sorami is a Japanese learning platform focused on turning study into a connected daily practice loop instead of a collection of isolated tools. The project combines structured language data, progress tracking, and AI-assisted study features in one system.
 
 At the center of the platform is `lang-portal`, the main web app where learners study vocabulary, kanji, groups, and review progress. Around it are smaller services that add specialized experiences such as handwriting feedback, assisted planning, and vocabulary import.

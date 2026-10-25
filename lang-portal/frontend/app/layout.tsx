@@ -1,6 +1,7 @@
 import type React from "react";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
+import Script from "next/script";
 import { Inter } from "next/font/google";
 import "@/styles/globals.css";
 import { ClerkProvider } from "@clerk/nextjs";
@@ -129,6 +130,7 @@ export default async function RootLayout({
           style={{ colorScheme: "dark" }}
         >
           <ClientLayout nonce={cspNonce}>{children}</ClientLayout>
+          <Script nonce={cspNonce} src="https://metrics.aljufairi.org/script.js" data-website-id="ecc56baf-e000-4052-a434-f179dac587dc" data-paths="/,/pricing" strategy="afterInteractive" />
         </body>
       </html>
     </ClerkProvider>
