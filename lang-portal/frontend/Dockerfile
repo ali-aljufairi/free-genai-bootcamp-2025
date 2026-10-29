@@ -52,11 +52,11 @@ RUN npm install -g pnpm@10.19.0
 
 WORKDIR $APP_HOME
 
-# Copy package files
-COPY package*.json pnpm-workspace.yaml ./
+# Copy the pnpm manifest and lockfile used by the production image.
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 
-# Install dependencies
-RUN pnpm install
+# Install exactly the reviewed dependency graph.
+RUN pnpm install --frozen-lockfile
 
 # Copy source files
 COPY . .
