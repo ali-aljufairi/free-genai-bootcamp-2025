@@ -1,0 +1,52 @@
+name: Sorami frontend regression checks
+
+on:
+  pull_request:
+    paths:
+      - "lang-portal/frontend/**"
+      - ".github/workflows/**"
+      - ".github/dependabot.yml"
+      - ".github/workflows/sorami-frontend-ci.yml"
+  push:
+    branches: [main]
+    paths:
+      - "lang-portal/frontend/**"
+      - ".github/workflows/**"
+      - ".github/dependabot.yml"
+      - ".github/workflows/sorami-frontend-ci.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sorami-frontend-ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: lang-portal/frontend
+    env:
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_Y2xlcmsuZXhhbXBsZS5jb20k
+      NEXT_PUBLIC_APP_URL: http://127.0.0.1:3000
+      NEXT_PUBLIC_VAPI_PUBLIC_KEY: test-placeholder
+      NEXT_PUBLIC_POSTHOG_KEY: ""
+      NEXT_PUBLIC_SENTRY_DSN: ""
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: lang-portal/frontend/pnpm-lock.yaml
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 10.19.0
+          run_install: false
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm build
+      - run: docker build --tag sorami-frontend-test .
