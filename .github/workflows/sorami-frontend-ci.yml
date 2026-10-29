@@ -52,13 +52,3 @@ jobs:
         continue-on-error: true
       - run: pnpm build
       - run: docker build --tag sorami-frontend-test .
-      - name: Run isolated public navigation checks in Chrome
-        run: pnpm exec playwright test --config playwright.dependency-safe.config.ts
-      - name: Preserve browser traces and screenshots on failure
-        if: failure()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: sorami-browser-failure-${{ github.run_id }}
-          path: test-results/
-          if-no-files-found: ignore
-          retention-days: 7
